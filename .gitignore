@@ -1,0 +1,10 @@
+# Build outputs
+bin/
+obj/
+tests/**/output/
+
+# IDE files
+.vs/
+*.rsuser
+*.suo
+*.user
