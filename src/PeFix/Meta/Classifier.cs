@@ -1,0 +1,206 @@
+namespace PeFix.Meta;
+
+internal static class Classifier
+{
+    public static Inspection Classify(PeSnapshot snapshot)
+    {
+        if (!snapshot.ValidPe)
+        {
+            return CreateBad(snapshot.Path, "This file is not a valid PE file or is corrupted.");
+        }
+
+        if (!snapshot.HasCliHeader)
+        {
+            return CreateNative(snapshot);
+        }
+
+        if (snapshot.Signals.IsRefAsm)
+        {
+            return CreateRefAsm(snapshot);
+        }
+
+        if (snapshot.Signals.IsMixedMode)
+        {
+            return CreateMixed(snapshot);
+        }
+
+        if (IsCompatible(snapshot))
+        {
+            return CreateCompat(snapshot);
+        }
+
+        return CreateFix(snapshot);
+    }
+
+    public static Inspection CreateBad(string path, string cause)
+    {
+        return new Inspection(
+            path,
+            false,
+            false,
+            null,
+            null,
+            default,
+            default,
+            null,
+            Status.Corrupt,
+            cause,
+            [],
+            [],
+            ["This file is not a valid PE file or is corrupted. Verify the download or obtain a fresh copy."]);
+    }
+
+    private static Inspection CreateNative(PeSnapshot snapshot)
+    {
+        return new Inspection(
+            snapshot.Path,
+            true,
+            false,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.NonRewritableBinary,
+            Status.Unsafe,
+            "This PE file does not contain a CLI header.",
+            [],
+            [],
+            ["This is not a .NET assembly. It is a native executable or DLL. PE header rewriting does not apply."]);
+    }
+
+    private static Inspection CreateRefAsm(PeSnapshot snapshot)
+    {
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.ReferenceAssemblyMisuse,
+            Status.Unsafe,
+            "Reference assembly, not a runtime assembly.",
+            [],
+            [],
+            ["Reference assembly cannot be executed. Use the runtime assembly from bin/ instead of the ref/ folder."]);
+    }
+
+    private static Inspection CreateMixed(PeSnapshot snapshot)
+    {
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.NonRewritableBinary,
+            Status.Unsafe,
+            "This assembly contains native code because ILOnly is false.",
+            [],
+            [],
+            ["This assembly contains native code and cannot be rewritten. It must be recompiled for the target platform from source."]);
+    }
+
+    private static Inspection CreateCompat(PeSnapshot snapshot)
+    {
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.ManagedPePortability,
+            Status.Compatible,
+            "This assembly already uses a portable IL-only AnyCPU header.",
+            [],
+            [],
+            ["No action needed. This assembly is already portable."]);
+    }
+
+    private static Inspection CreateFix(PeSnapshot snapshot)
+    {
+        var status = GetStatus(snapshot);
+        var warnings = GetWarnings(snapshot);
+        var nextStep = GetFixableNextStep(snapshot, status);
+
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.ManagedPePortability,
+            status,
+            "This assembly uses a platform-specific managed PE header.",
+            GetRuntimeRisks(snapshot),
+            warnings,
+            [nextStep]);
+    }
+
+    private static bool IsCompatible(PeSnapshot snapshot)
+    {
+        return snapshot.CliFlags.IlOnly
+            && snapshot.PeFormat == "PE32"
+            && snapshot.Machine == "I386"
+            && !snapshot.CliFlags.Required32Bit;
+    }
+
+    private static Status GetStatus(PeSnapshot snapshot)
+    {
+        return snapshot.Signals.StrongName || snapshot.Signals.HasPInvoke
+            ? Status.FixableWithWarnings
+            : Status.Fixable;
+    }
+
+    private static string[] GetRuntimeRisks(PeSnapshot snapshot)
+    {
+        return snapshot.Signals.HasPInvoke
+            ? ["Native dependencies may still fail on the target platform."]
+            : [];
+    }
+
+    private static string[] GetWarnings(PeSnapshot snapshot)
+    {
+        if (snapshot.Signals.StrongName && snapshot.Signals.HasPInvoke)
+        {
+            return
+            [
+                "The strong name signature will be invalidated by patching.",
+                "Native dependencies may still fail on the target platform."
+            ];
+        }
+
+        if (snapshot.Signals.StrongName)
+        {
+            return ["The strong name signature will be invalidated by patching."];
+        }
+
+        if (snapshot.Signals.HasPInvoke)
+        {
+            return ["Native dependencies may still fail on the target platform."];
+        }
+
+        return [];
+    }
+
+    private static string GetFixableNextStep(PeSnapshot snapshot, Status status)
+    {
+        var fileName = Path.GetFileName(snapshot.Path);
+        return status switch
+        {
+            Status.Fixable => $"Run: pefix fix {fileName}",
+            Status.FixableWithWarnings when snapshot.Signals.StrongName =>
+                $"Run: pefix fix --force {fileName}. Warning: the strong name signature will be invalidated. You may need to re-sign the assembly.",
+            Status.FixableWithWarnings =>
+                $"Run: pefix fix --force {fileName}. Warning: native dependencies (P/Invoke) may still fail on the target platform.",
+            _ => "No action available."
+        };
+    }
+}
