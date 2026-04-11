@@ -1,6 +1,6 @@
+using System.Text.Json;
 using PeFix.Meta;
 using PeFix.Patch;
-using System.Text.Json;
 
 namespace PeFix.Cli;
 
@@ -13,7 +13,7 @@ internal static class JsonWriter
 
     public static string Render(Inspection[] results)
     {
-        var models = results.Select(MapInspect).ToArray();
+        InspectJson[] models = results.Select(MapInspect).ToArray();
         return JsonSerializer.Serialize(models, JsonContext.Default.InspectJsonArray);
     }
 
@@ -60,12 +60,18 @@ internal static class JsonWriter
 
     private static FixJson CreateFix(PatchResult result)
     {
-        var resultText = result.DryRun ? "Dry run only"
-            : result.WasPatched ? $"Patched {Path.GetFileName(result.Path)}"
-            : "No changes were needed";
-        var verifyText = result.DryRun ? "Skipped because no file was modified."
-            : !result.WasPatched ? "Skipped because the assembly was already compatible."
-            : "Re-inspection passed. Assembly manifest was validated.";
+        string resultText = (result.DryRun, result.WasPatched) switch
+        {
+            (true, _) => "Dry run only",
+            (false, true) => $"Patched {Path.GetFileName(result.Path)}",
+            _ => "No changes were needed"
+        };
+        string verifyText = (result.DryRun, result.WasPatched) switch
+        {
+            (true, _) => "Skipped because no file was modified.",
+            (false, false) => "Skipped because the assembly was already compatible.",
+            _ => "Re-inspection passed. Assembly manifest was validated."
+        };
         return new FixJson(
             result.Path,
             result.BackupPath,

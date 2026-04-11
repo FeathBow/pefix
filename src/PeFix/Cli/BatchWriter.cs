@@ -20,13 +20,13 @@ internal static class BatchWriter
 
     private static string Summary(BatchResult result)
     {
-        var totalCount = result.Results.Length + result.Refusals.Length;
+        int totalCount = result.Results.Length + result.Refusals.Length;
         if (totalCount == 0)
         {
             return "No .dll or .exe files were found.";
         }
 
-        var parts = new[]
+        string[] parts = new[]
         {
             $"Patched {result.Results.Count(item => item.WasPatched)}",
             $"unchanged {result.Results.Count(item => !item.WasPatched && !item.DryRun)}",
@@ -65,7 +65,7 @@ internal static class BatchWriter
 
         writer.WriteLine();
         writer.WriteLine($"  {title}:");
-        foreach (var entry in entries)
+        foreach (string entry in entries)
         {
             writer.WriteLine($"    - {entry}");
         }

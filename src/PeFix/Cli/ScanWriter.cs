@@ -29,15 +29,15 @@ internal static class ScanWriter
             return;
         }
 
-        foreach (var group in report.Results
-                     .GroupBy(result => Labels.CatText(result.Category))
+        foreach (IGrouping<string, Inspection>? group in report.Results
+                     .GroupBy(result => Labels.CatText(result.Category), StringComparer.Ordinal)
                      .OrderBy(group => group.Key, StringComparer.Ordinal))
         {
             writer.WriteLine();
             writer.WriteLine($"  Group: {group.Key}");
-            foreach (var result in group.OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase))
+            foreach (Inspection result in group.OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase))
             {
-                var relativePath = Path.GetRelativePath(report.Directory, result.Path);
+                string relativePath = Path.GetRelativePath(report.Directory, result.Path);
                 writer.WriteLine($"    - {relativePath} [{Labels.StatusText(result.Status)}]");
             }
         }

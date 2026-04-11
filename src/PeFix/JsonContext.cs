@@ -1,5 +1,5 @@
-using PeFix.Cli;
 using System.Text.Json.Serialization;
+using PeFix.Cli;
 
 namespace PeFix;
 
@@ -12,6 +12,6 @@ namespace PeFix;
 [JsonSerializable(typeof(BatchSummary))]
 [JsonSerializable(typeof(BatchFixJson))]
 [JsonSourceGenerationOptions(WriteIndented = true, NewLine = "\n")]
-internal partial class JsonContext : JsonSerializerContext
+internal sealed partial class JsonContext : JsonSerializerContext
 {
 }
