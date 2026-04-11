@@ -9,7 +9,7 @@ internal static class Scan
         var command = new Command("scan", "Scan a directory for portability issues.");
         command.Arguments.Add(new Argument<string>("path")
         {
-            Description = "Directory path."
+            Description = "Directory containing assemblies to inspect."
         });
         command.SetAction(_ =>
         {
