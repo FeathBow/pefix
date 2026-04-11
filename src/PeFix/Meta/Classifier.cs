@@ -124,9 +124,9 @@ internal static class Classifier
 
     private static Inspection CreateFix(PeSnapshot snapshot)
     {
-        var status = GetStatus(snapshot);
-        var warnings = GetWarnings(snapshot);
-        var nextStep = GetFixableNextStep(snapshot, status);
+        Status status = GetStatus(snapshot);
+        string[] warnings = GetWarnings(snapshot);
+        string nextStep = GetFixableNextStep(snapshot, status);
 
         return new Inspection(
             snapshot.Path,
@@ -147,8 +147,8 @@ internal static class Classifier
     private static bool IsCompatible(PeSnapshot snapshot)
     {
         return snapshot.CliFlags.IlOnly
-            && snapshot.PeFormat == "PE32"
-            && snapshot.Machine == "I386"
+            && string.Equals(snapshot.PeFormat, "PE32", StringComparison.Ordinal)
+            && string.Equals(snapshot.Machine, "I386", StringComparison.Ordinal)
             && !snapshot.CliFlags.Required32Bit;
     }
 
@@ -192,7 +192,7 @@ internal static class Classifier
 
     private static string GetFixableNextStep(PeSnapshot snapshot, Status status)
     {
-        var fileName = Path.GetFileName(snapshot.Path);
+        string fileName = Path.GetFileName(snapshot.Path);
         return status switch
         {
             Status.Fixable => $"Run: pefix fix {fileName}",
