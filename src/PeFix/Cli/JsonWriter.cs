@@ -1,4 +1,5 @@
 using PeFix.Meta;
+using PeFix.Patch;
 using System.Text.Json;
 
 namespace PeFix.Cli;
@@ -7,16 +8,31 @@ internal static class JsonWriter
 {
     public static string Render(Inspection result)
     {
-        return JsonSerializer.Serialize(CreateModel(result), JsonContext.Default.InspectJson);
+        return JsonSerializer.Serialize(MapInspect(result), JsonContext.Default.InspectJson);
     }
 
     public static string Render(Inspection[] results)
     {
-        var models = results.Select(CreateModel).ToArray();
+        var models = results.Select(MapInspect).ToArray();
         return JsonSerializer.Serialize(models, JsonContext.Default.InspectJsonArray);
     }
 
-    private static InspectJson CreateModel(Inspection result)
+    public static string Render(PatchResult result)
+    {
+        return JsonSerializer.Serialize(CreateFix(result), JsonContext.Default.FixJson);
+    }
+
+    public static string Render(Refusal refusal)
+    {
+        return JsonSerializer.Serialize(MapRefusal(refusal), JsonContext.Default.RefusalJson);
+    }
+
+    public static string Render(BatchResult result)
+    {
+        return JsonSerializer.Serialize(CreateBatch(result), JsonContext.Default.BatchFixJson);
+    }
+
+    private static InspectJson MapInspect(Inspection result)
     {
         return new InspectJson(
             result.Path,
@@ -40,5 +56,47 @@ internal static class JsonWriter
             result.RuntimeRisks,
             result.Warnings,
             result.NextSteps);
+    }
+
+    private static FixJson CreateFix(PatchResult result)
+    {
+        var resultText = result.DryRun ? "Dry run only"
+            : result.WasPatched ? $"Patched {Path.GetFileName(result.Path)}"
+            : "No changes were needed";
+        var verifyText = result.DryRun ? "Skipped because no file was modified."
+            : !result.WasPatched ? "Skipped because the assembly was already compatible."
+            : "Re-inspection passed. Assembly manifest was validated.";
+        return new FixJson(
+            result.Path,
+            result.BackupPath,
+            result.WasPatched,
+            result.DryRun,
+            resultText,
+            verifyText,
+            MapInspect(result.Before),
+            MapInspect(result.After));
+    }
+
+    private static RefusalJson MapRefusal(Refusal refusal)
+    {
+        return new RefusalJson(
+            refusal.Path,
+            refusal.Reason,
+            MapInspect(refusal.Before));
+    }
+
+    private static BatchFixJson CreateBatch(BatchResult result)
+    {
+        var summary = new BatchSummary(
+            result.Results.Length + result.Refusals.Length,
+            result.Results.Count(r => r.WasPatched),
+            result.Results.Count(r => !r.WasPatched && !r.DryRun),
+            result.Results.Count(r => r.DryRun),
+            result.Refusals.Length);
+        return new BatchFixJson(
+            result.Directory,
+            summary,
+            result.Results.Select(CreateFix).ToArray(),
+            result.Refusals.Select(MapRefusal).ToArray());
     }
 }
