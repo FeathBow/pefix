@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <AnalysisMode>None</AnalysisMode>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>
