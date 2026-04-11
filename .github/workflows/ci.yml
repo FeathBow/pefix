@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Verify SDK
+        shell: bash
+        run: |
+          dotnet --version
+          dotnet --list-sdks
+
+      - name: Build
+        shell: bash
+        run: dotnet build "pefix.sln" -m:1
+
+      - name: Test
+        shell: bash
+        run: dotnet test "tests/PeFix.Tests.csproj" --no-build --logger "trx"
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results-${{ matrix.os }}
+          path: "**/*.trx"
+
+  publish:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-latest
+            rid: osx-arm64
+          - os: windows-latest
+            rid: win-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Publish
+        shell: bash
+        run: dotnet publish "src/PeFix/PeFix.csproj" -c Release -r "${{ matrix.rid }}" --output "artifacts/${{ matrix.rid }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pefix-${{ matrix.rid }}
+          path: artifacts/${{ matrix.rid }}
