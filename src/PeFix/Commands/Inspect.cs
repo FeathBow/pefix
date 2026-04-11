@@ -1,6 +1,6 @@
+using System.CommandLine;
 using PeFix.Cli;
 using PeFix.Meta;
-using System.CommandLine;
 
 namespace PeFix.Commands;
 

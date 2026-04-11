@@ -1,7 +1,7 @@
+using System.CommandLine;
 using PeFix.Cli;
 using PeFix.Meta;
 using PeFix.Patch;
-using System.CommandLine;
 
 namespace PeFix.Commands;
 
@@ -24,8 +24,8 @@ internal static class Fix
 
         command.SetAction(parseResult =>
         {
-            var path = parseResult.GetValue(pathArg)!;
-            var json = parseResult.GetValue(jsonOpt);
+            string path = parseResult.GetValue(pathArg)!;
+            bool json = parseResult.GetValue(jsonOpt);
             var options = new PatchOptions(
                 Backup: !parseResult.GetValue(noBackupOpt),
                 DryRun: parseResult.GetValue(dryRunOpt),
@@ -43,7 +43,7 @@ internal static class Fix
     {
         try
         {
-            var result = Patcher.Fix(path, options);
+            PatchResult result = Patcher.Fix(path, options);
             Console.WriteLine(json ? JsonWriter.Render(result) : FixWriter.Render(result));
             return result.WasPatched ? 2 : 0;
         }
@@ -51,7 +51,7 @@ internal static class Fix
         {
             if (json)
             {
-                var before = PeAnalyzer.Inspect(path);
+                Inspection before = PeAnalyzer.Inspect(path);
                 Console.WriteLine(JsonWriter.Render(new Refusal(path, ex.Message, before)));
             }
             else
@@ -65,7 +65,7 @@ internal static class Fix
 
     private static int RunDirectory(string path, PatchOptions options, bool json)
     {
-        var result = BatchPatcher.Fix(path, options);
+        BatchResult result = BatchPatcher.Fix(path, options);
         Console.WriteLine(json ? JsonWriter.Render(result) : BatchWriter.Render(result));
 
         if (result.Results.Any(r => r.WasPatched))

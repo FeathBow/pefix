@@ -1,6 +1,6 @@
+using System.CommandLine;
 using PeFix.Cli;
 using PeFix.Meta;
-using System.CommandLine;
 
 namespace PeFix.Commands;
 
@@ -19,11 +19,11 @@ internal static class Scan
 
         command.SetAction(parseResult =>
         {
-            var path = parseResult.GetValue(pathArg)!;
-            var json = parseResult.GetValue(jsonOpt);
-            var failOnFixable = parseResult.GetValue(failOnFixableOpt);
+            string path = parseResult.GetValue(pathArg)!;
+            bool json = parseResult.GetValue(jsonOpt);
+            bool failOnFixable = parseResult.GetValue(failOnFixableOpt);
 
-            var report = Scanner.Scan(path);
+            ScanReport report = Scanner.Scan(path);
             Console.WriteLine(json ? JsonWriter.Render(report.Results) : ScanWriter.Render(report));
             return failOnFixable && Scanner.HasFixable(report) ? 1 : 0;
         });
