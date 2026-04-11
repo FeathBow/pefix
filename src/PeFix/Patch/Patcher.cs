@@ -6,8 +6,8 @@ public static class Patcher
 {
     public static PatchResult Fix(string path, PatchOptions options)
     {
-        var fullPath = Path.GetFullPath(path);
-        var before = PeAnalyzer.Inspect(fullPath);
+        string fullPath = Path.GetFullPath(path);
+        Inspection before = PeAnalyzer.Inspect(fullPath);
         CheckSafe(before, options.Force);
         if (before.Status == Status.Compatible)
         {
@@ -19,9 +19,9 @@ public static class Patcher
             return new PatchResult(fullPath, null, before, before, false, true);
         }
 
-        var backupPath = options.Backup ? CreateBackup(fullPath) : null;
+        string? backupPath = options.Backup ? CreateBackup(fullPath) : null;
         HdrPatcher.Patch(fullPath);
-        var after = PeAnalyzer.Inspect(fullPath);
+        Inspection after = PeAnalyzer.Inspect(fullPath);
         CheckPatch(after, fullPath);
         Validator.Validate(fullPath);
         return new PatchResult(fullPath, backupPath, before, after, true, false);
@@ -54,7 +54,7 @@ public static class Patcher
 
     private static string? CreateBackup(string path)
     {
-        var backupPath = path + ".bak";
+        string backupPath = path + ".bak";
         File.Copy(path, backupPath, overwrite: true);
         return backupPath;
     }

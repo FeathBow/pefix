@@ -6,11 +6,11 @@ public static class BatchPatcher
 {
     public static BatchResult Fix(string path, PatchOptions options)
     {
-        var report = Scanner.Scan(path);
+        ScanReport report = Scanner.Scan(path);
         var results = new List<PatchResult>(report.Results.Length);
         var refusals = new List<Refusal>();
 
-        foreach (var inspection in report.Results)
+        foreach (Inspection inspection in report.Results)
         {
             try
             {

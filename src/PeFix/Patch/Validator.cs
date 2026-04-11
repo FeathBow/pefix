@@ -6,7 +6,7 @@ internal static class Validator
 {
     public static void Validate(string path)
     {
-        var fullPath = Path.GetFullPath(path);
+        string fullPath = Path.GetFullPath(path);
         try
         {
             _ = AssemblyName.GetAssemblyName(fullPath);

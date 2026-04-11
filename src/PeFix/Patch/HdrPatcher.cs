@@ -25,11 +25,11 @@ internal static class HdrPatcher
 
     public static void Patch(string path)
     {
-        var bytes = File.ReadAllBytes(path);
+        byte[] bytes = File.ReadAllBytes(path);
         using var stream = new MemoryStream(bytes, writable: true);
         using var reader = new PEReader(stream, PEStreamOptions.LeaveOpen);
-        var headers = reader.PEHeaders;
-        var peHeader = headers.PEHeader ?? throw new InvalidOperationException("The PE header is missing.");
+        PEHeaders headers = reader.PEHeaders;
+        PEHeader peHeader = headers.PEHeader ?? throw new InvalidOperationException("The PE header is missing.");
         CheckSupport(headers, peHeader);
         RewriteHdr(bytes, headers, FindBod(bytes, headers, peHeader.BaseOfCode));
         NormCorFlags(bytes, headers);
@@ -51,31 +51,31 @@ internal static class HdrPatcher
 
     private static void RewriteHdr(byte[] bytes, PEHeaders headers, uint baseOfData)
     {
-        var optStart = headers.PEHeaderStartOffset;
-        var coffStart = optStart - CoffHdrSize;
+        int optStart = headers.PEHeaderStartOffset;
+        int coffStart = optStart - CoffHdrSize;
         WriteUInt16(bytes, coffStart + MachOff, I386Machine);
         WriteUInt16(bytes, coffStart + OptSizeOff, Pe32OptSize);
         PatchChars(bytes, coffStart + CharsOff);
-        WriteOptHdr(bytes, headers, optStart, baseOfData);
+        WriteOptHdr(bytes, optStart, baseOfData);
         ShiftSects(bytes, headers, optStart);
     }
 
     private static void PatchChars(byte[] bytes, int offset)
     {
-        var characteristics = ReadUInt16(bytes, offset);
+        ushort characteristics = ReadUInt16(bytes, offset);
         characteristics = (ushort)((characteristics | Img32BitMach) & ~BigAddrAware);
         WriteUInt16(bytes, offset, characteristics);
     }
 
-    private static void WriteOptHdr(byte[] bytes, PEHeaders headers, int offset, uint baseOfData)
+    private static void WriteOptHdr(byte[] bytes, int offset, uint baseOfData)
     {
-        var header = BuildPe32Opt(bytes, headers, offset, baseOfData);
+        byte[] header = BuildPe32Opt(bytes, offset, baseOfData);
         header.CopyTo(bytes.AsSpan(offset, header.Length));
     }
 
-    private static byte[] BuildPe32Opt(byte[] bytes, PEHeaders headers, int offset, uint baseOfData)
+    private static byte[] BuildPe32Opt(byte[] bytes, int offset, uint baseOfData)
     {
-        var header = new byte[Pe32OptSize];
+        byte[] header = new byte[Pe32OptSize];
         bytes.AsSpan(offset, 24).CopyTo(header);
         WriteUInt16(header, 0, Pe32Magic);
         WriteUInt32(header, 24, baseOfData);
@@ -93,37 +93,37 @@ internal static class HdrPatcher
 
     private static void ShiftSects(byte[] bytes, PEHeaders headers, int optStart)
     {
-        var oldOptSize = headers.CoffHeader.SizeOfOptionalHeader;
+        short oldOptSize = headers.CoffHeader.SizeOfOptionalHeader;
         if (oldOptSize == Pe32OptSize)
         {
             return;
         }
 
-        var oldStart = optStart + oldOptSize;
-        var newStart = optStart + Pe32OptSize;
-        var tableLen = headers.CoffHeader.NumberOfSections * SectHdrSize;
+        int oldStart = optStart + oldOptSize;
+        int newStart = optStart + Pe32OptSize;
+        int tableLen = headers.CoffHeader.NumberOfSections * SectHdrSize;
         Array.Copy(bytes, oldStart, bytes, newStart, tableLen);
         bytes.AsSpan(newStart + tableLen, oldStart - newStart).Clear();
     }
 
     private static void NormCorFlags(byte[] bytes, PEHeaders headers)
     {
-        var flagsOffset = headers.CorHeaderStartOffset + 16;
-        var flags = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(flagsOffset, sizeof(int)));
+        int flagsOffset = headers.CorHeaderStartOffset + 16;
+        int flags = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(flagsOffset, sizeof(int)));
         flags &= ~(int)(CorFlags.Requires32Bit | CorFlags.Prefers32Bit);
         BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(flagsOffset, sizeof(int)), flags);
     }
 
     private static uint FindBod(byte[] bytes, PEHeaders headers, int baseOfCode)
     {
-        var tableStart = headers.PEHeaderStartOffset + headers.CoffHeader.SizeOfOptionalHeader;
-        var sectionCount = headers.CoffHeader.NumberOfSections;
-        for (var index = 0; index < sectionCount; index++)
+        int tableStart = headers.PEHeaderStartOffset + headers.CoffHeader.SizeOfOptionalHeader;
+        short sectionCount = headers.CoffHeader.NumberOfSections;
+        for (int index = 0; index < sectionCount; index++)
         {
-            var offset = tableStart + (index * SectHdrSize);
-            var virtualAddress = ReadUInt32(bytes, offset + SectVaOff);
-            var size = ReadUInt32(bytes, offset + SectSzOff);
-            var characteristics = ReadUInt32(bytes, offset + SectCharsOff);
+            int offset = tableStart + (index * SectHdrSize);
+            uint virtualAddress = ReadUInt32(bytes, offset + SectVaOff);
+            uint size = ReadUInt32(bytes, offset + SectSzOff);
+            uint characteristics = ReadUInt32(bytes, offset + SectCharsOff);
             if (size == 0 || virtualAddress == baseOfCode || (characteristics & CodeSectFlag) != 0)
             {
                 continue;
