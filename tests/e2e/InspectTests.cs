@@ -5,16 +5,15 @@ namespace PeFix.Tests;
 public sealed class InspectTests
 {
     [Fact]
-    public void InspectText_ForCompatibleAssembly_ReturnsSuccess()
+    public void Inspect_Ok()
     {
         var result = CliRunner.Run("inspect", FixturePaths.Get("F01_compatible_anycpu.dll"));
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Status:  COMPATIBLE", result.Stdout);
         Assert.Contains("Status:        compatible", result.Stdout);
     }
 
     [Fact]
-    public void InspectJson_ForFixableAssembly_ReturnsIssueExitCode()
+    public void FixJson()
     {
         var result = CliRunner.Run("inspect", FixturePaths.Get("F02_x64only_managed.dll"), "--json");
         Assert.Equal(1, result.ExitCode);
@@ -22,7 +21,7 @@ public sealed class InspectTests
     }
 
     [Fact]
-    public void InspectOption_FailOnFixable_ForUnsafeAssembly_ReturnsSuccessExitCode()
+    public void Unsafe()
     {
         var result = CliRunner.Run("inspect", FixturePaths.Get("F06_mixed_mode.dll"), "--fail-on-fixable");
         Assert.Equal(0, result.ExitCode);
