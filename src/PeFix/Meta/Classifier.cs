@@ -222,7 +222,7 @@ internal static class Classifier
             [],
             [],
             ["Verify the .NET runtime version matches the R2R compilation target. Mismatched versions silently fall back to JIT. R2R code is skipped; JIT recompiles all methods."],
-            GetLoadReqs(snapshot),
+            ClsMessages.LoadReqs(snapshot),
             snapshot.PInvokeDeps,
             snapshot.Tfm,
             snapshot.MetaVersion,
@@ -248,7 +248,7 @@ internal static class Classifier
             [],
             [],
             ["Verify required types are preserved. Use TrimmerRootDescriptors or [DynamicDependency] attributes to protect types from trimming."],
-            GetLoadReqs(snapshot),
+            ClsMessages.LoadReqs(snapshot),
             snapshot.PInvokeDeps,
             snapshot.Tfm,
             snapshot.MetaVersion,
@@ -276,7 +276,7 @@ internal static class Classifier
             [],
             [],
             [$"This assembly targets {platforms}. It will throw PlatformNotSupportedException on other operating systems. Check if a cross-platform alternative exists."],
-            GetLoadReqs(snapshot),
+            ClsMessages.LoadReqs(snapshot),
             snapshot.PInvokeDeps,
             snapshot.Tfm,
             snapshot.MetaVersion,
@@ -301,7 +301,7 @@ internal static class Classifier
             [],
             [],
             ["No action needed. This assembly is already portable."],
-            GetLoadReqs(snapshot),
+            ClsMessages.LoadReqs(snapshot),
             snapshot.PInvokeDeps,
             snapshot.Tfm,
             snapshot.MetaVersion,
@@ -313,8 +313,8 @@ internal static class Classifier
     private static Inspection CreateFix(PeSnapshot snapshot)
     {
         Status status = GetStatus(snapshot);
-        string[] warnings = GetWarnings(snapshot);
-        string nextStep = GetFixableNextStep(snapshot, status);
+        string[] warnings = ClsMessages.Warnings(snapshot);
+        string nextStep = ClsMessages.NextStep(snapshot, status);
 
         return new Inspection(
             snapshot.Path,
@@ -327,10 +327,10 @@ internal static class Classifier
             Category.Portability,
             status,
             "This assembly uses a platform-specific managed PE header.",
-            GetRuntimeRisks(snapshot),
+            ClsMessages.RuntimeRisks(snapshot),
             warnings,
             [nextStep],
-            GetLoadReqs(snapshot),
+            ClsMessages.LoadReqs(snapshot),
             snapshot.PInvokeDeps,
             snapshot.Tfm,
             snapshot.MetaVersion,
@@ -352,74 +352,5 @@ internal static class Classifier
         return snapshot.Signals.StrongName || snapshot.Signals.HasPInvoke
             ? Status.Cautioned
             : Status.Fixable;
-    }
-
-    private static string[] GetRuntimeRisks(PeSnapshot snapshot)
-    {
-        return snapshot.Signals.HasPInvoke
-            ? ["Native dependencies may still fail on the target platform."]
-            : [];
-    }
-
-    private static string[] GetWarnings(PeSnapshot snapshot)
-    {
-        if (snapshot.Signals.StrongName && snapshot.Signals.HasPInvoke)
-        {
-            return
-            [
-                "The strong name signature will be invalidated by patching.",
-                "Native dependencies may still fail on the target platform."
-            ];
-        }
-
-        if (snapshot.Signals.StrongName)
-        {
-            return ["The strong name signature will be invalidated by patching."];
-        }
-
-        if (snapshot.Signals.HasPInvoke)
-        {
-            return ["Native dependencies may still fail on the target platform."];
-        }
-
-        return [];
-    }
-
-    private static string GetFixableNextStep(PeSnapshot snapshot, Status status)
-    {
-        string fileName = Path.GetFileName(snapshot.Path);
-        return status switch
-        {
-            Status.Fixable => $"Run: pefix fix {fileName}",
-            Status.Cautioned when snapshot.Signals.StrongName =>
-                $"Run: pefix fix --force {fileName}. Warning: the strong name signature will be invalidated. You may need to re-sign the assembly.",
-            Status.Cautioned =>
-                $"Run: pefix fix --force {fileName}. Warning: native dependencies (P/Invoke) may still fail on the target platform.",
-            _ => "No action available."
-        };
-    }
-
-    private static string? GetLoadReqs(PeSnapshot snapshot)
-    {
-        // True AnyCPU: IlOnly + I386 + not Required32Bit — no host architecture restriction.
-        if (snapshot.CliFlags.IlOnly
-            && string.Equals(snapshot.Machine, "I386", StringComparison.Ordinal)
-            && !snapshot.CliFlags.Required32Bit)
-        {
-            return null;
-        }
-
-        // AnyCPU Prefer32Bit variant — still loads in both 32/64-bit, no restriction.
-        if (snapshot.CliFlags.IlOnly && snapshot.CliFlags.Preferred32Bit)
-        {
-            return null;
-        }
-
-        return snapshot.Machine switch
-        {
-            "AMD64" or "ARM64" => "Requires 64-bit host process. Fails with BadImageFormatException in 32-bit processes (e.g. x86 test runner, 32-bit IIS).",
-            "I386" => "Requires 32-bit host process. Fails in 64-bit-only environments.",
-            _ => null
-        };
     }
 }
