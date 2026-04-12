@@ -24,7 +24,6 @@ internal static class Classifier
             return CreateMixed(snapshot);
         }
 
-        // If OsPlatforms has entries, mark as PlatformApi
         if (snapshot.OsPlatforms is { Length: > 0 })
             return CreateOsApi(snapshot);
 

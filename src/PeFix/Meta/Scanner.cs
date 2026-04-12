@@ -49,7 +49,6 @@ public static class Scanner
 
     private static VerConflict[] FindConfs(Inspection[] results)
     {
-        // Build map: assembly name (lowered) -> (version, file path).
         // When multiple DLLs share the same AssemblyDef name (e.g. derived fixtures),
         // skip duplicates — ambiguous provider cannot be resolved.
         Dictionary<string, (string Version, string Path)> provided = [];
