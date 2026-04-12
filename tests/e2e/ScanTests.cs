@@ -11,9 +11,9 @@ public sealed class ScanTests : IDisposable
         _temp.CopyFixtures("F01_compatible_anycpu.dll", "F02_x64only_managed.dll", "F06_mixed_mode.dll");
         var result = CliRunner.Run("scan", _temp.DirPath);
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Group: managed_pe_portability", result.Stdout);
+        Assert.Contains("Group: portability", result.Stdout);
         Assert.Contains("F02_x64only_managed.dll [fixable]", result.Stdout);
-        Assert.Contains("Group: non_rewritable_binary", result.Stdout);
+        Assert.Contains("Group: mixed_mode", result.Stdout);
     }
 
     [Fact]

@@ -24,7 +24,7 @@ internal static class Scan
             bool failOnFixable = parseResult.GetValue(failOnFixableOpt);
 
             ScanReport report = Scanner.Scan(path);
-            Console.WriteLine(json ? JsonWriter.Render(report.Results) : ScanWriter.Render(report));
+            Console.WriteLine(json ? JsonWriter.Render(report) : ScanWriter.Render(report));
             return failOnFixable && Scanner.HasFixable(report) ? 1 : 0;
         });
 

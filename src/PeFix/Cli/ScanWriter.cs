@@ -9,6 +9,8 @@ internal static class ScanWriter
         using var writer = new StringWriter();
         WriteHeader(writer, report, commandName);
         WriteGroups(writer, report);
+        WriteConfs(writer, report);
+        WriteHint(writer, report);
         return writer.ToString().TrimEnd();
     }
 
@@ -43,6 +45,35 @@ internal static class ScanWriter
         }
     }
 
+    private static void WriteConfs(StringWriter writer, ScanReport report)
+    {
+        if (report.Conflicts.Length == 0)
+            return;
+
+        writer.WriteLine();
+        writer.WriteLine($"  Version Conflicts ({report.Conflicts.Length}):");
+        foreach (VerConflict conflict in report.Conflicts)
+        {
+            writer.WriteLine($"    - {conflict.AssemblyName}: {conflict.ReferencedBy} expects v{conflict.Expected}, but v{conflict.Actual} is provided by {conflict.ProvidedBy}");
+        }
+    }
+
+    private static void WriteHint(StringWriter writer, ScanReport report)
+    {
+        if (report.Results.Length == 0)
+        {
+            return;
+        }
+
+        bool allOk = report.Results.All(r => r.Status == Status.Compatible);
+        if (allOk)
+        {
+            writer.WriteLine();
+            writer.WriteLine("  Hint: All assemblies use compatible headers. If loading still fails,");
+            writer.WriteLine("        check host process architecture, loader configuration, or dependencies.");
+        }
+    }
+
     private static int NeedCount(Inspection[] results)
     {
         return results.Count(result => result.Status != Status.Compatible);
@@ -51,7 +82,7 @@ internal static class ScanWriter
     private static string Action(ScanReport report)
     {
         return Scanner.HasFixable(report)
-            ? "Run pefix fix for entries marked fixable or fixable-with-warnings."
+            ? "Run pefix fix for entries marked fixable or cautioned."
             : "No fixable assemblies were found.";
     }
 }
