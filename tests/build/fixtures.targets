@@ -76,21 +76,41 @@
 
   <Target Name="StagePeFixtures"
           AfterTargets="Build"
-          Inputs="@(PeFixSource->'%(RootDir)%(Directory)bin\Release\net10.0\%(Assembly).dll')"
-          Outputs="@(PeFixSource->'$(OutputPath)fixtures\%(Staged)')">
+          Inputs="%(PeFixSource.Identity)"
+          Outputs="$(OutputPath)fixtures/%(PeFixSource.Staged)">
+    <!-- Build is explicit: AssignProjectConfiguration defaults non-.sln projects to Debug
+         when BuildingSolutionFile=true, ignoring SetConfiguration on ProjectReference. -->
     <MakeDir Directories="$(OutputPath)fixtures" />
-    <Copy SourceFiles="@(PeFixSource->'%(RootDir)%(Directory)bin\Release\net10.0\%(Assembly).dll')"
-          DestinationFiles="@(PeFixSource->'$(OutputPath)fixtures\%(Staged)')" />
+    <MSBuild Projects="%(PeFixSource.Identity)"
+             Targets="Build"
+             Properties="Configuration=Release" />
+    <MSBuild Projects="%(PeFixSource.Identity)"
+             Targets="GetTargetPath"
+             Properties="Configuration=Release">
+      <Output TaskParameter="TargetOutputs" ItemName="_BuiltFixtureDll" />
+    </MSBuild>
+    <Copy SourceFiles="@(_BuiltFixtureDll)"
+          DestinationFiles="$(OutputPath)fixtures/%(PeFixSource.Staged)"
+          SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <_BuiltFixtureDll Remove="@(_BuiltFixtureDll)" />
+    </ItemGroup>
   </Target>
 
   <Target Name="DerivePeFixtures"
           AfterTargets="StagePeFixtures"
-          Inputs="@(PeFixDerived->'$(OutputPath)fixtures\%(From)')"
-          Outputs="@(PeFixDerived->'$(OutputPath)fixtures\%(Identity)')">
-    <PropertyGroup>
-      <_FixtureDeriverDll>$(MSBuildThisFileDirectory)..\tools\FixtureDeriver\bin\Release\net10.0\FixtureDeriver.dll</_FixtureDeriverDll>
-    </PropertyGroup>
-    <Exec Command="dotnet &quot;$(_FixtureDeriverDll)&quot; %(PeFixDerived.Transform) &quot;$(OutputPath)fixtures\%(PeFixDerived.From)&quot; &quot;$(OutputPath)fixtures\%(PeFixDerived.Identity)&quot;" />
+          Inputs="@(PeFixDerived->'$(OutputPath)fixtures/%(From)')"
+          Outputs="@(PeFixDerived->'$(OutputPath)fixtures/%(Identity)')">
+    <!-- Build explicitly as Release; MSBuild caches across batches. -->
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\tools\FixtureDeriver\FixtureDeriver.csproj"
+             Targets="Build"
+             Properties="Configuration=Release" />
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\tools\FixtureDeriver\FixtureDeriver.csproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=Release">
+      <Output TaskParameter="TargetOutputs" PropertyName="_FixtureDeriverDll" />
+    </MSBuild>
+    <Exec Command="dotnet &quot;$(_FixtureDeriverDll)&quot; %(PeFixDerived.Transform) &quot;$(OutputPath)fixtures/%(PeFixDerived.From)&quot; &quot;$(OutputPath)fixtures/%(PeFixDerived.Identity)&quot;" />
   </Target>
 
 </Project>

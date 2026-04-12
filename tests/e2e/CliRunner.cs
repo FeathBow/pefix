@@ -29,11 +29,9 @@ internal static class CliRunner
 
     private static string GetPeFixPath()
     {
-        var targetFrameworkDirectory = new DirectoryInfo(Path.GetFullPath(AppContext.BaseDirectory));
-        var tfm = targetFrameworkDirectory.Name;
-        var configuration = targetFrameworkDirectory.Parent?.Name
-            ?? throw new InvalidOperationException("Test output configuration was not found.");
-        var dllPath = Path.Combine(FixturePaths.RepoRoot, "src", "PeFix", "bin", configuration, tfm, "PeFix.dll");
+        var configuration = new DirectoryInfo(AppContext.BaseDirectory).Name;
+        var dllPath = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "PeFix", configuration, "PeFix.dll"));
         if (File.Exists(dllPath))
         {
             return dllPath;

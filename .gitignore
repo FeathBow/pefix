@@ -1,7 +1,9 @@
 # Build outputs
 bin/
 obj/
+artifacts/
 tests/**/output/
+*.binlog
 
 # IDE files
 .vs/
