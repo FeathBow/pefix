@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Collections.Immutable;
 using System.IO.MemoryMappedFiles;
 using System.Reflection;
 using System.Reflection.Metadata;
@@ -71,11 +73,102 @@ public static class PeAnalyzer
         string[]? osPlatforms = ReadOs(reader);
         AsmRef[] assemblyRefs = ReadAsmRefs(reader);
         AsmRef? assemblyDef = ReadAsmDef(reader);
+        R2RInfo? r2r = ReadR2R(peReader, corHeader);
+        bool isTrimmable = ReadTrim(reader);
+        bool moduleNest = HasNest(reader);
+        bool moduleRefs = HasRefs(reader);
 
         return new PeSnapshot(
             path, true, true, peFormat, machine, flags, signals,
             pinvokeDeps, tfm, metaVersion, osPlatforms,
-            assemblyRefs, assemblyDef);
+            assemblyRefs, assemblyDef, r2r, isTrimmable, moduleNest, moduleRefs);
+    }
+
+    private static R2RInfo? ReadR2R(PEReader reader, CorHeader corHeader)
+    {
+        DirectoryEntry dir = corHeader.ManagedNativeHeaderDirectory;
+        if (dir.Size == 0)
+            return null;
+
+        PEMemoryBlock block = reader.GetSectionData(dir.RelativeVirtualAddress);
+        if (block.Length < 8)
+            return null;
+
+        ImmutableArray<byte> content = block.GetContent();
+        ReadOnlySpan<byte> data = content.AsSpan();
+        // R2R signature bytes at offset 0: 52 54 52 00 ("RTR\0" little-endian uint = 0x00525452)
+        uint signature = BinaryPrimitives.ReadUInt32LittleEndian(data);
+        if (signature != 0x00525452u)
+            return null;
+
+        ushort major = BinaryPrimitives.ReadUInt16LittleEndian(data[4..]);
+        ushort minor = BinaryPrimitives.ReadUInt16LittleEndian(data[6..]);
+        return new R2RInfo(major, minor);
+    }
+
+    private static bool ReadTrim(MetadataReader reader)
+    {
+        AssemblyDefinition assembly = reader.GetAssemblyDefinition();
+        foreach (CustomAttributeHandle handle in assembly.GetCustomAttributes())
+        {
+            CustomAttribute attr = reader.GetCustomAttribute(handle);
+            if (!IsAttrMatch(reader, attr, "System.Reflection", "AssemblyMetadataAttribute"))
+                continue;
+
+            CustomAttributeValue<object?> decoded = attr.DecodeValue(AttrTypes.Instance);
+            if (decoded.FixedArguments.Length < 2)
+                continue;
+
+            if (decoded.FixedArguments[0].Value is string key
+                && decoded.FixedArguments[1].Value is string value
+                && string.Equals(key, "IsTrimmable", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(value, "True", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool HasNest(MetadataReader reader)
+    {
+        TypeDefinitionHandle moduleHandle = default;
+        foreach (TypeDefinitionHandle handle in reader.TypeDefinitions)
+        {
+            TypeDefinition td = reader.GetTypeDefinition(handle);
+            string ns = reader.GetString(td.Namespace);
+            string name = reader.GetString(td.Name);
+            if (ns.Length == 0 && string.Equals(name, "<Module>", StringComparison.Ordinal))
+            {
+                moduleHandle = handle;
+                break;
+            }
+        }
+
+        if (moduleHandle.IsNil)
+            return false;
+
+        foreach (TypeDefinitionHandle handle in reader.TypeDefinitions)
+        {
+            TypeDefinition td = reader.GetTypeDefinition(handle);
+            TypeDefinitionHandle declaringHandle = td.GetDeclaringType();
+            if (!declaringHandle.IsNil && declaringHandle == moduleHandle)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasRefs(MetadataReader reader)
+    {
+        foreach (AssemblyFileHandle handle in reader.AssemblyFiles)
+        {
+            AssemblyFile file = reader.GetAssemblyFile(handle);
+            string name = reader.GetString(file.Name);
+            if (name.EndsWith(".netmodule", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     private static string[]? ReadPInvokes(MetadataReader reader)

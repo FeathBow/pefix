@@ -7,4 +7,8 @@ public enum Category
     NativeBinary,
     MixedMode,
     PlatformApi,
+    R2R,
+    Trimmable,
+    ModuleNest,
+    MultiModule,
 }

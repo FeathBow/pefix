@@ -13,4 +13,8 @@ internal readonly record struct PeSnapshot(
     string? MetaVersion = null,
     string[]? OsPlatforms = null,
     AsmRef[]? AssemblyRefs = null,
-    AsmRef? AssemblyDef = null);
+    AsmRef? AssemblyDef = null,
+    R2RInfo? R2R = null,
+    bool IsTrimmable = false,
+    bool HasNest = false,
+    bool HasRefs = false);

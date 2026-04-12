@@ -20,4 +20,6 @@ public readonly record struct Inspection(
     string? MetaVersion,
     string[]? OsPlatforms,
     AsmRef[]? AssemblyRefs,
-    AsmRef? AssemblyDef);
+    AsmRef? AssemblyDef,
+    bool? HasR2R = null,
+    bool? IsTrimmable = null);

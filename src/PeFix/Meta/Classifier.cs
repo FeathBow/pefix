@@ -19,9 +19,29 @@ internal static class Classifier
             return CreateRefAsm(snapshot);
         }
 
+        if (snapshot.HasNest)
+        {
+            return CreateNest(snapshot);
+        }
+
+        if (snapshot.HasRefs)
+        {
+            return CreateMulti(snapshot);
+        }
+
         if (snapshot.Signals.IsMixedMode)
         {
             return CreateMixed(snapshot);
+        }
+
+        if (snapshot.R2R.HasValue)
+        {
+            return CreateR2R(snapshot);
+        }
+
+        if (snapshot.IsTrimmable)
+        {
+            return CreateTrim(snapshot);
         }
 
         if (snapshot.OsPlatforms is { Length: > 0 })
@@ -110,6 +130,56 @@ internal static class Classifier
             snapshot.AssemblyDef);
     }
 
+    private static Inspection CreateNest(PeSnapshot snapshot)
+    {
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.ModuleNest,
+            Status.Unsafe,
+            "This assembly contains types nested under the <Module> type. This pattern is rejected by .NET 9+ runtime and will cause BadImageFormatException.",
+            [],
+            [],
+            ["Decompile the assembly with ILSpy and identify which obfuscator/tool created nested types under <Module>. Reprocess through a compatible version."],
+            null,
+            null,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef);
+    }
+
+    private static Inspection CreateMulti(PeSnapshot snapshot)
+    {
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.MultiModule,
+            Status.Unsafe,
+            "Multi-module assembly, not supported by .NET Core or .NET 5+.",
+            [],
+            [],
+            ["Recompile the assembly as a single-module assembly using a modern .NET SDK."],
+            null,
+            null,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef);
+    }
+
     private static Inspection CreateMixed(PeSnapshot snapshot)
     {
         return new Inspection(
@@ -133,6 +203,60 @@ internal static class Classifier
             snapshot.OsPlatforms,
             snapshot.AssemblyRefs,
             snapshot.AssemblyDef);
+    }
+
+    private static Inspection CreateR2R(PeSnapshot snapshot)
+    {
+        R2RInfo r2r = snapshot.R2R!.Value;
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.R2R,
+            Status.Cautioned,
+            $"This assembly contains ReadyToRun precompiled code (v{r2r.MajorVersion}.{r2r.MinorVersion}). JIT fallback occurs if the runtime version does not match the R2R compilation target.",
+            [],
+            [],
+            ["Verify the .NET runtime version matches the R2R compilation target. Mismatched versions silently fall back to JIT. R2R code is skipped; JIT recompiles all methods."],
+            GetLoadReqs(snapshot),
+            snapshot.PInvokeDeps,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef,
+            true);
+    }
+
+    private static Inspection CreateTrim(PeSnapshot snapshot)
+    {
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.Trimmable,
+            Status.Cautioned,
+            "This assembly declares itself trimmable (IsTrimmable=true). It is a candidate for IL trimming; if published with PublishTrimmed=true, types or methods may be removed.",
+            [],
+            [],
+            ["Verify required types are preserved. Use TrimmerRootDescriptors or [DynamicDependency] attributes to protect types from trimming."],
+            GetLoadReqs(snapshot),
+            snapshot.PInvokeDeps,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef,
+            null,
+            true);
     }
 
     private static Inspection CreateOsApi(PeSnapshot snapshot)
