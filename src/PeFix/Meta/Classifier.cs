@@ -47,7 +47,9 @@ internal static class Classifier
             cause,
             [],
             [],
-            ["This file is not a valid PE file or is corrupted. Verify the download or obtain a fresh copy."]);
+            ["This file is not a valid PE file or is corrupted. Verify the download or obtain a fresh copy."],
+            null,
+            null);
     }
 
     private static Inspection CreateNative(PeSnapshot snapshot)
@@ -60,12 +62,14 @@ internal static class Classifier
             snapshot.Machine,
             snapshot.CliFlags,
             snapshot.Signals,
-            Category.NonRewritableBinary,
+            Category.NativeBinary,
             Status.Unsafe,
             "This PE file does not contain a CLI header.",
             [],
             [],
-            ["This is not a .NET assembly. It is a native executable or DLL. PE header rewriting does not apply."]);
+            ["This is not a .NET assembly. It is a native executable or DLL. PE header rewriting does not apply."],
+            null,
+            null);
     }
 
     private static Inspection CreateRefAsm(PeSnapshot snapshot)
@@ -78,12 +82,14 @@ internal static class Classifier
             snapshot.Machine,
             snapshot.CliFlags,
             snapshot.Signals,
-            Category.ReferenceAssemblyMisuse,
+            Category.RefAssembly,
             Status.Unsafe,
             "Reference assembly, not a runtime assembly.",
             [],
             [],
-            ["Reference assembly cannot be executed. Use the runtime assembly from bin/ instead of the ref/ folder."]);
+            ["Reference assembly cannot be executed. Use the runtime assembly from bin/ instead of the ref/ folder."],
+            null,
+            null);
     }
 
     private static Inspection CreateMixed(PeSnapshot snapshot)
@@ -96,12 +102,14 @@ internal static class Classifier
             snapshot.Machine,
             snapshot.CliFlags,
             snapshot.Signals,
-            Category.NonRewritableBinary,
+            Category.MixedMode,
             Status.Unsafe,
             "This assembly contains native code because ILOnly is false.",
             [],
             [],
-            ["This assembly contains native code and cannot be rewritten. It must be recompiled for the target platform from source."]);
+            ["C++/CLI mixed-mode assembly. On .NET Core/.NET 5+: ensure ijwhost.dll is deployed alongside. On .NET Framework: install the VC++ redistributable."],
+            null,
+            null);
     }
 
     private static Inspection CreateCompat(PeSnapshot snapshot)
@@ -114,12 +122,14 @@ internal static class Classifier
             snapshot.Machine,
             snapshot.CliFlags,
             snapshot.Signals,
-            Category.ManagedPePortability,
+            Category.Portability,
             Status.Compatible,
             "This assembly already uses a portable IL-only AnyCPU header.",
             [],
             [],
-            ["No action needed. This assembly is already portable."]);
+            ["No action needed. This assembly is already portable."],
+            GetLoadReqs(snapshot),
+            snapshot.PInvokeDeps);
     }
 
     private static Inspection CreateFix(PeSnapshot snapshot)
@@ -136,12 +146,14 @@ internal static class Classifier
             snapshot.Machine,
             snapshot.CliFlags,
             snapshot.Signals,
-            Category.ManagedPePortability,
+            Category.Portability,
             status,
             "This assembly uses a platform-specific managed PE header.",
             GetRuntimeRisks(snapshot),
             warnings,
-            [nextStep]);
+            [nextStep],
+            GetLoadReqs(snapshot),
+            snapshot.PInvokeDeps);
     }
 
     private static bool IsCompatible(PeSnapshot snapshot)
@@ -155,7 +167,7 @@ internal static class Classifier
     private static Status GetStatus(PeSnapshot snapshot)
     {
         return snapshot.Signals.StrongName || snapshot.Signals.HasPInvoke
-            ? Status.FixableWithWarnings
+            ? Status.Cautioned
             : Status.Fixable;
     }
 
@@ -196,11 +208,39 @@ internal static class Classifier
         return status switch
         {
             Status.Fixable => $"Run: pefix fix {fileName}",
-            Status.FixableWithWarnings when snapshot.Signals.StrongName =>
+            Status.Cautioned when snapshot.Signals.StrongName =>
                 $"Run: pefix fix --force {fileName}. Warning: the strong name signature will be invalidated. You may need to re-sign the assembly.",
-            Status.FixableWithWarnings =>
+            Status.Cautioned =>
                 $"Run: pefix fix --force {fileName}. Warning: native dependencies (P/Invoke) may still fail on the target platform.",
             _ => "No action available."
+        };
+    }
+
+    /// <summary>
+    /// Returns architecture load requirement hint, or null if the assembly is AnyCPU or has no restriction.
+    /// AnyCPU = IlOnly + PE32/I386 + !Required32Bit (regardless of Preferred32Bit).
+    /// </summary>
+    private static string? GetLoadReqs(PeSnapshot snapshot)
+    {
+        // True AnyCPU: IlOnly + I386 + not Required32Bit — no host architecture restriction.
+        if (snapshot.CliFlags.IlOnly
+            && string.Equals(snapshot.Machine, "I386", StringComparison.Ordinal)
+            && !snapshot.CliFlags.Required32Bit)
+        {
+            return null;
+        }
+
+        // AnyCPU Prefer32Bit variant — still loads in both 32/64-bit, no restriction.
+        if (snapshot.CliFlags.IlOnly && snapshot.CliFlags.Preferred32Bit)
+        {
+            return null;
+        }
+
+        return snapshot.Machine switch
+        {
+            "AMD64" or "ARM64" => "Requires 64-bit host process. Fails with BadImageFormatException in 32-bit processes (e.g. x86 test runner, 32-bit IIS).",
+            "I386" => "Requires 32-bit host process. Fails in 64-bit-only environments.",
+            _ => null
         };
     }
 }

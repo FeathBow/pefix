@@ -7,4 +7,5 @@ internal readonly record struct PeSnapshot(
     string? PeFormat,
     string? Machine,
     CliFlags CliFlags,
-    Signals Signals);
+    Signals Signals,
+    string[]? PInvokeDeps = null);

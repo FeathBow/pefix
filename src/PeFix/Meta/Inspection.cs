@@ -13,4 +13,6 @@ public readonly record struct Inspection(
     string PrimaryCause,
     string[] RuntimeRisks,
     string[] Warnings,
-    string[] NextSteps);
+    string[] NextSteps,
+    string? LoadReqs,
+    string[]? PInvokeDeps);

@@ -4,7 +4,7 @@ public enum Status
 {
     Compatible,
     Fixable,
-    FixableWithWarnings,
+    Cautioned,
     Unsafe,
     Corrupt
 }

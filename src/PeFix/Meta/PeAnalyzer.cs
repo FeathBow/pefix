@@ -65,7 +65,38 @@ public static class PeAnalyzer
             IsRefAsm(reader),
             !flags.IlOnly);
 
-        return new PeSnapshot(path, true, true, peFormat, machine, flags, signals);
+        string[]? pinvokeDeps = ReadPInvokes(reader);
+
+        return new PeSnapshot(path, true, true, peFormat, machine, flags, signals, pinvokeDeps);
+    }
+
+    private static string[]? ReadPInvokes(MetadataReader reader)
+    {
+        var modules = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (MethodDefinitionHandle handle in reader.MethodDefinitions)
+        {
+            MethodDefinition method = reader.GetMethodDefinition(handle);
+            if (!method.Attributes.HasFlag(MethodAttributes.PinvokeImpl))
+            {
+                continue;
+            }
+
+            MethodImport import = method.GetImport();
+            if (import.Module.IsNil)
+            {
+                continue;
+            }
+
+            ModuleReference moduleRef = reader.GetModuleReference(import.Module);
+            string moduleName = reader.GetString(moduleRef.Name).ToLowerInvariant();
+            if (!string.IsNullOrEmpty(moduleName))
+            {
+                modules.Add(moduleName);
+            }
+        }
+
+        return modules.Count > 0 ? [.. modules.OrderBy(m => m, StringComparer.Ordinal)] : null;
     }
 
     private static bool HasPInvoke(MetadataReader reader)
