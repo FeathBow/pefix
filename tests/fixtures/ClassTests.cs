@@ -6,13 +6,13 @@ namespace PeFix.Tests;
 public sealed class ClassTests
 {
     [Theory]
-    [InlineData("F01_compatible_anycpu.dll", Category.ManagedPePortability, Status.Compatible)]
-    [InlineData("F02_x64only_managed.dll", Category.ManagedPePortability, Status.Fixable)]
-    [InlineData("F03_x64_strongname.dll", Category.ManagedPePortability, Status.FixableWithWarnings)]
-    [InlineData("F04_x64_pinvoke.dll", Category.ManagedPePortability, Status.FixableWithWarnings)]
-    [InlineData("F05_reference_assembly.dll", Category.ReferenceAssemblyMisuse, Status.Unsafe)]
-    [InlineData("F06_mixed_mode.dll", Category.NonRewritableBinary, Status.Unsafe)]
-    [InlineData("F07_native_pe.dll", Category.NonRewritableBinary, Status.Unsafe)]
+    [InlineData("F01_compatible_anycpu.dll", Category.Portability, Status.Compatible)]
+    [InlineData("F02_x64only_managed.dll", Category.Portability, Status.Fixable)]
+    [InlineData("F03_x64_strongname.dll", Category.Portability, Status.Cautioned)]
+    [InlineData("F04_x64_pinvoke.dll", Category.Portability, Status.Cautioned)]
+    [InlineData("F05_reference_assembly.dll", Category.RefAssembly, Status.Unsafe)]
+    [InlineData("F06_mixed_mode.dll", Category.MixedMode, Status.Unsafe)]
+    [InlineData("F07_native_pe.dll", Category.NativeBinary, Status.Unsafe)]
     public void Inspect_Map(string fixture, Category category, Status status)
     {
         var result = PeAnalyzer.Inspect(FixturePaths.Get(fixture));
@@ -27,5 +27,31 @@ public sealed class ClassTests
     {
         var result = PeAnalyzer.Inspect(FixturePaths.Get(fixture));
         Assert.Equal(Status.Corrupt, result.Status);
+    }
+
+    [Fact]
+    public void F10_Api()
+    {
+        var result = PeAnalyzer.Inspect(FixturePaths.Get("F10_windows_only.dll"));
+        Assert.Equal(Status.Unsafe, result.Status);
+        Assert.Equal(Category.PlatformApi, result.Category);
+        Assert.Contains("windows", result.OsPlatforms ?? []);
+    }
+
+    [Fact]
+    public void F01_HasAsm()
+    {
+        var result = PeAnalyzer.Inspect(FixturePaths.Get("F01_compatible_anycpu.dll"));
+        Assert.NotNull(result.AssemblyDef);
+        Assert.Equal("CompatibleAnyCpu", result.AssemblyDef.Value.Name);
+    }
+
+    [Fact]
+    public void Scan_Dir()
+    {
+        string fixturesDir = Path.GetDirectoryName(FixturePaths.Get("F01_compatible_anycpu.dll"))!;
+        ScanReport report = Scanner.Scan(fixturesDir);
+        Assert.NotNull(report.Results);
+        Assert.NotNull(report.Conflicts);
     }
 }

@@ -84,7 +84,7 @@ public sealed class PatchTests : IDisposable
     {
         var path = _temp.CopyFixture("F06_mixed_mode.dll");
         var ex = Assert.Throws<UnsafeException>(() => Patcher.Fix(path));
-        Assert.Contains("non_rewritable_binary", ex.Message);
+        Assert.Contains("mixed_mode", ex.Message);
     }
 
     public void Dispose()
