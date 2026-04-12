@@ -33,13 +33,45 @@ jobs:
           dotnet --version
           dotnet --list-sdks
 
+      - name: Restore tools
+        shell: bash
+        run: dotnet tool restore
+
       - name: Build
         shell: bash
         run: dotnet build "pefix.sln" -m:1
 
-      - name: Test
+      - name: Test with coverage
         shell: bash
-        run: dotnet test "tests/PeFix.Tests.csproj" --no-build --logger "trx"
+        run: >-
+          dotnet test --project "tests/PeFix.Tests.csproj" --no-build
+          --
+          --coverlet
+          --coverlet-output-format cobertura
+          --coverlet-include "[PeFix]*"
+          --coverlet-exclude-by-file "**/obj/**"
+          --report-xunit-trx
+
+      - name: Generate coverage report
+        if: always()
+        shell: bash
+        run: >-
+          dotnet reportgenerator
+          -reports:"${{ github.workspace }}/artifacts/TestResults/PeFix.Tests/Release/coverage.cobertura.xml"
+          -targetdir:"${{ github.workspace }}/TestResults/CoverageReport"
+          -reporttypes:"Html;TextSummary"
+          -filefilters:"-**/obj/**"
+
+      - name: Print coverage summary
+        if: always()
+        shell: bash
+        run: cat "${{ github.workspace }}/TestResults/CoverageReport/Summary.txt"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-${{ matrix.os }}
+          path: TestResults/
 
       - uses: actions/upload-artifact@v4
         if: failure()
