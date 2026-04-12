@@ -17,4 +17,9 @@ internal sealed record InspectJson(
     [property: JsonPropertyName("warnings")] string[] Warnings,
     [property: JsonPropertyName("next_steps")] string[] NextSteps,
     [property: JsonPropertyName("load_reqs")] string? LoadReqs,
-    [property: JsonPropertyName("pinvoke_deps")] string[]? PInvokeDeps);
+    [property: JsonPropertyName("pinvoke_deps")] string[]? PInvokeDeps,
+    [property: JsonPropertyName("target_framework")] string? Tfm,
+    [property: JsonPropertyName("meta_version")] string? MetaVersion,
+    [property: JsonPropertyName("os_platforms")] string[]? OsPlatforms,
+    [property: JsonPropertyName("assembly_refs")] AsmRefJson[]? AssemblyRefs,
+    [property: JsonPropertyName("assembly_def")] AsmRefJson? AssemblyDef);

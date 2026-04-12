@@ -15,7 +15,8 @@ internal static class JsonWriter
     {
         InspectJson[] models = report.Results.Select(MapInspect).ToArray();
         SummaryJson summary = MapSummary(report.Results);
-        var scanJson = new ScanJson(report.Directory, summary, models);
+        ConflictJson[] conflicts = report.Conflicts.Select(MapConflict).ToArray();
+        var scanJson = new ScanJson(report.Directory, summary, models, conflicts);
         return JsonSerializer.Serialize(scanJson, JsonContext.Default.ScanJson);
     }
 
@@ -59,7 +60,22 @@ internal static class JsonWriter
             result.Warnings,
             result.NextSteps,
             result.LoadReqs,
-            result.PInvokeDeps);
+            result.PInvokeDeps,
+            result.Tfm,
+            result.MetaVersion,
+            result.OsPlatforms,
+            result.AssemblyRefs?.Select(r => new AsmRefJson(r.Name, r.Version)).ToArray(),
+            result.AssemblyDef is { } def ? new AsmRefJson(def.Name, def.Version) : null);
+    }
+
+    private static ConflictJson MapConflict(VerConflict conflict)
+    {
+        return new ConflictJson(
+            conflict.AssemblyName,
+            conflict.Expected,
+            conflict.Actual,
+            conflict.ReferencedBy,
+            conflict.ProvidedBy);
     }
 
     private static SummaryJson MapSummary(Inspection[] results)

@@ -12,6 +12,7 @@ internal static class Labels
             Category.RefAssembly => "ref_assembly",
             Category.NativeBinary => "native_binary",
             Category.MixedMode => "mixed_mode",
+            Category.PlatformApi => "platform_api",
             _ => "unknown"
         };
     }
