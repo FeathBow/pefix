@@ -65,7 +65,9 @@ internal static class JsonWriter
             result.MetaVersion,
             result.OsPlatforms,
             result.AssemblyRefs?.Select(r => new AsmRefJson(r.Name, r.Version)).ToArray(),
-            result.AssemblyDef is { } def ? new AsmRefJson(def.Name, def.Version) : null);
+            result.AssemblyDef is { } def ? new AsmRefJson(def.Name, def.Version) : null,
+            result.HasR2R,
+            result.IsTrimmable);
     }
 
     private static ConflictJson MapConflict(VerConflict conflict)

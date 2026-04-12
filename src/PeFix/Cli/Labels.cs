@@ -13,6 +13,10 @@ internal static class Labels
             Category.NativeBinary => "native_binary",
             Category.MixedMode => "mixed_mode",
             Category.PlatformApi => "platform_api",
+            Category.R2R => "r2r_compat",
+            Category.Trimmable => "trimmable",
+            Category.ModuleNest => "module_nest",
+            Category.MultiModule => "multi_module",
             _ => "unknown"
         };
     }
