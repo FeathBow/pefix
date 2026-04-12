@@ -1,3 +1,4 @@
+using PeFix.Cli;
 using PeFix.Meta;
 
 namespace PeFix.Patch;
@@ -39,17 +40,17 @@ public static class Patcher
             return;
         }
 
-        if (before.Status == Status.FixableWithWarnings && force)
+        if (before.Status == Status.Cautioned && force)
         {
             return;
         }
 
-        if (before.Status == Status.FixableWithWarnings)
+        if (before.Status == Status.Cautioned)
         {
             throw new UnsafeException("This assembly requires --force because patching may invalidate the strong name signature or leave native dependencies unresolved.");
         }
 
-        throw new UnsafeException($"This assembly cannot be patched safely ({CatText(before)}).");
+        throw new UnsafeException($"This assembly cannot be patched safely ({Labels.CatText(before.Category)}).");
     }
 
     private static string? CreateBackup(string path)
@@ -67,16 +68,5 @@ public static class Patcher
         }
 
         throw new InvalidOperationException($"Patching {path} did not produce a compatible assembly.");
-    }
-
-    private static string CatText(Inspection before)
-    {
-        return before.Category switch
-        {
-            Category.ManagedPePortability => "managed_pe_portability",
-            Category.ReferenceAssemblyMisuse => "reference_assembly_misuse",
-            Category.NonRewritableBinary => "non_rewritable_binary",
-            _ => "corrupt"
-        };
     }
 }
