@@ -39,6 +39,38 @@ public sealed class ClassTests
     }
 
     [Fact]
+    public void F11_R2R()
+    {
+        var result = PeAnalyzer.Inspect(FixturePaths.Get("F11_r2r.dll"));
+        Assert.Equal(Category.R2R, result.Category);
+        Assert.Equal(Status.Cautioned, result.Status);
+        Assert.Equal(true, result.HasR2R);
+    }
+
+    [Fact]
+    public void F12_Trim()
+    {
+        var result = PeAnalyzer.Inspect(FixturePaths.Get("F12_trimmable.dll"));
+        Assert.Equal(Category.Trimmable, result.Category);
+        Assert.Equal(Status.Cautioned, result.Status);
+        Assert.Equal(true, result.IsTrimmable);
+    }
+
+    [Fact]
+    public void F01_NoNest()
+    {
+        var result = PeAnalyzer.Inspect(FixturePaths.Get("F01_compatible_anycpu.dll"));
+        Assert.NotEqual(Category.ModuleNest, result.Category);
+    }
+
+    [Fact]
+    public void F01_NoMulti()
+    {
+        var result = PeAnalyzer.Inspect(FixturePaths.Get("F01_compatible_anycpu.dll"));
+        Assert.NotEqual(Category.MultiModule, result.Category);
+    }
+
+    [Fact]
     public void F01_HasAsm()
     {
         var result = PeAnalyzer.Inspect(FixturePaths.Get("F01_compatible_anycpu.dll"));
