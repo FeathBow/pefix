@@ -1,0 +1,96 @@
+<Project>
+
+  <!--
+    Single Source of Truth for test PE fixtures.
+
+    PeFixSource   : real .NET assemblies compiled from sources/*.csproj.
+                    Staged   = filename written under $(OutputPath)fixtures/.
+                    Assembly = AssemblyName of the source project.
+    PeFixDerived  : fixtures produced by byte-patching a staged source.
+                    Transform = FixtureDeriver subcommand.
+                    From      = PeFixSource.Staged filename to patch.
+                                The 'empty' transform ignores source; a real
+                                existing fixture name is used as placeholder
+                                so MSBuild incrementality has a valid Input.
+
+    Targets run AfterTargets="Build" so all ProjectReferences (fixture
+    sources and FixtureDeriver) are guaranteed built before staging.
+  -->
+
+  <ItemGroup>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\CompatibleAnyCpu\CompatibleAnyCpu.csproj">
+      <Staged>F01_compatible_anycpu.dll</Staged>
+      <Assembly>CompatibleAnyCpu</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\X64OnlyManaged\X64OnlyManaged.csproj">
+      <Staged>F02_x64only_managed.dll</Staged>
+      <Assembly>X64OnlyManaged</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\X64StrongName\X64StrongName.csproj">
+      <Staged>F03_x64_strongname.dll</Staged>
+      <Assembly>X64StrongName</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\X64PInvoke\X64PInvoke.csproj">
+      <Staged>F04_x64_pinvoke.dll</Staged>
+      <Assembly>X64PInvoke</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\RefAssembly\RefAssembly.csproj">
+      <Staged>F05_reference_assembly.dll</Staged>
+      <Assembly>RefAssembly</Assembly>
+    </PeFixSource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PeFixDerived Include="F06_mixed_mode.dll">
+      <Transform>mixed-mode</Transform>
+      <From>F02_x64only_managed.dll</From>
+    </PeFixDerived>
+    <PeFixDerived Include="F07_native_pe.dll">
+      <Transform>native-pe</Transform>
+      <From>F02_x64only_managed.dll</From>
+    </PeFixDerived>
+    <PeFixDerived Include="F08_corrupt.dll">
+      <Transform>corrupt</Transform>
+      <From>F01_compatible_anycpu.dll</From>
+    </PeFixDerived>
+    <PeFixDerived Include="F09_empty.dll">
+      <Transform>empty</Transform>
+      <From>F01_compatible_anycpu.dll</From>
+    </PeFixDerived>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="@(PeFixSource)">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+      <SetConfiguration>Configuration=Release</SetConfiguration>
+      <Private>false</Private>
+    </ProjectReference>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\tools\FixtureDeriver\FixtureDeriver.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+      <SetConfiguration>Configuration=Release</SetConfiguration>
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Target Name="StagePeFixtures"
+          AfterTargets="Build"
+          Inputs="@(PeFixSource->'%(RootDir)%(Directory)bin\Release\net10.0\%(Assembly).dll')"
+          Outputs="@(PeFixSource->'$(OutputPath)fixtures\%(Staged)')">
+    <MakeDir Directories="$(OutputPath)fixtures" />
+    <Copy SourceFiles="@(PeFixSource->'%(RootDir)%(Directory)bin\Release\net10.0\%(Assembly).dll')"
+          DestinationFiles="@(PeFixSource->'$(OutputPath)fixtures\%(Staged)')" />
+  </Target>
+
+  <Target Name="DerivePeFixtures"
+          AfterTargets="StagePeFixtures"
+          Inputs="@(PeFixDerived->'$(OutputPath)fixtures\%(From)')"
+          Outputs="@(PeFixDerived->'$(OutputPath)fixtures\%(Identity)')">
+    <PropertyGroup>
+      <_FixtureDeriverDll>$(MSBuildThisFileDirectory)..\tools\FixtureDeriver\bin\Release\net10.0\FixtureDeriver.dll</_FixtureDeriverDll>
+    </PropertyGroup>
+    <Exec Command="dotnet &quot;$(_FixtureDeriverDll)&quot; %(PeFixDerived.Transform) &quot;$(OutputPath)fixtures\%(PeFixDerived.From)&quot; &quot;$(OutputPath)fixtures\%(PeFixDerived.Identity)&quot;" />
+  </Target>
+
+</Project>

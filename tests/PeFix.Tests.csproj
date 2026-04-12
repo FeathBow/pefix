@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -25,8 +25,11 @@
     <Compile Remove="**/obj/**/*.cs" />
     <Compile Remove="PeFix.Tests/**/*.cs" />
     <Compile Remove="fixtures/sources/**/*.cs" />
+    <Compile Remove="tools/**/*.cs" />
     <None Update="xunit.runner.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <Import Project="build\fixtures.targets" />
 </Project>
