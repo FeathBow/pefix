@@ -34,6 +34,10 @@
       <Staged>F04_x64_pinvoke.dll</Staged>
       <Assembly>X64PInvoke</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\WindowsOnly\WindowsOnly.csproj">
+      <Staged>F10_windows_only.dll</Staged>
+      <Assembly>WindowsOnly</Assembly>
+    </PeFixSource>
     <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\RefAssembly\RefAssembly.csproj">
       <Staged>F05_reference_assembly.dll</Staged>
       <Assembly>RefAssembly</Assembly>
