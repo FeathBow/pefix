@@ -24,6 +24,10 @@ internal static class Classifier
             return CreateMixed(snapshot);
         }
 
+        // If OsPlatforms has entries, mark as PlatformApi
+        if (snapshot.OsPlatforms is { Length: > 0 })
+            return CreateOsApi(snapshot);
+
         if (IsCompatible(snapshot))
         {
             return CreateCompat(snapshot);
@@ -49,6 +53,11 @@ internal static class Classifier
             [],
             ["This file is not a valid PE file or is corrupted. Verify the download or obtain a fresh copy."],
             null,
+            null,
+            null,
+            null,
+            null,
+            null,
             null);
     }
 
@@ -69,7 +78,12 @@ internal static class Classifier
             [],
             ["This is not a .NET assembly. It is a native executable or DLL. PE header rewriting does not apply."],
             null,
-            null);
+            null,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef);
     }
 
     private static Inspection CreateRefAsm(PeSnapshot snapshot)
@@ -89,7 +103,12 @@ internal static class Classifier
             [],
             ["Reference assembly cannot be executed. Use the runtime assembly from bin/ instead of the ref/ folder."],
             null,
-            null);
+            null,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef);
     }
 
     private static Inspection CreateMixed(PeSnapshot snapshot)
@@ -109,7 +128,38 @@ internal static class Classifier
             [],
             ["C++/CLI mixed-mode assembly. On .NET Core/.NET 5+: ensure ijwhost.dll is deployed alongside. On .NET Framework: install the VC++ redistributable."],
             null,
-            null);
+            null,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef);
+    }
+
+    private static Inspection CreateOsApi(PeSnapshot snapshot)
+    {
+        string platforms = string.Join(", ", snapshot.OsPlatforms!);
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.PlatformApi,
+            Status.Unsafe,
+            $"This assembly is restricted to specific OS platforms: {platforms}.",
+            [],
+            [],
+            [$"This assembly targets {platforms}. It will throw PlatformNotSupportedException on other operating systems. Check if a cross-platform alternative exists."],
+            GetLoadReqs(snapshot),
+            snapshot.PInvokeDeps,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef);
     }
 
     private static Inspection CreateCompat(PeSnapshot snapshot)
@@ -129,7 +179,12 @@ internal static class Classifier
             [],
             ["No action needed. This assembly is already portable."],
             GetLoadReqs(snapshot),
-            snapshot.PInvokeDeps);
+            snapshot.PInvokeDeps,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef);
     }
 
     private static Inspection CreateFix(PeSnapshot snapshot)
@@ -153,7 +208,12 @@ internal static class Classifier
             warnings,
             [nextStep],
             GetLoadReqs(snapshot),
-            snapshot.PInvokeDeps);
+            snapshot.PInvokeDeps,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef);
     }
 
     private static bool IsCompatible(PeSnapshot snapshot)
@@ -216,10 +276,6 @@ internal static class Classifier
         };
     }
 
-    /// <summary>
-    /// Returns architecture load requirement hint, or null if the assembly is AnyCPU or has no restriction.
-    /// AnyCPU = IlOnly + PE32/I386 + !Required32Bit (regardless of Preferred32Bit).
-    /// </summary>
     private static string? GetLoadReqs(PeSnapshot snapshot)
     {
         // True AnyCPU: IlOnly + I386 + not Required32Bit — no host architecture restriction.

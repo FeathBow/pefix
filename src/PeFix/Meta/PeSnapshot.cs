@@ -8,4 +8,9 @@ internal readonly record struct PeSnapshot(
     string? Machine,
     CliFlags CliFlags,
     Signals Signals,
-    string[]? PInvokeDeps = null);
+    string[]? PInvokeDeps = null,
+    string? Tfm = null,
+    string? MetaVersion = null,
+    string[]? OsPlatforms = null,
+    AsmRef[]? AssemblyRefs = null,
+    AsmRef? AssemblyDef = null);

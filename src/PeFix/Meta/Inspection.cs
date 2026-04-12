@@ -15,4 +15,9 @@ public readonly record struct Inspection(
     string[] Warnings,
     string[] NextSteps,
     string? LoadReqs,
-    string[]? PInvokeDeps);
+    string[]? PInvokeDeps,
+    string? Tfm,
+    string? MetaVersion,
+    string[]? OsPlatforms,
+    AsmRef[]? AssemblyRefs,
+    AsmRef? AssemblyDef);

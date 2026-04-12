@@ -25,7 +25,7 @@ public static class PeAnalyzer
         {
             using var mmf = MemoryMappedFile.CreateFromFile(fullPath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             using MemoryMappedViewStream stream = mmf.CreateViewStream(0, fileInfo.Length, MemoryMappedFileAccess.Read);
-            using var peReader = new PEReader(stream);
+            using PEReader peReader = new(stream);
             PeSnapshot snapshot = ReadSnapshot(fullPath, peReader);
             return Classifier.Classify(snapshot);
         }
@@ -54,25 +54,33 @@ public static class PeAnalyzer
 
         CorFlags corFlags = corHeader.Flags;
         MetadataReader reader = peReader.GetMetadataReader();
-        var flags = new CliFlags(
+        CliFlags flags = new(
             corFlags.HasFlag(CorFlags.ILOnly),
             corFlags.HasFlag(CorFlags.Requires32Bit),
             corFlags.HasFlag(CorFlags.Prefers32Bit),
             corFlags.HasFlag(CorFlags.StrongNameSigned));
-        var signals = new Signals(
+        Signals signals = new(
             flags.Signed || corHeader.StrongNameSignatureDirectory.Size > 0,
             HasPInvoke(reader),
             IsRefAsm(reader),
             !flags.IlOnly);
 
         string[]? pinvokeDeps = ReadPInvokes(reader);
+        string? tfm = ReadTfm(reader);
+        string metaVersion = ReadMeta(reader);
+        string[]? osPlatforms = ReadOs(reader);
+        AsmRef[] assemblyRefs = ReadAsmRefs(reader);
+        AsmRef? assemblyDef = ReadAsmDef(reader);
 
-        return new PeSnapshot(path, true, true, peFormat, machine, flags, signals, pinvokeDeps);
+        return new PeSnapshot(
+            path, true, true, peFormat, machine, flags, signals,
+            pinvokeDeps, tfm, metaVersion, osPlatforms,
+            assemblyRefs, assemblyDef);
     }
 
     private static string[]? ReadPInvokes(MetadataReader reader)
     {
-        var modules = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> modules = new(StringComparer.OrdinalIgnoreCase);
 
         foreach (MethodDefinitionHandle handle in reader.MethodDefinitions)
         {
@@ -116,33 +124,128 @@ public static class PeAnalyzer
     {
         return attribute.Constructor.Kind switch
         {
-            HandleKind.MemberReference => MatchesType(reader, reader.GetMemberReference((MemberReferenceHandle)attribute.Constructor).Parent),
-            HandleKind.MethodDefinition => MatchesType(reader, reader.GetMethodDefinition((MethodDefinitionHandle)attribute.Constructor).GetDeclaringType()),
+            HandleKind.MemberReference => MatchesType(reader, reader.GetMemberReference((MemberReferenceHandle)attribute.Constructor).Parent, "System.Runtime.CompilerServices", "ReferenceAssemblyAttribute"),
+            HandleKind.MethodDefinition => MatchesType(reader, reader.GetMethodDefinition((MethodDefinitionHandle)attribute.Constructor).GetDeclaringType(), "System.Runtime.CompilerServices", "ReferenceAssemblyAttribute"),
             _ => false
         };
     }
 
-    private static bool MatchesType(MetadataReader reader, EntityHandle handle)
+    private static bool MatchesType(MetadataReader reader, EntityHandle handle, string ns, string name)
     {
         switch (handle.Kind)
         {
             case HandleKind.TypeReference:
                 TypeReference typeRef = reader.GetTypeReference((TypeReferenceHandle)handle);
-                return MatchesType(reader, typeRef.Namespace, typeRef.Name);
+                return MatchesType(reader, typeRef.Namespace, typeRef.Name, ns, name);
             case HandleKind.TypeDefinition:
                 TypeDefinition typeDef = reader.GetTypeDefinition((TypeDefinitionHandle)handle);
-                return MatchesType(reader, typeDef.Namespace, typeDef.Name);
+                return MatchesType(reader, typeDef.Namespace, typeDef.Name, ns, name);
             default:
                 return false;
         }
     }
 
-    private static bool MatchesType(MetadataReader reader, StringHandle nsHandle, StringHandle nameHandle)
+    private static bool MatchesType(MetadataReader reader, StringHandle nsHandle, StringHandle nameHandle, string ns, string name)
     {
         string nsValue = reader.GetString(nsHandle);
         string typeName = reader.GetString(nameHandle);
-        return string.Equals(nsValue, "System.Runtime.CompilerServices", StringComparison.Ordinal)
-            && string.Equals(typeName, "ReferenceAssemblyAttribute", StringComparison.Ordinal);
+        return string.Equals(nsValue, ns, StringComparison.Ordinal)
+            && string.Equals(typeName, name, StringComparison.Ordinal);
+    }
+
+    private static string? ReadTfm(MetadataReader reader)
+    {
+        AssemblyDefinition assembly = reader.GetAssemblyDefinition();
+        foreach (CustomAttributeHandle handle in assembly.GetCustomAttributes())
+        {
+            CustomAttribute attr = reader.GetCustomAttribute(handle);
+            if (!IsAttrMatch(reader, attr, "System.Runtime.Versioning", "TargetFrameworkAttribute"))
+                continue;
+
+            CustomAttributeValue<object?> decoded = attr.DecodeValue(AttrTypes.Instance);
+            if (decoded.FixedArguments.Length > 0 && decoded.FixedArguments[0].Value is string tfm)
+            {
+                return ParseTfm(tfm);
+            }
+        }
+        return null;
+    }
+
+    private static string ParseTfm(string tfmString)
+    {
+        if (tfmString.StartsWith(".NETCoreApp,Version=v", StringComparison.OrdinalIgnoreCase))
+        {
+            string ver = tfmString[".NETCoreApp,Version=v".Length..];
+            return "net" + ver;
+        }
+        if (tfmString.StartsWith(".NETStandard,Version=v", StringComparison.OrdinalIgnoreCase))
+        {
+            string ver = tfmString[".NETStandard,Version=v".Length..];
+            return "netstandard" + ver;
+        }
+        if (tfmString.StartsWith(".NETFramework,Version=v", StringComparison.OrdinalIgnoreCase))
+        {
+            string ver = tfmString[".NETFramework,Version=v".Length..].Replace(".", "");
+            return "net" + ver;
+        }
+        return tfmString;
+    }
+
+    private static string ReadMeta(MetadataReader reader)
+    {
+        return reader.MetadataVersion;
+    }
+
+    private static string[]? ReadOs(MetadataReader reader)
+    {
+        AssemblyDefinition assembly = reader.GetAssemblyDefinition();
+        List<string> platforms = [];
+        foreach (CustomAttributeHandle handle in assembly.GetCustomAttributes())
+        {
+            CustomAttribute attr = reader.GetCustomAttribute(handle);
+            if (!IsAttrMatch(reader, attr, "System.Runtime.Versioning", "SupportedOSPlatformAttribute"))
+                continue;
+
+            CustomAttributeValue<object?> decoded = attr.DecodeValue(AttrTypes.Instance);
+            if (decoded.FixedArguments.Length > 0 && decoded.FixedArguments[0].Value is string platform)
+            {
+                platforms.Add(platform);
+            }
+        }
+        return platforms.Count > 0 ? [.. platforms] : null;
+    }
+
+    private static bool IsAttrMatch(MetadataReader reader, CustomAttribute attr, string ns, string name)
+    {
+        return attr.Constructor.Kind switch
+        {
+            HandleKind.MemberReference => MatchesType(reader, reader.GetMemberReference((MemberReferenceHandle)attr.Constructor).Parent, ns, name),
+            HandleKind.MethodDefinition => MatchesType(reader, reader.GetMethodDefinition((MethodDefinitionHandle)attr.Constructor).GetDeclaringType(), ns, name),
+            _ => false
+        };
+    }
+
+    private static AsmRef? ReadAsmDef(MetadataReader reader)
+    {
+        AssemblyDefinition def = reader.GetAssemblyDefinition();
+        string asmName = reader.GetString(def.Name);
+        Version v = def.Version;
+        string version = $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+        return new AsmRef(asmName, version);
+    }
+
+    private static AsmRef[] ReadAsmRefs(MetadataReader reader)
+    {
+        List<AsmRef> refs = [];
+        foreach (AssemblyReferenceHandle handle in reader.AssemblyReferences)
+        {
+            AssemblyReference asmRef = reader.GetAssemblyReference(handle);
+            string asmName = reader.GetString(asmRef.Name);
+            Version v = asmRef.Version;
+            string version = $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+            refs.Add(new AsmRef(asmName, version));
+        }
+        return [.. refs];
     }
 
     private static string MachineText(Machine machine)
