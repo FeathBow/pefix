@@ -8,9 +8,10 @@ internal static class Labels
     {
         return category switch
         {
-            Category.ManagedPePortability => "managed_pe_portability",
-            Category.ReferenceAssemblyMisuse => "reference_assembly_misuse",
-            Category.NonRewritableBinary => "non_rewritable_binary",
+            Category.Portability => "portability",
+            Category.RefAssembly => "ref_assembly",
+            Category.NativeBinary => "native_binary",
+            Category.MixedMode => "mixed_mode",
             _ => "unknown"
         };
     }
@@ -21,7 +22,7 @@ internal static class Labels
         {
             Status.Compatible => "COMPATIBLE",
             Status.Fixable => "FIXABLE",
-            Status.FixableWithWarnings => "FIXABLE_WITH_WARNINGS",
+            Status.Cautioned => "CAUTIONED",
             Status.Unsafe => "UNSAFE",
             Status.Corrupt => "CORRUPT",
             _ => "UNKNOWN"
@@ -34,7 +35,7 @@ internal static class Labels
         {
             Status.Compatible => "compatible",
             Status.Fixable => "fixable",
-            Status.FixableWithWarnings => "fixable-with-warnings",
+            Status.Cautioned => "cautioned",
             Status.Unsafe => "unsafe",
             Status.Corrupt => "corrupt",
             _ => "unknown"

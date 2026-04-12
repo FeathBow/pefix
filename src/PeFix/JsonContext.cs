@@ -11,6 +11,8 @@ namespace PeFix;
 [JsonSerializable(typeof(RefusalJson))]
 [JsonSerializable(typeof(BatchSummary))]
 [JsonSerializable(typeof(BatchFixJson))]
+[JsonSerializable(typeof(ScanJson))]
+[JsonSerializable(typeof(SummaryJson))]
 [JsonSourceGenerationOptions(WriteIndented = true, NewLine = "\n")]
 internal sealed partial class JsonContext : JsonSerializerContext
 {

@@ -11,10 +11,12 @@ internal static class JsonWriter
         return JsonSerializer.Serialize(MapInspect(result), JsonContext.Default.InspectJson);
     }
 
-    public static string Render(Inspection[] results)
+    public static string Render(ScanReport report)
     {
-        InspectJson[] models = results.Select(MapInspect).ToArray();
-        return JsonSerializer.Serialize(models, JsonContext.Default.InspectJsonArray);
+        InspectJson[] models = report.Results.Select(MapInspect).ToArray();
+        SummaryJson summary = MapSummary(report.Results);
+        var scanJson = new ScanJson(report.Directory, summary, models);
+        return JsonSerializer.Serialize(scanJson, JsonContext.Default.ScanJson);
     }
 
     public static string Render(PatchResult result)
@@ -32,7 +34,7 @@ internal static class JsonWriter
         return JsonSerializer.Serialize(CreateBatch(result), JsonContext.Default.BatchFixJson);
     }
 
-    private static InspectJson MapInspect(Inspection result)
+    internal static InspectJson MapInspect(Inspection result)
     {
         return new InspectJson(
             result.Path,
@@ -55,7 +57,20 @@ internal static class JsonWriter
             result.PrimaryCause,
             result.RuntimeRisks,
             result.Warnings,
-            result.NextSteps);
+            result.NextSteps,
+            result.LoadReqs,
+            result.PInvokeDeps);
+    }
+
+    private static SummaryJson MapSummary(Inspection[] results)
+    {
+        return new SummaryJson(
+            results.Length,
+            results.Count(r => r.Status == Status.Compatible),
+            results.Count(r => r.Status == Status.Fixable),
+            results.Count(r => r.Status == Status.Cautioned),
+            results.Count(r => r.Status == Status.Unsafe),
+            results.Count(r => r.Status == Status.Corrupt));
     }
 
     private static FixJson CreateFix(PatchResult result)

@@ -34,8 +34,8 @@ internal static class InspectOut
         {
             Status.Compatible => "This assembly is already portable across platforms.",
             Status.Fixable => "This assembly uses a platform-specific header, but the managed code is portable and can be fixed.",
-            Status.FixableWithWarnings when result.Signals.StrongName => "This assembly can be fixed, but the strong name signature will be invalidated.",
-            Status.FixableWithWarnings => "This assembly can be fixed, but native dependencies may still fail on the target platform.",
+            Status.Cautioned when result.Signals.StrongName => "This assembly can be fixed, but the strong name signature will be invalidated.",
+            Status.Cautioned => "This assembly can be fixed, but native dependencies may still fail on the target platform.",
             Status.Unsafe => result.PrimaryCause,
             Status.Corrupt => result.PrimaryCause,
             _ => "The compatibility status could not be determined."

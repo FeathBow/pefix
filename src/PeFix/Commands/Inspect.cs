@@ -71,7 +71,7 @@ internal static class Inspect
     {
         if (failOnFixable)
         {
-            return result.Status is Status.Fixable or Status.FixableWithWarnings ? 1 : 0;
+            return result.Status is Status.Fixable or Status.Cautioned ? 1 : 0;
         }
 
         return result.Status == Status.Compatible ? 0 : 1;
