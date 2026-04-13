@@ -5,64 +5,25 @@ internal static class Classifier
     public static Inspection Classify(PeSnapshot snapshot)
     {
         if (!snapshot.ValidPe)
-        {
             return CreateBad(snapshot.Path, "This file is not a valid PE file or is corrupted.");
-        }
-
         if (!snapshot.HasCliHeader)
-        {
             return CreateNative(snapshot);
-        }
+        return ClassifyCli(snapshot);
+    }
 
-        if (snapshot.Signals.IsRefAsm)
-        {
-            return CreateRefAsm(snapshot);
-        }
-
-        if (snapshot.IsSatellite)
-        {
-            return CreateSat(snapshot);
-        }
-
-        if (snapshot.HasNest)
-        {
-            return CreateNest(snapshot);
-        }
-
-        if (snapshot.HasRefs)
-        {
-            return CreateMulti(snapshot);
-        }
-
-        if (snapshot.Signals.IsMixedMode)
-        {
-            return CreateMixed(snapshot);
-        }
-
-        if (snapshot.R2R.HasValue)
-        {
-            return CreateR2R(snapshot);
-        }
-
-        if (snapshot.IsTrimmable)
-        {
-            return CreateTrim(snapshot);
-        }
-
-        if (snapshot.IsBundle)
-        {
-            return CreateBundle(snapshot);
-        }
-
-        if (snapshot.OsPlatforms is { Length: > 0 })
-            return CreateOsApi(snapshot);
-
-        if (IsCompatible(snapshot))
-        {
-            return CreateCompat(snapshot);
-        }
-
-        return CreateFix(snapshot);
+    private static Inspection ClassifyCli(PeSnapshot snapshot)
+    {
+        if (snapshot.Signals.IsRefAsm) return CreateRefAsm(snapshot);
+        if (snapshot.IsSatellite) return CreateSat(snapshot);
+        if (snapshot.HasNest) return CreateNest(snapshot);
+        if (snapshot.HasRefs) return CreateMulti(snapshot);
+        if (snapshot.Signals.IsMixedMode) return CreateMixed(snapshot);
+        if (IsLegacyTfm(snapshot.Tfm)) return CreateTfmBad(snapshot);
+        if (snapshot.R2R.HasValue) return CreateR2R(snapshot);
+        if (snapshot.IsTrimmable) return CreateTrim(snapshot);
+        if (snapshot.IsBundle) return CreateBundle(snapshot);
+        if (snapshot.OsPlatforms is { Length: > 0 }) return CreateOsApi(snapshot);
+        return IsCompatible(snapshot) ? CreateCompat(snapshot) : CreateFix(snapshot);
     }
 
     public static Inspection CreateBad(string path, string cause)
@@ -422,6 +383,41 @@ internal static class Classifier
             snapshot.OsPlatforms,
             snapshot.AssemblyRefs,
             snapshot.AssemblyDef);
+    }
+
+    private static Inspection CreateTfmBad(PeSnapshot snapshot)
+    {
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.TfmMismatch,
+            Status.Unsafe,
+            $"This assembly targets {snapshot.Tfm} (.NET Framework) and will not load on .NET Core or .NET 5+.",
+            [],
+            [],
+            ["Recompile targeting netstandard2.0 or net8.0+. .NET Framework assemblies are not compatible with CoreCLR."],
+            null,
+            snapshot.PInvokeDeps,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef);
+    }
+
+    // Legacy .NET Framework TFMs are "net" + digits only (e.g. net48, net472, net40).
+    // Modern .NET TFMs always contain a dot in the version segment (e.g. net10.0, net8.0).
+    private static bool IsLegacyTfm(string? tfm)
+    {
+        if (tfm is null) return false;
+        if (!tfm.StartsWith("net", StringComparison.Ordinal)) return false;
+        string rest = tfm[3..];
+        return rest.Length > 0 && char.IsAsciiDigit(rest[0]) && !rest.Contains('.');
     }
 
     private static bool IsCompatible(PeSnapshot snapshot)

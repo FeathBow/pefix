@@ -50,6 +50,10 @@
       <Staged>F15_satellite.dll</Staged>
       <Assembly>SatelliteStub.resources</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\NetFxStub\NetFxStub.csproj">
+      <Staged>F16_netfx_stub.dll</Staged>
+      <Assembly>NetFxStub</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>

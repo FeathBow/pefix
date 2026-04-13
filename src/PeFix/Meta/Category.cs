@@ -14,4 +14,5 @@ public enum Category
     Satellite,
     Bundle,
     Webcil,
+    TfmMismatch,
 }

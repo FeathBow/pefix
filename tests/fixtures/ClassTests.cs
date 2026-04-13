@@ -95,6 +95,15 @@ public sealed class ClassTests
     }
 
     [Fact]
+    public void F16_TfmBad()
+    {
+        var result = PeAnalyzer.Inspect(FixturePaths.Get("F16_netfx_stub.dll"));
+        Assert.Equal(Category.TfmMismatch, result.Category);
+        Assert.Equal(Status.Unsafe, result.Status);
+        Assert.Equal("net48", result.Tfm);
+    }
+
+    [Fact]
     public void F01_NoSat()
     {
         var result = PeAnalyzer.Inspect(FixturePaths.Get("F01_compatible_anycpu.dll"));

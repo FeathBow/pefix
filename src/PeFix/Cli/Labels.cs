@@ -20,6 +20,7 @@ internal static class Labels
             Category.Satellite => "satellite",
             Category.Bundle => "bundle",
             Category.Webcil => "webcil",
+            Category.TfmMismatch => "tfm_mismatch",
             _ => "unknown"
         };
     }
