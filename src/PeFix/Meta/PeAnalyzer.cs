@@ -45,9 +45,13 @@ public static class PeAnalyzer
     }
 
     private static readonly byte[] WasmMagic = [0x00, 0x61, 0x73, 0x6D];
+    // Webcil payload identifier. Source: dotnet/runtime docs/design/mono/webcil.md
+    private static ReadOnlySpan<byte> WebcilId => "WbIL"u8;
+    private const int WebcilScan = 4096; // scan window for WbIL marker
     private const uint R2rMagic = 0x00525452u;
     private const string ResourceExt = ".resources";
 
+    // .NET single-file bundle magic: 16-byte footer appended by AppHost at publish time.
     private static readonly byte[] BundleSig = [
         0x8b, 0x1c, 0xcd, 0x0d, 0xfe, 0xfe, 0xfe, 0xfe,
         0x13, 0x12, 0x13, 0x13, 0x11, 0x06, 0x0b, 0x06
@@ -56,10 +60,12 @@ public static class PeAnalyzer
     private static bool IsWebcil(string path, long length)
     {
         if (length < WasmMagic.Length) return false;
-        Span<byte> head = stackalloc byte[WasmMagic.Length];
+        int scanSize = (int)Math.Min(length, WebcilScan);
+        byte[] buf = new byte[scanSize];
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        fs.ReadExactly(head);
-        return head.SequenceEqual(WasmMagic);
+        fs.ReadExactly(buf);
+        return buf.AsSpan(0, WasmMagic.Length).SequenceEqual(WasmMagic)
+            && buf.AsSpan().IndexOf(WebcilId) >= 0;
     }
 
     private static bool IsBundle(string path, long length)
