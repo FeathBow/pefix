@@ -78,12 +78,13 @@ static void WriteCorrupt(string sourcePath, string targetPath)
 
 static void WriteWebcil(string targetPath)
 {
+    // WebAssembly magic + version (8 bytes). First 4 mirror PeAnalyzer.WasmMagic.
     File.WriteAllBytes(targetPath, [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00]);
 }
 
 static void WriteSingleFileBundle(string sourcePath, string targetPath)
 {
-    // .NET single-file bundle footer (last 16 bytes).
+    // .NET single-file bundle footer (16 bytes). Mirrors PeAnalyzer.BundleSig.
     ReadOnlySpan<byte> sig = [
         0x8b, 0x1c, 0xcd, 0x0d, 0xfe, 0xfe, 0xfe, 0xfe,
         0x13, 0x12, 0x13, 0x13, 0x11, 0x06, 0x0b, 0x06
