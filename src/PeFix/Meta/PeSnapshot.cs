@@ -17,4 +17,6 @@ internal readonly record struct PeSnapshot(
     R2RInfo? R2R = null,
     bool IsTrimmable = false,
     bool HasNest = false,
-    bool HasRefs = false);
+    bool HasRefs = false,
+    bool IsBundle = false,
+    bool IsSatellite = false);

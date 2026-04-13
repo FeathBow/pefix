@@ -46,6 +46,10 @@
       <Staged>F12_trimmable.dll</Staged>
       <Assembly>Trimmable</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\SatelliteStub\SatelliteStub.csproj">
+      <Staged>F15_satellite.dll</Staged>
+      <Assembly>SatelliteStub.resources</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>
@@ -67,6 +71,14 @@
     </PeFixDerived>
     <PeFixDerived Include="F11_r2r.dll">
       <Transform>r2r-marker</Transform>
+      <From>F01_compatible_anycpu.dll</From>
+    </PeFixDerived>
+    <PeFixDerived Include="F13_bundle.dll">
+      <Transform>single-file-bundle</Transform>
+      <From>F01_compatible_anycpu.dll</From>
+    </PeFixDerived>
+    <PeFixDerived Include="F14_webcil.wasm">
+      <Transform>webcil</Transform>
       <From>F01_compatible_anycpu.dll</From>
     </PeFixDerived>
   </ItemGroup>

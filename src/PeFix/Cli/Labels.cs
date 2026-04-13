@@ -17,6 +17,9 @@ internal static class Labels
             Category.Trimmable => "trimmable",
             Category.ModuleNest => "module_nest",
             Category.MultiModule => "multi_module",
+            Category.Satellite => "satellite",
+            Category.Bundle => "bundle",
+            Category.Webcil => "webcil",
             _ => "unknown"
         };
     }

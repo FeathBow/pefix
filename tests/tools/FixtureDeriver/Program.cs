@@ -6,7 +6,7 @@ using System.Reflection.PortableExecutable;
 if (args.Length != 3)
 {
     Console.Error.WriteLine("usage: FixtureDeriver <transform> <source-or-placeholder> <target>");
-    Console.Error.WriteLine("transforms: mixed-mode | native-pe | corrupt | empty | r2r-marker");
+    Console.Error.WriteLine("transforms: mixed-mode | native-pe | corrupt | empty | r2r-marker | webcil | single-file-bundle");
     return 2;
 }
 
@@ -32,6 +32,12 @@ switch (transform)
         break;
     case "r2r-marker":
         WriteR2R(source, target);
+        break;
+    case "webcil":
+        WriteWebcil(target);
+        break;
+    case "single-file-bundle":
+        WriteSingleFileBundle(source, target);
         break;
     default:
         Console.Error.WriteLine($"unknown transform: {transform}");
@@ -68,6 +74,25 @@ static void WriteCorrupt(string sourcePath, string targetPath)
     byte[] bytes = File.ReadAllBytes(sourcePath);
     int truncatedLength = Math.Min(100, bytes.Length);
     File.WriteAllBytes(targetPath, bytes.AsSpan(0, truncatedLength).ToArray());
+}
+
+static void WriteWebcil(string targetPath)
+{
+    File.WriteAllBytes(targetPath, [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00]);
+}
+
+static void WriteSingleFileBundle(string sourcePath, string targetPath)
+{
+    // .NET single-file bundle footer (last 16 bytes).
+    ReadOnlySpan<byte> sig = [
+        0x8b, 0x1c, 0xcd, 0x0d, 0xfe, 0xfe, 0xfe, 0xfe,
+        0x13, 0x12, 0x13, 0x13, 0x11, 0x06, 0x0b, 0x06
+    ];
+    byte[] bytes = File.ReadAllBytes(sourcePath);
+    byte[] result = new byte[bytes.Length + sig.Length];
+    bytes.CopyTo(result, 0);
+    sig.CopyTo(result.AsSpan(bytes.Length));
+    File.WriteAllBytes(targetPath, result);
 }
 
 static void WriteR2R(string sourcePath, string targetPath)

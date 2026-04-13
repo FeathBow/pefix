@@ -23,12 +23,19 @@ public static class PeAnalyzer
             return Classifier.CreateBad(fullPath, "The file is empty.");
         }
 
+        if (IsWebcil(fullPath, fileInfo.Length))
+        {
+            return Classifier.CreateWebcil(fullPath);
+        }
+
+        bool isBundle = IsBundle(fullPath, fileInfo.Length);
+
         try
         {
             using var mmf = MemoryMappedFile.CreateFromFile(fullPath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             using MemoryMappedViewStream stream = mmf.CreateViewStream(0, fileInfo.Length, MemoryMappedFileAccess.Read);
             using PEReader peReader = new(stream);
-            PeSnapshot snapshot = ReadSnapshot(fullPath, peReader);
+            PeSnapshot snapshot = ReadSnapshot(fullPath, peReader, isBundle);
             return Classifier.Classify(snapshot);
         }
         catch (BadImageFormatException)
@@ -37,7 +44,35 @@ public static class PeAnalyzer
         }
     }
 
-    private static PeSnapshot ReadSnapshot(string path, PEReader peReader)
+    private static readonly byte[] WasmMagic = [0x00, 0x61, 0x73, 0x6D];
+    private const uint R2rMagic = 0x00525452u;
+    private const string ResourceExt = ".resources";
+
+    private static readonly byte[] BundleSig = [
+        0x8b, 0x1c, 0xcd, 0x0d, 0xfe, 0xfe, 0xfe, 0xfe,
+        0x13, 0x12, 0x13, 0x13, 0x11, 0x06, 0x0b, 0x06
+    ];
+
+    private static bool IsWebcil(string path, long length)
+    {
+        if (length < WasmMagic.Length) return false;
+        Span<byte> head = stackalloc byte[WasmMagic.Length];
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        fs.ReadExactly(head);
+        return head.SequenceEqual(WasmMagic);
+    }
+
+    private static bool IsBundle(string path, long length)
+    {
+        if (length < BundleSig.Length) return false;
+        Span<byte> tail = stackalloc byte[BundleSig.Length];
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        fs.Seek(-BundleSig.Length, SeekOrigin.End);
+        fs.ReadExactly(tail);
+        return tail.SequenceEqual(BundleSig);
+    }
+
+    private static PeSnapshot ReadSnapshot(string path, PEReader peReader, bool isBundle = false)
     {
         PEHeaders headers = peReader.PEHeaders;
         PEHeader? peHeader = headers.PEHeader;
@@ -77,13 +112,21 @@ public static class PeAnalyzer
         bool isTrimmable = ReadTrim(reader);
         bool moduleNest = HasNest(reader);
         bool moduleRefs = HasRefs(reader);
+        bool isSatellite = IsSatellite(reader);
 
         return new PeSnapshot(
             path, true, true, peFormat, machine, flags, signals,
             pinvokeDeps, tfm, metaVersion, osPlatforms,
-            assemblyRefs, assemblyDef, r2r, isTrimmable, moduleNest, moduleRefs);
+            assemblyRefs, assemblyDef, r2r, isTrimmable, moduleNest, moduleRefs,
+            isBundle, isSatellite);
     }
 
+    private static bool IsSatellite(MetadataReader reader)
+    {
+        AssemblyDefinition def = reader.GetAssemblyDefinition();
+        string name = reader.GetString(def.Name);
+        return name.EndsWith(ResourceExt, StringComparison.OrdinalIgnoreCase);
+    }
     private static R2RInfo? ReadR2R(PEReader reader, CorHeader corHeader)
     {
         DirectoryEntry dir = corHeader.ManagedNativeHeaderDirectory;
@@ -96,9 +139,8 @@ public static class PeAnalyzer
 
         ImmutableArray<byte> content = block.GetContent();
         ReadOnlySpan<byte> data = content.AsSpan();
-        // R2R signature bytes at offset 0: 52 54 52 00 ("RTR\0" little-endian uint = 0x00525452)
         uint signature = BinaryPrimitives.ReadUInt32LittleEndian(data);
-        if (signature != 0x00525452u)
+        if (signature != R2rMagic)
             return null;
 
         ushort major = BinaryPrimitives.ReadUInt16LittleEndian(data[4..]);

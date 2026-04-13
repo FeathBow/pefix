@@ -57,6 +57,30 @@ public sealed class ClassTests
     }
 
     [Fact]
+    public void F13_Bundle()
+    {
+        var result = PeAnalyzer.Inspect(FixturePaths.Get("F13_bundle.dll"));
+        Assert.Equal(Category.Bundle, result.Category);
+        Assert.Equal(Status.Cautioned, result.Status);
+    }
+
+    [Fact]
+    public void F14_Webcil()
+    {
+        var result = PeAnalyzer.Inspect(FixturePaths.Get("F14_webcil.wasm"));
+        Assert.Equal(Category.Webcil, result.Category);
+        Assert.Equal(Status.Unsafe, result.Status);
+    }
+
+    [Fact]
+    public void F15_Sat()
+    {
+        var result = PeAnalyzer.Inspect(FixturePaths.Get("F15_satellite.dll"));
+        Assert.Equal(Category.Satellite, result.Category);
+        Assert.Equal(Status.Unsafe, result.Status);
+    }
+
+    [Fact]
     public void F01_NoNest()
     {
         var result = PeAnalyzer.Inspect(FixturePaths.Get("F01_compatible_anycpu.dll"));
@@ -68,6 +92,13 @@ public sealed class ClassTests
     {
         var result = PeAnalyzer.Inspect(FixturePaths.Get("F01_compatible_anycpu.dll"));
         Assert.NotEqual(Category.MultiModule, result.Category);
+    }
+
+    [Fact]
+    public void F01_NoSat()
+    {
+        var result = PeAnalyzer.Inspect(FixturePaths.Get("F01_compatible_anycpu.dll"));
+        Assert.NotEqual(Category.Satellite, result.Category);
     }
 
     [Fact]

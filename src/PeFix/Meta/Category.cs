@@ -11,4 +11,7 @@ public enum Category
     Trimmable,
     ModuleNest,
     MultiModule,
+    Satellite,
+    Bundle,
+    Webcil,
 }

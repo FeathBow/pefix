@@ -19,6 +19,11 @@ internal static class Classifier
             return CreateRefAsm(snapshot);
         }
 
+        if (snapshot.IsSatellite)
+        {
+            return CreateSat(snapshot);
+        }
+
         if (snapshot.HasNest)
         {
             return CreateNest(snapshot);
@@ -42,6 +47,11 @@ internal static class Classifier
         if (snapshot.IsTrimmable)
         {
             return CreateTrim(snapshot);
+        }
+
+        if (snapshot.IsBundle)
+        {
+            return CreateBundle(snapshot);
         }
 
         if (snapshot.OsPlatforms is { Length: > 0 })
@@ -71,6 +81,31 @@ internal static class Classifier
             [],
             [],
             ["This file is not a valid PE file or is corrupted. Verify the download or obtain a fresh copy."],
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
+    }
+
+    public static Inspection CreateWebcil(string path)
+    {
+        return new Inspection(
+            path,
+            false,
+            false,
+            null,
+            null,
+            default,
+            default,
+            Category.Webcil,
+            Status.Unsafe,
+            "This file starts with WebAssembly magic bytes (\\0asm). In a .dll context this indicates a Blazor Webcil package.",
+            [],
+            [],
+            ["Webcil wraps IL in a WebAssembly container for browser delivery. The file cannot be inspected or patched as a standard PE file."],
             null,
             null,
             null,
@@ -121,6 +156,31 @@ internal static class Classifier
             [],
             [],
             ["Reference assembly cannot be executed. Use the runtime assembly from bin/ instead of the ref/ folder."],
+            null,
+            null,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef);
+    }
+
+    private static Inspection CreateSat(PeSnapshot snapshot)
+    {
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.Satellite,
+            Status.Unsafe,
+            ".NET satellite assembly containing only localized resources.",
+            [],
+            [],
+            ["Satellite assemblies hold culture-specific resources and contain no executable IL. PE header patching does not apply. Deploy alongside the main assembly."],
             null,
             null,
             snapshot.Tfm,
@@ -257,6 +317,31 @@ internal static class Classifier
             snapshot.AssemblyDef,
             null,
             true);
+    }
+
+    private static Inspection CreateBundle(PeSnapshot snapshot)
+    {
+        return new Inspection(
+            snapshot.Path,
+            true,
+            true,
+            snapshot.PeFormat,
+            snapshot.Machine,
+            snapshot.CliFlags,
+            snapshot.Signals,
+            Category.Bundle,
+            Status.Cautioned,
+            "This executable is a .NET single-file bundle with embedded assemblies.",
+            [],
+            [],
+            ["Single-file bundles embed all assemblies inside the host EXE. Patching the outer PE header does not affect embedded assemblies. Use 'dotnet publish --no-self-contained' or patch each embedded assembly individually."],
+            ClsMessages.LoadReqs(snapshot),
+            snapshot.PInvokeDeps,
+            snapshot.Tfm,
+            snapshot.MetaVersion,
+            snapshot.OsPlatforms,
+            snapshot.AssemblyRefs,
+            snapshot.AssemblyDef);
     }
 
     private static Inspection CreateOsApi(PeSnapshot snapshot)
