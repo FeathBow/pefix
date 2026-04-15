@@ -17,24 +17,33 @@ internal static class Inspect
         {
             Description = "Write structured JSON output."
         };
-        var failOnFixableOption = new Option<bool>("--fail-on-fixable")
+        var failOnOpt = new Option<string?>("--fail-on")
         {
-            Description = "Return exit code 1 when fixable assemblies are found."
+            Description = "Exit with code 1 when the result meets or exceeds the given severity (compatible, fixable, cautioned, unsafe, corrupt)."
         };
 
         command.Arguments.Add(pathArgument);
         command.Options.Add(jsonOption);
-        command.Options.Add(failOnFixableOption);
+        command.Options.Add(failOnOpt);
         command.SetAction(parseResult => Execute(
             parseResult.GetValue(pathArgument),
             parseResult.GetValue(jsonOption),
-            parseResult.GetValue(failOnFixableOption)));
+            parseResult.GetValue(failOnOpt)));
 
         return command;
     }
 
-    private static int Execute(string? path, bool asJson, bool failOnFixable)
+    private static int Execute(string? path, bool asJson, string? failOn)
     {
+        Status? threshold = null;
+        if (failOn is not null)
+        {
+            if (!SevArg.TryParse(failOn, out Status value))
+                return SevArg.WriteBad(failOn);
+
+            threshold = value;
+        }
+
         if (string.IsNullOrWhiteSpace(path))
         {
             Console.Error.WriteLine("A file or directory path is required.");
@@ -64,16 +73,13 @@ internal static class Inspect
         }
 
         Console.Out.WriteLine(asJson ? JsonWriter.Render(result) : InspectOut.Render(result));
-        return GetExitCode(result, failOnFixable);
+        return GetExitCode(result, threshold);
     }
 
-    private static int GetExitCode(Inspection result, bool failOnFixable)
+    private static int GetExitCode(Inspection result, Status? threshold)
     {
-        if (failOnFixable)
-        {
-            return result.Status is Status.Fixable or Status.Cautioned ? 1 : 0;
-        }
-
+        if (threshold is { } t)
+            return result.Status >= t ? 1 : 0;
         return result.Status == Status.Compatible ? 0 : 1;
     }
 }
