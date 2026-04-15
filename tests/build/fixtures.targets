@@ -7,14 +7,14 @@
                     Staged   = filename written under $(OutputPath)fixtures/.
                     Assembly = AssemblyName of the source project.
     PeFixDerived  : fixtures produced by byte-patching a staged source.
-                    Transform = FixtureDeriver subcommand.
+                    Transform = Deriver subcommand.
                     From      = PeFixSource.Staged filename to patch.
                                 The 'empty' transform ignores source; a real
                                 existing fixture name is used as placeholder
                                 so MSBuild incrementality has a valid Input.
 
     Targets run AfterTargets="Build" so all ProjectReferences (fixture
-    sources and FixtureDeriver) are guaranteed built before staging.
+    sources and Deriver) are guaranteed built before staging.
   -->
 
   <ItemGroup>
@@ -94,7 +94,7 @@
       <SetConfiguration>Configuration=Release</SetConfiguration>
       <Private>false</Private>
     </ProjectReference>
-    <ProjectReference Include="$(MSBuildThisFileDirectory)..\tools\FixtureDeriver\FixtureDeriver.csproj">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\tools\Deriver.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
       <SetConfiguration>Configuration=Release</SetConfiguration>
@@ -130,15 +130,15 @@
           Inputs="@(PeFixDerived->'$(OutputPath)fixtures/%(From)')"
           Outputs="@(PeFixDerived->'$(OutputPath)fixtures/%(Identity)')">
     <!-- Build explicitly as Release; MSBuild caches across batches. -->
-    <MSBuild Projects="$(MSBuildThisFileDirectory)..\tools\FixtureDeriver\FixtureDeriver.csproj"
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\tools\Deriver.csproj"
              Targets="Build"
              Properties="Configuration=Release" />
-    <MSBuild Projects="$(MSBuildThisFileDirectory)..\tools\FixtureDeriver\FixtureDeriver.csproj"
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\tools\Deriver.csproj"
              Targets="GetTargetPath"
              Properties="Configuration=Release">
-      <Output TaskParameter="TargetOutputs" PropertyName="_FixtureDeriverDll" />
+      <Output TaskParameter="TargetOutputs" PropertyName="_DeriverDll" />
     </MSBuild>
-    <Exec Command="dotnet &quot;$(_FixtureDeriverDll)&quot; %(PeFixDerived.Transform) &quot;$(OutputPath)fixtures/%(PeFixDerived.From)&quot; &quot;$(OutputPath)fixtures/%(PeFixDerived.Identity)&quot;" />
+    <Exec Command="dotnet &quot;$(_DeriverDll)&quot; %(PeFixDerived.Transform) &quot;$(OutputPath)fixtures/%(PeFixDerived.From)&quot; &quot;$(OutputPath)fixtures/%(PeFixDerived.Identity)&quot;" />
   </Target>
 
 </Project>

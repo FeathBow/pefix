@@ -7,12 +7,12 @@ namespace PeFix.Tests;
 [Trait("Category", "Integration")]
 public sealed class PatchTests : IDisposable
 {
-    private readonly TempFixture _temp = new();
+    private readonly TempDir _temp = new();
 
     [Fact]
     public void Fix_Backup()
     {
-        var path = _temp.CopyFixture("F02_x64only_managed.dll");
+        var path = _temp.Copy("F02_x64only_managed.dll");
         Patcher.Fix(path, backup: true);
         Assert.True(File.Exists(path + ".bak"));
     }
@@ -20,7 +20,7 @@ public sealed class PatchTests : IDisposable
     [Fact]
     public void Fix_Patched()
     {
-        var path = _temp.CopyFixture("F02_x64only_managed.dll");
+        var path = _temp.Copy("F02_x64only_managed.dll");
         Patcher.Fix(path, backup: true);
         var result = PeAnalyzer.Inspect(path);
         Assert.Equal(Status.Compatible, result.Status);
@@ -29,7 +29,7 @@ public sealed class PatchTests : IDisposable
     [Fact]
     public void Fix_Idem()
     {
-        var path = _temp.CopyFixture("F02_x64only_managed.dll");
+        var path = _temp.Copy("F02_x64only_managed.dll");
         Patcher.Fix(path, backup: false);
         var bytes1 = File.ReadAllBytes(path);
         Patcher.Fix(path, backup: false);
@@ -40,7 +40,7 @@ public sealed class PatchTests : IDisposable
     [Fact]
     public void Fix_DryRun()
     {
-        var path = _temp.CopyFixture("F02_x64only_managed.dll");
+        var path = _temp.Copy("F02_x64only_managed.dll");
         var before = File.ReadAllBytes(path);
         Patcher.Fix(path, backup: false, dryRun: true);
         var after = File.ReadAllBytes(path);
@@ -50,7 +50,7 @@ public sealed class PatchTests : IDisposable
     [Fact]
     public void Fix_Noop()
     {
-        var path = _temp.CopyFixture("F01_compatible_anycpu.dll");
+        var path = _temp.Copy("F01_compatible_anycpu.dll");
         var result = Patcher.Fix(path, backup: false);
         Assert.False(result.WasPatched);
         Assert.Equal(Status.Compatible, result.After.Status);
@@ -59,7 +59,7 @@ public sealed class PatchTests : IDisposable
     [Fact]
     public void Fix_Loadable()
     {
-        var path = _temp.CopyFixture("F02_x64only_managed.dll");
+        var path = _temp.Copy("F02_x64only_managed.dll");
         Patcher.Fix(path, backup: false);
         var weak = LoadCheck(path);
         for (int i = 0; weak.IsAlive && i < 10; i++)
@@ -82,7 +82,7 @@ public sealed class PatchTests : IDisposable
     [Fact]
     public void Fix_Throws()
     {
-        var path = _temp.CopyFixture("F06_mixed_mode.dll");
+        var path = _temp.Copy("F06_mixed_mode.dll");
         var ex = Assert.Throws<UnsafeException>(() => Patcher.Fix(path));
         Assert.Contains("mixed_mode", ex.Message);
     }

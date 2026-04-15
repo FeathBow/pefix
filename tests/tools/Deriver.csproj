@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
-    <AssemblyName>FixtureDeriver</AssemblyName>
-    <RootNamespace>PeFix.Tests.Tools.FixtureDeriver</RootNamespace>
+    <AssemblyName>Deriver</AssemblyName>
+    <RootNamespace>PeFix.Tests.Tools</RootNamespace>
   </PropertyGroup>
 </Project>

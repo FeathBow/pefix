@@ -3,11 +3,11 @@ using System.IO;
 
 namespace PeFix.Tests;
 
-internal static class FixturePaths
+internal static class Paths
 {
     public static string RepoRoot =>
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
 
-    public static string Get(string fixtureName) =>
-        Path.Combine(AppContext.BaseDirectory, "fixtures", fixtureName);
+    public static string Get(string name) =>
+        Path.Combine(AppContext.BaseDirectory, "fixtures", name);
 }

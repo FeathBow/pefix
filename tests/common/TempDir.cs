@@ -3,28 +3,28 @@ using System.IO;
 
 namespace PeFix.Tests;
 
-internal sealed class TempFixture : IDisposable
+internal sealed class TempDir : IDisposable
 {
     public string DirPath { get; } = Path.Combine(Path.GetTempPath(), "pefix-test-" + Guid.NewGuid().ToString("N")[..8]);
 
-    public TempFixture()
+    public TempDir()
     {
         Directory.CreateDirectory(DirPath);
     }
 
-    public string CopyFixture(string fixtureName)
+    public string Copy(string name)
     {
-        var sourcePath = FixturePaths.Get(fixtureName);
+        var sourcePath = Paths.Get(name);
         var destPath = Path.Combine(DirPath, Path.GetFileName(sourcePath));
         File.Copy(sourcePath, destPath, overwrite: true);
         return destPath;
     }
 
-    public void CopyFixtures(params string[] fixtureNames)
+    public void CopyAll(params string[] names)
     {
-        foreach (var fixtureName in fixtureNames)
+        foreach (var name in names)
         {
-            CopyFixture(fixtureName);
+            Copy(name);
         }
     }
 

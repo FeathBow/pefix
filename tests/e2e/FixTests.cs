@@ -3,12 +3,12 @@ namespace PeFix.Tests;
 [Trait("Category", "E2E")]
 public sealed class FixTests : IDisposable
 {
-    private readonly TempFixture _temp = new();
+    private readonly TempDir _temp = new();
 
     [Fact]
     public void Fix_Fixable()
     {
-        var path = _temp.CopyFixture("F02_x64only_managed.dll");
+        var path = _temp.Copy("F02_x64only_managed.dll");
         var result = CliRunner.Run("fix", path);
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("Verify:  Re-inspection passed. Assembly manifest was validated.", result.Stdout);
@@ -17,7 +17,7 @@ public sealed class FixTests : IDisposable
     [Fact]
     public void Fix_Compatible()
     {
-        var path = _temp.CopyFixture("F01_compatible_anycpu.dll");
+        var path = _temp.Copy("F01_compatible_anycpu.dll");
         var result = CliRunner.Run("fix", path);
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Result:  No changes were needed", result.Stdout);
@@ -27,7 +27,7 @@ public sealed class FixTests : IDisposable
     [Fact]
     public void Fix_Unsafe()
     {
-        var path = _temp.CopyFixture("F06_mixed_mode.dll");
+        var path = _temp.Copy("F06_mixed_mode.dll");
         var result = CliRunner.Run("fix", path);
         Assert.Equal(3, result.ExitCode);
         Assert.Contains("cannot be patched safely", result.Stderr);
@@ -36,9 +36,9 @@ public sealed class FixTests : IDisposable
     [Fact]
     public void Fix_Directory()
     {
-        _temp.CopyFixture("F01_compatible_anycpu.dll");
-        var fixablePath = _temp.CopyFixture("F02_x64only_managed.dll");
-        _temp.CopyFixture("F06_mixed_mode.dll");
+        _temp.Copy("F01_compatible_anycpu.dll");
+        var fixablePath = _temp.Copy("F02_x64only_managed.dll");
+        _temp.Copy("F06_mixed_mode.dll");
 
         var result = CliRunner.Run("fix", _temp.DirPath);
 
@@ -52,7 +52,7 @@ public sealed class FixTests : IDisposable
     [Fact]
     public void Fix_DirUnsafe()
     {
-        _temp.CopyFixture("F06_mixed_mode.dll");
+        _temp.Copy("F06_mixed_mode.dll");
 
         var result = CliRunner.Run("fix", _temp.DirPath);
 
@@ -63,7 +63,7 @@ public sealed class FixTests : IDisposable
     [Fact]
     public void Fix_JsonBatch()
     {
-        _temp.CopyFixtures("F01_compatible_anycpu.dll", "F02_x64only_managed.dll", "F06_mixed_mode.dll");
+        _temp.CopyAll("F01_compatible_anycpu.dll", "F02_x64only_managed.dll", "F06_mixed_mode.dll");
 
         var result = CliRunner.Run("fix", _temp.DirPath, "--json");
 
@@ -77,7 +77,7 @@ public sealed class FixTests : IDisposable
     [Fact]
     public void Fix_JsonUnsafe()
     {
-        var path = _temp.CopyFixture("F06_mixed_mode.dll");
+        var path = _temp.Copy("F06_mixed_mode.dll");
 
         var result = CliRunner.Run("fix", path, "--json");
 
