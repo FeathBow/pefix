@@ -44,7 +44,8 @@ public static class Scanner
     {
         string extension = Path.GetExtension(path);
         return extension.Equals(".dll", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".exe", StringComparison.OrdinalIgnoreCase);
+            || extension.Equals(".exe", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".wasm", StringComparison.OrdinalIgnoreCase);
     }
 
     private static VerConflict[] FindConfs(Inspection[] results)
