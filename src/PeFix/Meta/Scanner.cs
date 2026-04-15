@@ -50,16 +50,11 @@ public static class Scanner
 
     private static VerConflict[] FindConfs(Inspection[] results)
     {
-        // When multiple DLLs share the same AssemblyDef name (e.g. derived fixtures),
-        // skip duplicates — ambiguous provider cannot be resolved.
         Dictionary<string, (string Version, string Path)> provided = [];
         foreach (Inspection r in results.Where(r => r.AssemblyDef.HasValue))
         {
             string key = r.AssemblyDef!.Value.Name.ToLowerInvariant();
-            if (!provided.ContainsKey(key))
-            {
-                provided[key] = (r.AssemblyDef!.Value.Version, r.Path);
-            }
+            provided.TryAdd(key, (r.AssemblyDef!.Value.Version, r.Path));
         }
 
         List<VerConflict> conflicts = [];

@@ -14,11 +14,16 @@ internal static class Scan
         {
             Description = "Exit with code 1 when any result meets or exceeds the given severity (compatible, fixable, cautioned, unsafe, corrupt)."
         };
+        var conflictOpt = new Option<bool>("--fail-on-conflict")
+        {
+            Description = "Exit with code 1 when version conflicts are detected between assemblies."
+        };
 
         var command = new Command("scan", "Scan a directory for portability issues.");
         command.Arguments.Add(pathArg);
         command.Options.Add(jsonOpt);
         command.Options.Add(failOnOpt);
+        command.Options.Add(conflictOpt);
 
         command.SetAction(parseResult =>
         {
@@ -26,6 +31,7 @@ internal static class Scan
             bool json = parseResult.GetValue(jsonOpt);
             string? failOn = parseResult.GetValue(failOnOpt);
             Status? threshold = null;
+            bool onConflict = parseResult.GetValue(conflictOpt);
 
             if (failOn is not null)
             {
@@ -37,6 +43,10 @@ internal static class Scan
 
             ScanReport report = Scanner.Scan(path);
             Console.WriteLine(json ? JsonWriter.Render(report) : ScanWriter.Render(report));
+
+            if (onConflict && report.Conflicts.Length > 0)
+                return 1;
+
             return threshold is { } t && report.Results.Any(r => r.Status >= t) ? 1 : 0;
         });
 
