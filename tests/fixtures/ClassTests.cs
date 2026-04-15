@@ -126,4 +126,13 @@ public sealed class ClassTests
         Assert.NotNull(report.Results);
         Assert.NotNull(report.Conflicts);
     }
+
+    [Fact]
+    public void Status_Order()
+    {
+        Assert.True((int)Status.Compatible < (int)Status.Fixable);
+        Assert.True((int)Status.Fixable < (int)Status.Cautioned);
+        Assert.True((int)Status.Cautioned < (int)Status.Unsafe);
+        Assert.True((int)Status.Unsafe < (int)Status.Corrupt);
+    }
 }
