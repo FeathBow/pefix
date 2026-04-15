@@ -8,6 +8,7 @@ internal static class ScanWriter
     {
         using var writer = new StringWriter();
         WriteHeader(writer, report, commandName);
+        WriteCounts(writer, report);
         WriteGroups(writer, report);
         WriteConfs(writer, report);
         WriteHint(writer, report);
@@ -22,12 +23,22 @@ internal static class ScanWriter
         writer.WriteLine($"  Action:  {Action(report)}");
     }
 
+    private static void WriteCounts(StringWriter writer, ScanReport report)
+    {
+        int compatible = report.Results.Count(r => r.Status == Status.Compatible);
+        int fixable = report.Results.Count(r => r.Status == Status.Fixable);
+        int cautioned = report.Results.Count(r => r.Status == Status.Cautioned);
+        int @unsafe = report.Results.Count(r => r.Status == Status.Unsafe);
+        int corrupt = report.Results.Count(r => r.Status == Status.Corrupt);
+        writer.WriteLine($"  Counts:  compatible: {compatible}  fixable: {fixable}  cautioned: {cautioned}  unsafe: {@unsafe}  corrupt: {corrupt}");
+    }
+
     private static void WriteGroups(StringWriter writer, ScanReport report)
     {
         if (report.Results.Length == 0)
         {
             writer.WriteLine();
-            writer.WriteLine("  Groups:  No .dll or .exe files were found.");
+            writer.WriteLine("  Groups:  No .dll, .exe, or .wasm files were found.");
             return;
         }
 

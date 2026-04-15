@@ -70,6 +70,15 @@ internal static class JsonWriter
             result.IsTrimmable);
     }
 
+    private static string GetAction(Inspection result) => result.Status switch
+    {
+        Status.Compatible => "none",
+        Status.Fixable => "fix",
+        Status.Cautioned when result.Category == Category.Portability => "fix",
+        Status.Cautioned => "acknowledge",
+        _ => "blocked"
+    };
+
     private static ConflictJson MapConflict(VerConflict conflict)
     {
         return new ConflictJson(
@@ -82,13 +91,21 @@ internal static class JsonWriter
 
     private static SummaryJson MapSummary(Inspection[] results)
     {
+        var byCategory = results
+            .GroupBy(r => r.Category is null ? "unknown" : Labels.CatText(r.Category), StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+        var byAction = results
+            .GroupBy(r => GetAction(r), StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
         return new SummaryJson(
             results.Length,
             results.Count(r => r.Status == Status.Compatible),
             results.Count(r => r.Status == Status.Fixable),
             results.Count(r => r.Status == Status.Cautioned),
             results.Count(r => r.Status == Status.Unsafe),
-            results.Count(r => r.Status == Status.Corrupt));
+            results.Count(r => r.Status == Status.Corrupt),
+            byCategory,
+            byAction);
     }
 
     private static FixJson CreateFix(PatchResult result)

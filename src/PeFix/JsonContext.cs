@@ -17,6 +17,7 @@ namespace PeFix;
 [JsonSerializable(typeof(BatchFixJson))]
 [JsonSerializable(typeof(ScanJson))]
 [JsonSerializable(typeof(SummaryJson))]
+[JsonSerializable(typeof(Dictionary<string, int>))]
 [JsonSourceGenerationOptions(WriteIndented = true, NewLine = "\n")]
 internal sealed partial class JsonContext : JsonSerializerContext
 {
