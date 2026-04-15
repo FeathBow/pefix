@@ -6,6 +6,8 @@
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <ResultsDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../artifacts/TestResults/PeFix.Tests/$(Configuration)'))</ResultsDir>
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --results-directory "$(ResultsDir)"</TestingPlatformCommandLineArguments>
   </PropertyGroup>
 
   <ItemGroup>

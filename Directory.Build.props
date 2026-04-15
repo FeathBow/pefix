@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
     <UseArtifactsOutput>true</UseArtifactsOutput>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
