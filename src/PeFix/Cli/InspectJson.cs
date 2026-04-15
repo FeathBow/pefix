@@ -12,6 +12,7 @@ internal sealed record InspectJson(
     [property: JsonPropertyName("signals")] SignalsJson Signals,
     [property: JsonPropertyName("category")] string? Category,
     [property: JsonPropertyName("status")] string Status,
+    [property: JsonPropertyName("action")] string Action,
     [property: JsonPropertyName("primary_cause")] string PrimaryCause,
     [property: JsonPropertyName("runtime_risks")] string[] RuntimeRisks,
     [property: JsonPropertyName("warnings")] string[] Warnings,
