@@ -1,4 +1,3 @@
-using System;
 using System.Buffers.Binary;
 using System.IO;
 using System.Reflection.PortableExecutable;
@@ -6,7 +5,7 @@ using System.Reflection.PortableExecutable;
 if (args.Length != 3)
 {
     Console.Error.WriteLine("usage: Deriver <transform> <source-or-placeholder> <target>");
-    Console.Error.WriteLine("transforms: mixed-mode | native-pe | corrupt | empty | r2r-marker | webcil | single-file-bundle");
+    Console.Error.WriteLine("transforms: mixed-mode | native-pe | corrupt | empty | r2r-marker | webcil | single-file-bundle | conflict");
     return 2;
 }
 
@@ -34,13 +33,16 @@ switch (transform)
         File.WriteAllBytes(target, []);
         break;
     case "r2r-marker":
-        WriteR2R(source, target);
+        PeWrites.WriteR2R(source, target);
         break;
     case "webcil":
         WriteWebcil(target);
         break;
     case "single-file-bundle":
         WriteBundle(source, target);
+        break;
+    case "conflict":
+        PeWrites.WriteConf(target);
         break;
     default:
         Console.Error.WriteLine($"unknown transform: {transform}");
@@ -49,7 +51,7 @@ switch (transform)
 
 return 0;
 
-static void WriteMixed(string sourcePath, string targetPath)
+void WriteMixed(string sourcePath, string targetPath)
 {
     byte[] bytes = File.ReadAllBytes(sourcePath);
     using var stream = new MemoryStream(bytes, writable: true);
@@ -60,7 +62,7 @@ static void WriteMixed(string sourcePath, string targetPath)
     File.WriteAllBytes(targetPath, bytes);
 }
 
-static void WriteNative(string sourcePath, string targetPath)
+void WriteNative(string sourcePath, string targetPath)
 {
     byte[] bytes = File.ReadAllBytes(sourcePath);
     using var stream = new MemoryStream(bytes, writable: true);
@@ -72,14 +74,14 @@ static void WriteNative(string sourcePath, string targetPath)
     File.WriteAllBytes(targetPath, bytes);
 }
 
-static void WriteCorrupt(string sourcePath, string targetPath)
+void WriteCorrupt(string sourcePath, string targetPath)
 {
     byte[] bytes = File.ReadAllBytes(sourcePath);
     int cutLen = Math.Min(100, bytes.Length);
     File.WriteAllBytes(targetPath, bytes.AsSpan(0, cutLen).ToArray());
 }
 
-static void WriteWebcil(string targetPath)
+void WriteWebcil(string targetPath)
 {
     File.WriteAllBytes(targetPath, [
         0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
@@ -87,7 +89,7 @@ static void WriteWebcil(string targetPath)
     ]);
 }
 
-static void WriteBundle(string sourcePath, string targetPath)
+void WriteBundle(string sourcePath, string targetPath)
 {
     ReadOnlySpan<byte> sig = [
         0x8b, 0x1c, 0xcd, 0x0d, 0xfe, 0xfe, 0xfe, 0xfe,
@@ -98,50 +100,4 @@ static void WriteBundle(string sourcePath, string targetPath)
     bytes.CopyTo(result, 0);
     sig.CopyTo(result.AsSpan(bytes.Length));
     File.WriteAllBytes(targetPath, result);
-}
-
-static void WriteR2R(string sourcePath, string targetPath)
-{
-    byte[] bytes = File.ReadAllBytes(sourcePath);
-
-    using var readStream = new MemoryStream(bytes, writable: false);
-    using var reader = new PEReader(readStream, PEStreamOptions.LeaveOpen);
-
-    PEHeaders headers = reader.PEHeaders;
-    int corHeaderOffset = headers.CorHeaderStartOffset;
-    int managedNativeHeaderDirOffset = corHeaderOffset + 64;
-    byte[] r2rStub = [0x52, 0x54, 0x52, 0x00, 0x01, 0x00, 0x00, 0x00];
-    int peStart = headers.PEHeaderStartOffset;
-    ushort optHeaderSize = BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(peStart - 4, 2));
-    int sectionTableOffset = peStart + optHeaderSize;
-    int bestSectionIndex = -1;
-    int bestPadding = 0;
-    for (int i = 0; i < headers.SectionHeaders.Length; i++)
-    {
-        SectionHeader s = headers.SectionHeaders[i];
-        int pad = s.SizeOfRawData - s.VirtualSize;
-        if (pad >= 8 && pad > bestPadding)
-        {
-            bestPadding = pad;
-            bestSectionIndex = i;
-        }
-    }
-
-    if (bestSectionIndex < 0)
-    {
-        throw new InvalidOperationException("No section has >= 8 bytes of raw padding to embed the R2R stub.");
-    }
-
-    SectionHeader bestSection = headers.SectionHeaders[bestSectionIndex];
-    int stubFileOffset = (int)bestSection.PointerToRawData + bestSection.VirtualSize;
-    int stubRva = (int)bestSection.VirtualAddress + bestSection.VirtualSize;
-    r2rStub.CopyTo(bytes.AsSpan(stubFileOffset));
-    int sectionHeaderOffset = sectionTableOffset + bestSectionIndex * 40;
-    int vSizeFieldOffset = sectionHeaderOffset + 8;
-    int newVirtualSize = bestSection.VirtualSize + r2rStub.Length;
-    BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(vSizeFieldOffset, 4), newVirtualSize);
-    BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(managedNativeHeaderDirOffset, 4), stubRva);
-    BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(managedNativeHeaderDirOffset + 4, 4), r2rStub.Length);
-
-    File.WriteAllBytes(targetPath, bytes);
 }

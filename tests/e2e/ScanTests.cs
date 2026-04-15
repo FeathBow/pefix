@@ -53,6 +53,21 @@ public sealed class ScanTests : IDisposable
         Assert.Equal(2, result.ExitCode);
     }
 
+    [Fact]
+    public void Scan_ConfOk()
+    {
+        _temp.CopyAll("F01_compatible_anycpu.dll");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--fail-on-conflict");
+        Assert.Equal(0, result.ExitCode);
+    }
+
+    [Fact]
+    public void Scan_ConfHit()
+    {
+        _temp.CopyAll("F01_compatible_anycpu.dll", "F17_conflict.dll");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--fail-on-conflict");
+        Assert.Equal(1, result.ExitCode);
+    }
 
     public void Dispose()
     {

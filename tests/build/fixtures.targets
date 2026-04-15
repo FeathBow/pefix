@@ -85,6 +85,10 @@
       <Transform>webcil</Transform>
       <From>F01_compatible_anycpu.dll</From>
     </PeFixDerived>
+    <PeFixDerived Include="F17_conflict.dll">
+      <Transform>conflict</Transform>
+      <From>F01_compatible_anycpu.dll</From>
+    </PeFixDerived>
   </ItemGroup>
 
   <ItemGroup>
