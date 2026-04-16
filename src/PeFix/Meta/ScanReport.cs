@@ -4,4 +4,5 @@ public readonly record struct ScanReport(
     string Directory,
     Inspection[] Results,
     VerConflict[] Conflicts,
-    MissingRef[] MissingRefs);
+    MissingRef[] MissingRefs,
+    DupProvider[] DupProviders);

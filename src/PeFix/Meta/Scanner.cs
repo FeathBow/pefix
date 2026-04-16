@@ -11,7 +11,8 @@ public static class Scanner
         Parallel.For(0, files.Length, index => results[index] = PeAnalyzer.Inspect(files[index]));
         VerConflict[] conflicts = FindConfs(results);
         MissingRef[] missingRefs = FindMissing(results);
-        return new ScanReport(fullPath, results, conflicts, missingRefs);
+        DupProvider[] dupProviders = FindDup(results);
+        return new ScanReport(fullPath, results, conflicts, missingRefs, dupProviders);
     }
 
     public static bool HasFixable(ScanReport report)
@@ -97,6 +98,29 @@ public static class Scanner
             }
         }
         return [.. missing.DistinctBy(item => (item.RefName, item.NeedBy))];
+    }
+
+    private static DupProvider[] FindDup(Inspection[] results)
+    {
+        Dictionary<string, List<string>> found = new(StringComparer.OrdinalIgnoreCase);
+        foreach (Inspection item in results.Where(item => item.AssemblyDef.HasValue))
+        {
+            string asmName = item.AssemblyDef!.Value.Name;
+            if (!found.TryGetValue(asmName, out List<string>? files))
+            {
+                files = [];
+                found[asmName] = files;
+            }
+
+            files.Add(Path.GetFileName(item.Path));
+        }
+
+        return [.. found
+            .Where(item => item.Value.Count > 1)
+            .OrderBy(item => item.Key, StringComparer.Ordinal)
+            .Select(item => new DupProvider(
+                item.Key,
+                [.. item.Value.OrderBy(name => name, StringComparer.OrdinalIgnoreCase)]))];
     }
 
     private static HashSet<string> FindProvided(Inspection[] results)
