@@ -48,4 +48,16 @@ public sealed class InspectTests
         var result = CliRunner.Run("inspect", Paths.Get(fixture), "--json");
         Assert.Contains($"\"action\": \"{action}\"", result.Stdout);
     }
+
+    [Theory]
+    [InlineData("F01_compatible_anycpu.dll", "portable")]
+    [InlineData("F02_x64only_managed.dll", "non_portable")]
+    [InlineData("F05_reference_assembly.dll", "ref_assembly")]
+    [InlineData("F06_mixed_mode.dll", "mixed_mode")]
+    [InlineData("F16_netfx_stub.dll", "tfm_mismatch")]
+    public void Inspect_Code(string fixture, string reasonCode)
+    {
+        var result = CliRunner.Run("inspect", Paths.Get(fixture), "--json");
+        Assert.Contains($"\"reason_code\": \"{reasonCode}\"", result.Stdout);
+    }
 }

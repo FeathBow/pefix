@@ -10,6 +10,7 @@ public readonly record struct Inspection(
     Signals Signals,
     Category? Category,
     Status Status,
+    string ReasonCode,
     string PrimaryCause,
     string[] RuntimeRisks,
     string[] Warnings,

@@ -88,6 +88,7 @@ public sealed class FixTests : IDisposable
         Assert.DoesNotContain("\r", result.Stdout);
         Assert.EndsWith("\n", result.Stdout);
         Assert.Contains("\"reason\":", result.Stdout);
+        Assert.Contains("\"reason_code\": \"mixed_mode\"", result.Stdout);
         Assert.Contains("\"status\": \"unsafe\"", result.Stdout);
     }
 

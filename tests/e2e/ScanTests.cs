@@ -27,6 +27,8 @@ public sealed class ScanTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("\"status\": \"compatible\"", result.Stdout);
         Assert.Contains("\"status\": \"fixable\"", result.Stdout);
+        Assert.Contains("\"reason_code\": \"portable\"", result.Stdout);
+        Assert.Contains("\"reason_code\": \"non_portable\"", result.Stdout);
         Assert.Contains("\"by_action\"", result.Stdout);
         Assert.Contains("\"none\"", result.Stdout);
         Assert.Contains("\"fix\"", result.Stdout);

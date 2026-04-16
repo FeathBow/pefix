@@ -57,6 +57,7 @@ internal static class JsonWriter
                 result.Signals.IsMixedMode),
             result.Category is null ? null : Labels.CatText(result.Category),
             Labels.StatusText(result.Status),
+            result.ReasonCode,
             GetAction(result),
             result.PrimaryCause,
             result.RuntimeRisks,
