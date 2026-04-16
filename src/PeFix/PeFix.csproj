@@ -12,7 +12,7 @@
     <PackageReference Include="System.CommandLine" Version="2.0.5" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(ContinuousIntegrationBuild)' == 'true'">
     <PackageReference Include="SonarAnalyzer.CSharp" Version="10.22.0.136894">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
