@@ -68,6 +68,8 @@ public sealed class FixTests : IDisposable
         var result = CliRunner.Run("fix", _temp.DirPath, "--json");
 
         Assert.Equal(2, result.ExitCode);
+        Assert.DoesNotContain("\r", result.Stdout);
+        Assert.EndsWith("\n", result.Stdout);
         Assert.Contains("\"directory\":", result.Stdout);
         Assert.Contains("\"summary\":", result.Stdout);
         Assert.Contains("\"was_patched\": true", result.Stdout);
@@ -83,6 +85,8 @@ public sealed class FixTests : IDisposable
 
         Assert.Equal(3, result.ExitCode);
         Assert.Equal(string.Empty, result.Stderr);
+        Assert.DoesNotContain("\r", result.Stdout);
+        Assert.EndsWith("\n", result.Stdout);
         Assert.Contains("\"reason\":", result.Stdout);
         Assert.Contains("\"status\": \"unsafe\"", result.Stdout);
     }

@@ -72,7 +72,15 @@ internal static class Inspect
             return 4;
         }
 
-        Console.Out.WriteLine(asJson ? JsonWriter.Render(result) : InspectOut.Render(result));
+        if (asJson)
+        {
+            JsonOut.Write(JsonWriter.Render(result));
+        }
+        else
+        {
+            Console.Out.WriteLine(InspectOut.Render(result));
+        }
+
         return GetExitCode(result, threshold);
     }
 

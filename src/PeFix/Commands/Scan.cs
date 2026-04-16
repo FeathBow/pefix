@@ -42,7 +42,14 @@ internal static class Scan
             }
 
             ScanReport report = Scanner.Scan(path);
-            Console.WriteLine(json ? JsonWriter.Render(report) : ScanWriter.Render(report));
+            if (json)
+            {
+                JsonOut.Write(JsonWriter.Render(report));
+            }
+            else
+            {
+                Console.WriteLine(ScanWriter.Render(report));
+            }
 
             if (onConflict && report.Conflicts.Length > 0)
                 return 1;

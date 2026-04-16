@@ -30,6 +30,32 @@ public sealed class ScanTests : IDisposable
     }
 
     [Fact]
+    public void Scan_Miss()
+    {
+        _temp.CopyAll("F18_missing_refs.dll");
+        var result = CliRunner.Run("scan", _temp.DirPath);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Missing refs (2):", result.Stdout);
+        Assert.Contains("Dependency: F18_missing_refs.dll expects v1.0.0.0, but no provider was found", result.Stdout);
+        Assert.Contains("Microsoft.Extensions.DependencyInjection: F18_missing_refs.dll expects v1.0.0.0, but no provider was found", result.Stdout);
+        Assert.DoesNotContain("All assemblies use compatible headers", result.Stdout);
+    }
+
+    [Fact]
+    public void Scan_MissJs()
+    {
+        _temp.CopyAll("F18_missing_refs.dll");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--json");
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("\n  \"missing_refs\": [", result.Stdout);
+        Assert.DoesNotContain("\r", result.Stdout);
+        Assert.EndsWith("\n", result.Stdout);
+        Assert.Contains("\"assembly\": \"Dependency\"", result.Stdout);
+        Assert.Contains("\"assembly\": \"Microsoft.Extensions.DependencyInjection\"", result.Stdout);
+        Assert.Contains("\"required_by\": \"F18_missing_refs.dll\"", result.Stdout);
+    }
+
+    [Fact]
     public void Scan_Fixable()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F02_x64only_managed.dll");

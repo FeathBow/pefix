@@ -17,6 +17,8 @@ public sealed class InspectTests
     {
         var result = CliRunner.Run("inspect", Paths.Get("F02_x64only_managed.dll"), "--json");
         Assert.Equal(1, result.ExitCode);
+        Assert.DoesNotContain("\r", result.Stdout);
+        Assert.EndsWith("\n", result.Stdout);
         Assert.Contains("\"status\": \"fixable\"", result.Stdout);
     }
 

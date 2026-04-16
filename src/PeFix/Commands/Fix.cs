@@ -44,7 +44,14 @@ internal static class Fix
         try
         {
             PatchResult result = Patcher.Fix(path, options);
-            Console.WriteLine(json ? JsonWriter.Render(result) : FixWriter.Render(result));
+            if (json)
+            {
+                JsonOut.Write(JsonWriter.Render(result));
+            }
+            else
+            {
+                Console.WriteLine(FixWriter.Render(result));
+            }
             return result.WasPatched ? 2 : 0;
         }
         catch (UnsafeException ex)
@@ -52,7 +59,7 @@ internal static class Fix
             if (json)
             {
                 Inspection before = PeAnalyzer.Inspect(path);
-                Console.WriteLine(JsonWriter.Render(new Refusal(path, ex.Message, before)));
+                JsonOut.Write(JsonWriter.Render(new Refusal(path, ex.Message, before)));
             }
             else
             {
@@ -66,7 +73,14 @@ internal static class Fix
     private static int RunDirectory(string path, PatchOptions options, bool json)
     {
         BatchResult result = BatchPatcher.Fix(path, options);
-        Console.WriteLine(json ? JsonWriter.Render(result) : BatchWriter.Render(result));
+        if (json)
+        {
+            JsonOut.Write(JsonWriter.Render(result));
+        }
+        else
+        {
+            Console.WriteLine(BatchWriter.Render(result));
+        }
 
         if (result.Results.Any(r => r.WasPatched))
         {
