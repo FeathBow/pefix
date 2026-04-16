@@ -1,3 +1,6 @@
+using System.IO;
+using System.Text.Json;
+
 namespace PeFix.Tests;
 
 [Trait("Category", "E2E")]
@@ -56,6 +59,45 @@ public sealed class ScanTests : IDisposable
     }
 
     [Fact]
+    public void Scan_DupText()
+    {
+        CopyDup();
+        var result = CliRunner.Run("scan", _temp.DirPath);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Dup providers (1):", result.Stdout);
+        Assert.Contains("CompatibleAnyCpu: PluginA.dll, PluginB.dll", result.Stdout);
+        Assert.DoesNotContain("All assemblies use compatible headers", result.Stdout);
+    }
+
+    [Fact]
+    public void Scan_DupJson()
+    {
+        CopyDup();
+        var result = CliRunner.Run("scan", _temp.DirPath, "--json");
+        Assert.Equal(0, result.ExitCode);
+        Assert.DoesNotContain("\r", result.Stdout);
+        Assert.EndsWith("\n", result.Stdout);
+
+        using JsonDocument doc = JsonDocument.Parse(result.Stdout);
+        JsonElement root = doc.RootElement;
+        JsonElement dups = root.GetProperty("dup_providers");
+        JsonElement summary = root.GetProperty("summary");
+
+        Assert.Equal(1, dups.GetArrayLength());
+        Assert.Equal(1, summary.GetProperty("dup_providers").GetInt32());
+        Assert.Equal("CompatibleAnyCpu", dups[0].GetProperty("assembly").GetString());
+        Assert.Equal(2, dups[0].GetProperty("files").GetArrayLength());
+    }
+
+    [Fact]
+    public void Scan_DupOk()
+    {
+        CopyDup();
+        var result = CliRunner.Run("scan", _temp.DirPath, "--fail-on-conflict");
+        Assert.Equal(0, result.ExitCode);
+    }
+
+    [Fact]
     public void Scan_Fixable()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F02_x64only_managed.dll");
@@ -93,6 +135,13 @@ public sealed class ScanTests : IDisposable
         _temp.CopyAll("F01_compatible_anycpu.dll", "F17_conflict.dll");
         var result = CliRunner.Run("scan", _temp.DirPath, "--fail-on-conflict");
         Assert.Equal(1, result.ExitCode);
+    }
+
+    private void CopyDup()
+    {
+        string source = Paths.Get("F01_compatible_anycpu.dll");
+        File.Copy(source, Path.Combine(_temp.DirPath, "PluginA.dll"), overwrite: true);
+        File.Copy(source, Path.Combine(_temp.DirPath, "PluginB.dll"), overwrite: true);
     }
 
     public void Dispose()
