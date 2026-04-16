@@ -12,6 +12,7 @@ internal static class ScanWriter
         WriteGroups(writer, report);
         WriteConfs(writer, report);
         WriteMissing(writer, report);
+        WriteDup(writer, report);
         WriteHint(writer, report);
         return writer.ToString().TrimEnd();
     }
@@ -83,6 +84,19 @@ internal static class ScanWriter
         }
     }
 
+    private static void WriteDup(StringWriter writer, ScanReport report)
+    {
+        if (report.DupProviders.Length == 0)
+            return;
+
+        writer.WriteLine();
+        writer.WriteLine($"  Dup providers ({report.DupProviders.Length}):");
+        foreach (DupProvider dupProvider in report.DupProviders)
+        {
+            writer.WriteLine($"    - {dupProvider.AsmName}: {string.Join(", ", dupProvider.Files)}");
+        }
+    }
+
     private static void WriteHint(StringWriter writer, ScanReport report)
     {
         if (report.Results.Length == 0)
@@ -92,7 +106,8 @@ internal static class ScanWriter
 
         bool allOk = report.Results.All(r => r.Status == Status.Compatible)
             && report.Conflicts.Length == 0
-            && report.MissingRefs.Length == 0;
+            && report.MissingRefs.Length == 0
+            && report.DupProviders.Length == 0;
         if (allOk)
         {
             writer.WriteLine();

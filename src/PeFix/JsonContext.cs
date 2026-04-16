@@ -13,6 +13,8 @@ namespace PeFix;
 [JsonSerializable(typeof(ConflictJson[]))]
 [JsonSerializable(typeof(MissRefJson))]
 [JsonSerializable(typeof(MissRefJson[]))]
+[JsonSerializable(typeof(DupJson))]
+[JsonSerializable(typeof(DupJson[]))]
 [JsonSerializable(typeof(FixJson))]
 [JsonSerializable(typeof(RefusalJson))]
 [JsonSerializable(typeof(BatchSummary))]

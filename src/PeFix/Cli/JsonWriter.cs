@@ -14,10 +14,11 @@ internal static class JsonWriter
     public static string Render(ScanReport report)
     {
         InspectJson[] models = report.Results.Select(MapInspect).ToArray();
-        SummaryJson summary = MapSummary(report.Results);
+        SummaryJson summary = MapSummary(report);
         ConflictJson[] conflicts = report.Conflicts.Select(MapConflict).ToArray();
         MissRefJson[] missingRefs = report.MissingRefs.Select(MapMissRef).ToArray();
-        var scanJson = new ScanJson(report.Directory, summary, models, conflicts, missingRefs);
+        DupJson[] dupProviders = report.DupProviders.Select(MapDup).ToArray();
+        var scanJson = new ScanJson(report.Directory, summary, models, conflicts, missingRefs, dupProviders);
         return JsonSerializer.Serialize(scanJson, JsonContext.Default.ScanJson);
     }
 
@@ -99,8 +100,16 @@ internal static class JsonWriter
             missingRef.NeedBy);
     }
 
-    private static SummaryJson MapSummary(Inspection[] results)
+    private static DupJson MapDup(DupProvider dupProvider)
     {
+        return new DupJson(
+            dupProvider.AsmName,
+            dupProvider.Files);
+    }
+
+    private static SummaryJson MapSummary(ScanReport report)
+    {
+        Inspection[] results = report.Results;
         var byCategory = results
             .GroupBy(r => r.Category is null ? "unknown" : Labels.CatText(r.Category), StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
@@ -115,7 +124,8 @@ internal static class JsonWriter
             results.Count(r => r.Status == Status.Unsafe),
             results.Count(r => r.Status == Status.Corrupt),
             byCategory,
-            byAction);
+            byAction,
+            report.DupProviders.Length);
     }
 
     private static FixJson CreateFix(PatchResult result)
