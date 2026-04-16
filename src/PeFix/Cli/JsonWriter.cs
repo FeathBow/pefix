@@ -16,7 +16,8 @@ internal static class JsonWriter
         InspectJson[] models = report.Results.Select(MapInspect).ToArray();
         SummaryJson summary = MapSummary(report.Results);
         ConflictJson[] conflicts = report.Conflicts.Select(MapConflict).ToArray();
-        var scanJson = new ScanJson(report.Directory, summary, models, conflicts);
+        MissRefJson[] missingRefs = report.MissingRefs.Select(MapMissRef).ToArray();
+        var scanJson = new ScanJson(report.Directory, summary, models, conflicts, missingRefs);
         return JsonSerializer.Serialize(scanJson, JsonContext.Default.ScanJson);
     }
 
@@ -88,6 +89,14 @@ internal static class JsonWriter
             conflict.Actual,
             conflict.ReferencedBy,
             conflict.ProvidedBy);
+    }
+
+    private static MissRefJson MapMissRef(MissingRef missingRef)
+    {
+        return new MissRefJson(
+            missingRef.RefName,
+            missingRef.NeedVer,
+            missingRef.NeedBy);
     }
 
     private static SummaryJson MapSummary(Inspection[] results)

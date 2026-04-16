@@ -11,6 +11,7 @@ internal static class ScanWriter
         WriteCounts(writer, report);
         WriteGroups(writer, report);
         WriteConfs(writer, report);
+        WriteMissing(writer, report);
         WriteHint(writer, report);
         return writer.ToString().TrimEnd();
     }
@@ -69,6 +70,19 @@ internal static class ScanWriter
         }
     }
 
+    private static void WriteMissing(StringWriter writer, ScanReport report)
+    {
+        if (report.MissingRefs.Length == 0)
+            return;
+
+        writer.WriteLine();
+        writer.WriteLine($"  Missing refs ({report.MissingRefs.Length}):");
+        foreach (MissingRef missingRef in report.MissingRefs)
+        {
+            writer.WriteLine($"    - {missingRef.RefName}: {missingRef.NeedBy} expects v{missingRef.NeedVer}, but no provider was found");
+        }
+    }
+
     private static void WriteHint(StringWriter writer, ScanReport report)
     {
         if (report.Results.Length == 0)
@@ -76,7 +90,9 @@ internal static class ScanWriter
             return;
         }
 
-        bool allOk = report.Results.All(r => r.Status == Status.Compatible);
+        bool allOk = report.Results.All(r => r.Status == Status.Compatible)
+            && report.Conflicts.Length == 0
+            && report.MissingRefs.Length == 0;
         if (allOk)
         {
             writer.WriteLine();
