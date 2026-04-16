@@ -54,6 +54,10 @@
       <Staged>F16_netfx_stub.dll</Staged>
       <Assembly>NetFxStub</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\Consumer\Consumer.csproj">
+      <Staged>F18_missing_refs.dll</Staged>
+      <Assembly>Consumer</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>
