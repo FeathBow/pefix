@@ -10,7 +10,8 @@ public static class Scanner
         var results = new Inspection[files.Length];
         Parallel.For(0, files.Length, index => results[index] = PeAnalyzer.Inspect(files[index]));
         VerConflict[] conflicts = FindConfs(results);
-        return new ScanReport(fullPath, results, conflicts);
+        MissingRef[] missingRefs = FindMissing(results);
+        return new ScanReport(fullPath, results, conflicts, missingRefs);
     }
 
     public static bool HasFixable(ScanReport report)
@@ -77,4 +78,43 @@ public static class Scanner
         }
         return [.. conflicts.DistinctBy(c => (c.AssemblyName, c.ReferencedBy))];
     }
+
+    private static MissingRef[] FindMissing(Inspection[] results)
+    {
+        HashSet<string> provided = FindProvided(results);
+        List<MissingRef> missing = [];
+        foreach (Inspection inspection in results)
+        {
+            foreach (AsmRef asmRef in inspection.AssemblyRefs ?? [])
+            {
+                if (provided.Contains(asmRef.Name) || IsFxAsm(asmRef.Name))
+                    continue;
+
+                missing.Add(new MissingRef(
+                    asmRef.Name,
+                    asmRef.Version,
+                    Path.GetFileName(inspection.Path)));
+            }
+        }
+        return [.. missing.DistinctBy(item => (item.RefName, item.NeedBy))];
+    }
+
+    private static HashSet<string> FindProvided(Inspection[] results)
+    {
+        return results
+            .Where(item => item.AssemblyDef.HasValue)
+            .Select(item => item.AssemblyDef!.Value.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool IsFxAsm(string name) =>
+        string.Equals(name, "mscorlib", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(name, "netstandard", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(name, "Microsoft.CSharp", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(name, "Microsoft.VisualBasic", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(name, "Microsoft.VisualBasic.Core", StringComparison.OrdinalIgnoreCase) ||
+        name.StartsWith("System.", StringComparison.OrdinalIgnoreCase) ||
+        name.StartsWith("WindowsBase", StringComparison.OrdinalIgnoreCase) ||
+        name.StartsWith("PresentationCore", StringComparison.OrdinalIgnoreCase) ||
+        name.StartsWith("PresentationFramework", StringComparison.OrdinalIgnoreCase);
 }
