@@ -7,7 +7,7 @@ internal static class InspectOut
     public static string Render(Inspection result)
     {
         using var writer = new StringWriter();
-        writer.WriteLine($"pefix inspect {Path.GetFileName(result.Path)}");
+        writer.WriteLine($"pefix {Path.GetFileName(result.Path)}");
         writer.WriteLine();
         writer.WriteLine($"  Status:  {Labels.StatusHead(result.Status)}");
         writer.WriteLine($"  Summary: {GetSummary(result)}");

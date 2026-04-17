@@ -1,4 +1,3 @@
-using System.CommandLine;
 using PeFix.Cli;
 using PeFix.Meta;
 
@@ -6,34 +5,7 @@ namespace PeFix.Commands;
 
 internal static class Inspect
 {
-    public static Command Create()
-    {
-        var command = new Command("inspect", "Inspect a managed assembly for portability issues.");
-        var pathArgument = new Argument<string>("path")
-        {
-            Description = "Managed assembly to inspect."
-        };
-        var jsonOption = new Option<bool>("--json")
-        {
-            Description = "Write structured JSON output."
-        };
-        var failOnOpt = new Option<string?>("--fail-on")
-        {
-            Description = "Exit with code 1 when the result meets or exceeds the given severity (compatible, fixable, cautioned, unsafe, corrupt)."
-        };
-
-        command.Arguments.Add(pathArgument);
-        command.Options.Add(jsonOption);
-        command.Options.Add(failOnOpt);
-        command.SetAction(parseResult => Execute(
-            parseResult.GetValue(pathArgument),
-            parseResult.GetValue(jsonOption),
-            parseResult.GetValue(failOnOpt)));
-
-        return command;
-    }
-
-    private static int Execute(string? path, bool asJson, string? failOn)
+    internal static int Run(string? path, bool asJson, string? failOn)
     {
         Status? threshold = null;
         if (failOn is not null)

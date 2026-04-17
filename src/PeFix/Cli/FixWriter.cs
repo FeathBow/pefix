@@ -8,7 +8,7 @@ internal static class FixWriter
     public static string Render(PatchResult result)
     {
         using var writer = new StringWriter();
-        writer.WriteLine($"pefix fix {Path.GetFileName(result.Path)}");
+        writer.WriteLine($"pefix {Path.GetFileName(result.Path)} --fix");
         writer.WriteLine();
         writer.WriteLine($"  Result:  {Result(result)}");
         writer.WriteLine($"  Backup:  {Backup(result)}");

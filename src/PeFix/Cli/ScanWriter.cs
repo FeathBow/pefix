@@ -4,10 +4,10 @@ namespace PeFix.Cli;
 
 internal static class ScanWriter
 {
-    public static string Render(ScanReport report, string commandName = "scan")
+    public static string Render(ScanReport report)
     {
         using var writer = new StringWriter();
-        WriteHeader(writer, report, commandName);
+        WriteHeader(writer, report);
         WriteCounts(writer, report);
         WriteGroups(writer, report);
         WriteConfs(writer, report);
@@ -17,9 +17,9 @@ internal static class ScanWriter
         return writer.ToString().TrimEnd();
     }
 
-    private static void WriteHeader(StringWriter writer, ScanReport report, string commandName)
+    private static void WriteHeader(StringWriter writer, ScanReport report)
     {
-        writer.WriteLine($"pefix {commandName} {Path.GetFileName(report.Directory)}");
+        writer.WriteLine($"pefix {Path.GetFileName(report.Directory)}");
         writer.WriteLine();
         writer.WriteLine($"  Summary: Scanned {report.Results.Length} candidate files. {NeedCount(report.Results)} require attention.");
         writer.WriteLine($"  Action:  {Action(report)}");
@@ -124,7 +124,7 @@ internal static class ScanWriter
     private static string Action(ScanReport report)
     {
         return Scanner.HasFixable(report)
-            ? "Run pefix fix for entries marked fixable or cautioned."
+            ? "Run pefix <path> --fix for entries marked fixable or cautioned."
             : "No fixable assemblies were found.";
     }
 }

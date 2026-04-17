@@ -7,7 +7,7 @@ public sealed class InspectTests
     [Fact]
     public void Inspect_Ok()
     {
-        var result = CliRunner.Run("inspect", Paths.Get("F01_compatible_anycpu.dll"));
+        var result = CliRunner.Run(Paths.Get("F01_compatible_anycpu.dll"));
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Status:        compatible", result.Stdout);
     }
@@ -15,7 +15,7 @@ public sealed class InspectTests
     [Fact]
     public void FixJson()
     {
-        var result = CliRunner.Run("inspect", Paths.Get("F02_x64only_managed.dll"), "--json");
+        var result = CliRunner.Run(Paths.Get("F02_x64only_managed.dll"), "--json");
         Assert.Equal(1, result.ExitCode);
         Assert.DoesNotContain("\r", result.Stdout);
         Assert.EndsWith("\n", result.Stdout);
@@ -25,7 +25,7 @@ public sealed class InspectTests
     [Fact]
     public void Unsafe()
     {
-        var result = CliRunner.Run("inspect", Paths.Get("F06_mixed_mode.dll"), "--fail-on", "cautioned");
+        var result = CliRunner.Run(Paths.Get("F06_mixed_mode.dll"), "--fail-on", "cautioned");
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("Status:        unsafe", result.Stdout);
     }
@@ -33,7 +33,7 @@ public sealed class InspectTests
     [Fact]
     public void BadFail()
     {
-        var result = CliRunner.Run("inspect", Paths.Get("F01_compatible_anycpu.dll"), "--fail-on", "typo");
+        var result = CliRunner.Run(Paths.Get("F01_compatible_anycpu.dll"), "--fail-on", "typo");
         Assert.Equal(2, result.ExitCode);
     }
 
@@ -45,7 +45,7 @@ public sealed class InspectTests
     [InlineData("F06_mixed_mode.dll", "blocked")]
     public void Action(string fixture, string action)
     {
-        var result = CliRunner.Run("inspect", Paths.Get(fixture), "--json");
+        var result = CliRunner.Run(Paths.Get(fixture), "--json");
         Assert.Contains($"\"action\": \"{action}\"", result.Stdout);
     }
 
@@ -57,7 +57,7 @@ public sealed class InspectTests
     [InlineData("F16_netfx_stub.dll", "tfm_mismatch")]
     public void Inspect_Code(string fixture, string reasonCode)
     {
-        var result = CliRunner.Run("inspect", Paths.Get(fixture), "--json");
+        var result = CliRunner.Run(Paths.Get(fixture), "--json");
         Assert.Contains($"\"reason_code\": \"{reasonCode}\"", result.Stdout);
     }
 }

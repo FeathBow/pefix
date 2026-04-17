@@ -9,7 +9,7 @@ public sealed class FixTests : IDisposable
     public void Fix_Fixable()
     {
         var path = _temp.Copy("F02_x64only_managed.dll");
-        var result = CliRunner.Run("fix", path);
+        var result = CliRunner.Run(path, "--fix");
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("Verify:  Re-inspection passed. Assembly manifest was validated.", result.Stdout);
     }
@@ -18,7 +18,7 @@ public sealed class FixTests : IDisposable
     public void Fix_Compatible()
     {
         var path = _temp.Copy("F01_compatible_anycpu.dll");
-        var result = CliRunner.Run("fix", path);
+        var result = CliRunner.Run(path, "--fix");
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Result:  No changes were needed", result.Stdout);
         Assert.Contains("Verify:  Skipped because the assembly was already compatible.", result.Stdout);
@@ -28,7 +28,7 @@ public sealed class FixTests : IDisposable
     public void Fix_Unsafe()
     {
         var path = _temp.Copy("F06_mixed_mode.dll");
-        var result = CliRunner.Run("fix", path);
+        var result = CliRunner.Run(path, "--fix");
         Assert.Equal(3, result.ExitCode);
         Assert.Contains("cannot be patched safely", result.Stderr);
     }
@@ -40,7 +40,7 @@ public sealed class FixTests : IDisposable
         var fixablePath = _temp.Copy("F02_x64only_managed.dll");
         _temp.Copy("F06_mixed_mode.dll");
 
-        var result = CliRunner.Run("fix", _temp.DirPath);
+        var result = CliRunner.Run(_temp.DirPath, "--fix");
 
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("Processed 3 candidate files. Patched 1, unchanged 1, dry-run 0, refused 1.", result.Stdout);
@@ -54,7 +54,7 @@ public sealed class FixTests : IDisposable
     {
         _temp.Copy("F06_mixed_mode.dll");
 
-        var result = CliRunner.Run("fix", _temp.DirPath);
+        var result = CliRunner.Run(_temp.DirPath, "--fix");
 
         Assert.Equal(3, result.ExitCode);
         Assert.Contains("Processed 1 candidate files. Patched 0, unchanged 0, dry-run 0, refused 1.", result.Stdout);
@@ -65,7 +65,7 @@ public sealed class FixTests : IDisposable
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F02_x64only_managed.dll", "F06_mixed_mode.dll");
 
-        var result = CliRunner.Run("fix", _temp.DirPath, "--json");
+        var result = CliRunner.Run(_temp.DirPath, "--fix", "--json");
 
         Assert.Equal(2, result.ExitCode);
         Assert.DoesNotContain("\r", result.Stdout);
@@ -81,7 +81,7 @@ public sealed class FixTests : IDisposable
     {
         var path = _temp.Copy("F06_mixed_mode.dll");
 
-        var result = CliRunner.Run("fix", path, "--json");
+        var result = CliRunner.Run(path, "--fix", "--json");
 
         Assert.Equal(3, result.ExitCode);
         Assert.Equal(string.Empty, result.Stderr);
@@ -90,16 +90,6 @@ public sealed class FixTests : IDisposable
         Assert.Contains("\"reason\":", result.Stdout);
         Assert.Contains("\"reason_code\": \"mixed_mode\"", result.Stdout);
         Assert.Contains("\"status\": \"unsafe\"", result.Stdout);
-    }
-
-    [Fact]
-    public void Fix_Help()
-    {
-        var result = CliRunner.Run("fix", "--help");
-
-        Assert.Equal(0, result.ExitCode);
-        Assert.DoesNotContain("--yes", result.Stdout);
-        Assert.Contains("--json", result.Stdout);
     }
 
     public void Dispose()

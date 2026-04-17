@@ -1,4 +1,3 @@
-using System.CommandLine;
 using PeFix.Cli;
 using PeFix.Meta;
 using PeFix.Patch;
@@ -7,36 +6,11 @@ namespace PeFix.Commands;
 
 internal static class Fix
 {
-    public static Command Create()
+    internal static int Run(string path, PatchOptions options, bool json)
     {
-        var pathArg = new Argument<string>("path") { Description = "Managed assembly or directory path." };
-        var jsonOpt = new Option<bool>("--json") { Description = "Output results as JSON." };
-        var dryRunOpt = new Option<bool>("--dry-run") { Description = "Report without modifying files." };
-        var forceOpt = new Option<bool>("--force") { Description = "Allow patching assemblies with warnings." };
-        var noBackupOpt = new Option<bool>("--no-backup") { Description = "Skip .bak file creation." };
-
-        var command = new Command("fix", "Attempt a safe PE header portability fix.");
-        command.Arguments.Add(pathArg);
-        command.Options.Add(jsonOpt);
-        command.Options.Add(dryRunOpt);
-        command.Options.Add(forceOpt);
-        command.Options.Add(noBackupOpt);
-
-        command.SetAction(parseResult =>
-        {
-            string path = parseResult.GetValue(pathArg)!;
-            bool json = parseResult.GetValue(jsonOpt);
-            var options = new PatchOptions(
-                Backup: !parseResult.GetValue(noBackupOpt),
-                DryRun: parseResult.GetValue(dryRunOpt),
-                Force: parseResult.GetValue(forceOpt));
-
-            return Directory.Exists(path)
-                ? RunDirectory(path, options, json)
-                : RunFile(path, options, json);
-        });
-
-        return command;
+        return Directory.Exists(path)
+            ? RunDirectory(path, options, json)
+            : RunFile(path, options, json);
     }
 
     private static int RunFile(string path, PatchOptions options, bool json)

@@ -38,11 +38,11 @@ internal static class ClsMessages
         string fileName = Path.GetFileName(snapshot.Path);
         return status switch
         {
-            Status.Fixable => $"Run: pefix fix {fileName}",
+            Status.Fixable => $"Run: pefix {fileName} --fix",
             Status.Cautioned when snapshot.Signals.StrongName =>
-                $"Run: pefix fix --force {fileName}. Warning: the strong name signature will be invalidated. You may need to re-sign the assembly.",
+                $"Run: pefix {fileName} --fix --force. Warning: the strong name signature will be invalidated. You may need to re-sign the assembly.",
             Status.Cautioned =>
-                $"Run: pefix fix --force {fileName}. Warning: native dependencies (P/Invoke) may still fail on the target platform.",
+                $"Run: pefix {fileName} --fix --force. Warning: native dependencies (P/Invoke) may still fail on the target platform.",
             _ => "No action available."
         };
     }
