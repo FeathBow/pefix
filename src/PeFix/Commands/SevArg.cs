@@ -31,9 +31,8 @@ internal static class SevArg
         }
     }
 
-    public static int WriteBad(string value)
+    public static CliExit WriteBad(string value)
     {
-        Console.Error.WriteLine($"Unknown severity '{value}'. Expected: {Values}.");
-        return 2;
+        return CliErr.Usage($"Unknown severity '{value}'. Expected: {Values}.");
     }
 }

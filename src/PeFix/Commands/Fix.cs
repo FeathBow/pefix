@@ -6,14 +6,14 @@ namespace PeFix.Commands;
 
 internal static class Fix
 {
-    internal static int Run(string path, PatchOptions options, bool json)
+    internal static CliExit Run(string path, PatchOptions options, bool json)
     {
         return Directory.Exists(path)
             ? RunDirectory(path, options, json)
             : RunFile(path, options, json);
     }
 
-    private static int RunFile(string path, PatchOptions options, bool json)
+    private static CliExit RunFile(string path, PatchOptions options, bool json)
     {
         try
         {
@@ -26,7 +26,7 @@ internal static class Fix
             {
                 Console.WriteLine(FixWriter.Render(result));
             }
-            return result.WasPatched ? 2 : 0;
+            return CliExit.Success;
         }
         catch (UnsafeException ex)
         {
@@ -40,13 +40,34 @@ internal static class Fix
                 Console.Error.WriteLine(ex.Message);
             }
 
-            return 3;
+            return CliExit.Issue;
+        }
+        catch (IOException ex)
+        {
+            return CliErr.Io(ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return CliErr.Io(ex);
         }
     }
 
-    private static int RunDirectory(string path, PatchOptions options, bool json)
+    private static CliExit RunDirectory(string path, PatchOptions options, bool json)
     {
-        BatchResult result = BatchPatcher.Fix(path, options);
+        BatchResult result;
+        try
+        {
+            result = BatchPatcher.Fix(path, options);
+        }
+        catch (IOException ex)
+        {
+            return CliErr.Io(ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return CliErr.Io(ex);
+        }
+
         if (json)
         {
             JsonOut.Write(JsonWriter.Render(result));
@@ -56,11 +77,8 @@ internal static class Fix
             Console.WriteLine(BatchWriter.Render(result));
         }
 
-        if (result.Results.Any(r => r.WasPatched))
-        {
-            return 2;
-        }
-
-        return result.Refusals.Length > 0 ? 3 : 0;
+        return result.Refusals.Length > 0
+            ? CliExit.Issue
+            : CliExit.Success;
     }
 }

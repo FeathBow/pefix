@@ -10,7 +10,7 @@ internal static class PathCmd
         var opts = new OptSet();
         var command = new RootCommand("Diagnose or fix managed assembly PE header portability issues.");
         opts.AddTo(command);
-        command.SetAction(parseResult => Run(CreateReq(parseResult, opts)));
+        command.SetAction(parseResult => (int)Run(CreateReq(parseResult, opts)));
 
         return command;
     }
@@ -40,14 +40,14 @@ internal static class PathCmd
                 Force: parseResult.GetValue(opts.ForceOpt)));
     }
 
-    private static int Run(Req req)
+    private static CliExit Run(Req req)
     {
         return req.Fix
             ? RunFix(req)
             : RunRead(req);
     }
 
-    private static int RunFix(Req req)
+    private static CliExit RunFix(Req req)
     {
         if (req.FailOn is not null)
             return Bad("Use --fail-on only without --fix.");
@@ -61,7 +61,7 @@ internal static class PathCmd
         return Fix.Run(req.Path, req.Options, req.Json);
     }
 
-    private static int RunRead(Req req)
+    private static CliExit RunRead(Req req)
     {
         if (req.Options.DryRun || req.Options.Force || !req.Options.Backup)
             return Bad("Use --dry-run, --force, and --no-backup only with --fix.");
@@ -77,16 +77,14 @@ internal static class PathCmd
         return PathError();
     }
 
-    private static int Bad(string message)
+    private static CliExit Bad(string message)
     {
-        Console.Error.WriteLine(message);
-        return 2;
+        return CliErr.Usage(message);
     }
 
-    private static int PathError()
+    private static CliExit PathError()
     {
-        Console.Error.WriteLine("A readable file or directory path is required.");
-        return 4;
+        return CliErr.Io("A readable file or directory path is required.");
     }
 
     private readonly record struct Req(

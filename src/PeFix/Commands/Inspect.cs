@@ -5,7 +5,7 @@ namespace PeFix.Commands;
 
 internal static class Inspect
 {
-    internal static int Run(string? path, bool asJson, string? failOn)
+    internal static CliExit Run(string? path, bool asJson, string? failOn)
     {
         Status? threshold = null;
         if (failOn is not null)
@@ -18,14 +18,12 @@ internal static class Inspect
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            Console.Error.WriteLine("A file or directory path is required.");
-            return 4;
+            return CliErr.Io("A file or directory path is required.");
         }
 
         if (!File.Exists(path))
         {
-            Console.Error.WriteLine("A readable file path is required.");
-            return 4;
+            return CliErr.Io("A readable file path is required.");
         }
 
         Inspection result;
@@ -35,13 +33,11 @@ internal static class Inspect
         }
         catch (IOException ex)
         {
-            Console.Error.WriteLine(ex.Message);
-            return 4;
+            return CliErr.Io(ex);
         }
         catch (UnauthorizedAccessException ex)
         {
-            Console.Error.WriteLine(ex.Message);
-            return 4;
+            return CliErr.Io(ex);
         }
 
         if (asJson)
@@ -56,10 +52,10 @@ internal static class Inspect
         return GetExitCode(result, threshold);
     }
 
-    private static int GetExitCode(Inspection result, Status? threshold)
+    private static CliExit GetExitCode(Inspection result, Status? threshold)
     {
         if (threshold is { } t)
-            return result.Status >= t ? 1 : 0;
-        return result.Status == Status.Compatible ? 0 : 1;
+            return result.Status >= t ? CliExit.Issue : CliExit.Success;
+        return result.Status == Status.Compatible ? CliExit.Success : CliExit.Issue;
     }
 }

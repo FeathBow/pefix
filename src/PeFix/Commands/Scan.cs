@@ -5,7 +5,7 @@ namespace PeFix.Commands;
 
 internal static class Scan
 {
-    internal static int Run(string path, bool json, string? failOn, bool onConflict)
+    internal static CliExit Run(string path, bool json, string? failOn, bool onConflict)
     {
         Status? threshold = null;
         if (failOn is not null)
@@ -16,7 +16,20 @@ internal static class Scan
             threshold = value;
         }
 
-        ScanReport report = Scanner.Scan(path);
+        ScanReport report;
+        try
+        {
+            report = Scanner.Scan(path);
+        }
+        catch (IOException ex)
+        {
+            return CliErr.Io(ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return CliErr.Io(ex);
+        }
+
         if (json)
         {
             JsonOut.Write(JsonWriter.Render(report));
@@ -27,8 +40,10 @@ internal static class Scan
         }
 
         if (onConflict && report.Conflicts.Length > 0)
-            return 1;
+            return CliExit.Issue;
 
-        return threshold is { } t && report.Results.Any(r => r.Status >= t) ? 1 : 0;
+        return threshold is { } t && report.Results.Any(r => r.Status >= t)
+            ? CliExit.Issue
+            : CliExit.Success;
     }
 }

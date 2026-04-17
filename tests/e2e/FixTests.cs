@@ -10,12 +10,12 @@ public sealed class FixTests : IDisposable
     {
         var path = _temp.Copy("F02_x64only_managed.dll");
         var result = CliRunner.Run(path, "--fix");
-        Assert.Equal(2, result.ExitCode);
+        Assert.Equal(0, result.ExitCode);
         Assert.Contains("Verify:  Re-inspection passed. Assembly manifest was validated.", result.Stdout);
     }
 
     [Fact]
-    public void Fix_Compatible()
+    public void Fix_Ok()
     {
         var path = _temp.Copy("F01_compatible_anycpu.dll");
         var result = CliRunner.Run(path, "--fix");
@@ -29,12 +29,12 @@ public sealed class FixTests : IDisposable
     {
         var path = _temp.Copy("F06_mixed_mode.dll");
         var result = CliRunner.Run(path, "--fix");
-        Assert.Equal(3, result.ExitCode);
+        Assert.Equal(1, result.ExitCode);
         Assert.Contains("cannot be patched safely", result.Stderr);
     }
 
     [Fact]
-    public void Fix_Directory()
+    public void Fix_Dir()
     {
         _temp.Copy("F01_compatible_anycpu.dll");
         var fixablePath = _temp.Copy("F02_x64only_managed.dll");
@@ -42,7 +42,7 @@ public sealed class FixTests : IDisposable
 
         var result = CliRunner.Run(_temp.DirPath, "--fix");
 
-        Assert.Equal(2, result.ExitCode);
+        Assert.Equal(1, result.ExitCode);
         Assert.Contains("Processed 3 candidate files. Patched 1, unchanged 1, dry-run 0, refused 1.", result.Stdout);
         Assert.Contains("F02_x64only_managed.dll", result.Stdout);
         Assert.Contains("F06_mixed_mode.dll", result.Stdout);
@@ -50,24 +50,24 @@ public sealed class FixTests : IDisposable
     }
 
     [Fact]
-    public void Fix_DirUnsafe()
+    public void Fix_DirBad()
     {
         _temp.Copy("F06_mixed_mode.dll");
 
         var result = CliRunner.Run(_temp.DirPath, "--fix");
 
-        Assert.Equal(3, result.ExitCode);
+        Assert.Equal(1, result.ExitCode);
         Assert.Contains("Processed 1 candidate files. Patched 0, unchanged 0, dry-run 0, refused 1.", result.Stdout);
     }
 
     [Fact]
-    public void Fix_JsonBatch()
+    public void Fix_JsonDir()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F02_x64only_managed.dll", "F06_mixed_mode.dll");
 
         var result = CliRunner.Run(_temp.DirPath, "--fix", "--json");
 
-        Assert.Equal(2, result.ExitCode);
+        Assert.Equal(1, result.ExitCode);
         Assert.DoesNotContain("\r", result.Stdout);
         Assert.EndsWith("\n", result.Stdout);
         Assert.Contains("\"directory\":", result.Stdout);
@@ -77,13 +77,13 @@ public sealed class FixTests : IDisposable
     }
 
     [Fact]
-    public void Fix_JsonUnsafe()
+    public void Fix_JsonBad()
     {
         var path = _temp.Copy("F06_mixed_mode.dll");
 
         var result = CliRunner.Run(path, "--fix", "--json");
 
-        Assert.Equal(3, result.ExitCode);
+        Assert.Equal(1, result.ExitCode);
         Assert.Equal(string.Empty, result.Stderr);
         Assert.DoesNotContain("\r", result.Stdout);
         Assert.EndsWith("\n", result.Stdout);
