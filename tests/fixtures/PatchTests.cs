@@ -87,6 +87,15 @@ public sealed class PatchTests : IDisposable
         Assert.Contains("mixed_mode", ex.Message);
     }
 
+    [Fact]
+    public void Fix_BakClash()
+    {
+        var path = _temp.Copy("F02_x64only_managed.dll");
+        File.WriteAllText(path + ".bak", "stale");
+        var ex = Assert.Throws<IOException>(() => Patcher.Fix(path, backup: true));
+        Assert.Contains(".bak", ex.Message);
+    }
+
     public void Dispose()
     {
         _temp.Dispose();

@@ -56,7 +56,14 @@ public static class Patcher
     private static string? CreateBackup(string path)
     {
         string backupPath = path + ".bak";
-        File.Copy(path, backupPath, overwrite: true);
+        try
+        {
+            File.Copy(path, backupPath, overwrite: false);
+        }
+        catch (IOException) when (File.Exists(backupPath))
+        {
+            throw new IOException($"Backup file {backupPath} already exists. Remove it or run with --no-backup.");
+        }
         return backupPath;
     }
 

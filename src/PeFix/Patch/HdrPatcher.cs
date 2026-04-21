@@ -33,7 +33,9 @@ internal static class HdrPatcher
         CheckSupport(headers, peHeader);
         RewriteHdr(bytes, headers, FindBod(bytes, headers, peHeader.BaseOfCode));
         NormCorFlags(bytes, headers);
-        File.WriteAllBytes(path, bytes);
+        string tmpPath = $"{path}.tmp.{Environment.ProcessId}";
+        File.WriteAllBytes(tmpPath, bytes);
+        File.Move(tmpPath, path, overwrite: true);
     }
 
     private static void CheckSupport(PEHeaders headers, PEHeader peHeader)
