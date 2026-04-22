@@ -10,7 +10,7 @@
 
   <PropertyGroup>
     <PackageId>pefix</PackageId>
-    <Version>0.0.1-stub</Version>
+    <Version>0.1.0</Version>
     <Authors>FeathBow</Authors>
     <Description>Diagnose and fix PE header portability for .NET assemblies.</Description>
     <PackAsTool>true</PackAsTool>
