@@ -10,13 +10,16 @@ Make x64-only .NET DLLs load on macOS and Linux — without breaking the safe on
 
 ## Install
 
-Build from source:
+As a .NET global tool:
+
+    dotnet tool install -g pefix
+
+Or build from source:
 
     git clone https://github.com/FeathBow/pefix
     cd pefix
     dotnet publish src/PeFix/PeFix.csproj -c Release -r osx-arm64 \
-      --self-contained -p:PublishAot=true \
-      -o ./out
+      --self-contained -p:PublishAot=true -o ./out
 
 The resulting `./out/PeFix` is a self-contained native binary with no .NET runtime dependency. Replace `osx-arm64` with `linux-x64` or `win-x64` as needed.
 
