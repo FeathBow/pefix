@@ -2,10 +2,20 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - LICENSE
   push:
+    paths-ignore:
+      - "**.md"
+      - LICENSE
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   DOTNET_NOLOGO: true
@@ -27,16 +37,6 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Verify SDK
-        shell: bash
-        run: |
-          dotnet --version
-          dotnet --list-sdks
-
-      - name: Restore tools
-        shell: bash
-        run: dotnet tool restore
-
       - name: Build
         shell: bash
         run: dotnet build "pefix.sln" -c Release -m:1
@@ -52,26 +52,11 @@ jobs:
           --coverlet-exclude-by-file "**/obj/**"
           --report-xunit-trx
 
-      - name: Generate coverage report
-        if: always()
-        shell: bash
-        run: >-
-          dotnet reportgenerator
-          -reports:"${{ github.workspace }}/artifacts/TestResults/PeFix.Tests/Release/coverage.cobertura.xml"
-          -targetdir:"${{ github.workspace }}/artifacts/TestResults/CoverageReport"
-          -reporttypes:"Html;TextSummary"
-          -filefilters:"-**/obj/**"
-
-      - name: Print coverage summary
-        if: always()
-        shell: bash
-        run: cat "${{ github.workspace }}/artifacts/TestResults/CoverageReport/Summary.txt"
-
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-${{ matrix.os }}
-          path: artifacts/TestResults/
+          path: "**/coverage.cobertura.xml"
 
       - uses: actions/upload-artifact@v7
         if: failure()
