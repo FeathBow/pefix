@@ -2,6 +2,8 @@
 
 Make x64-only .NET DLLs load on macOS and Linux — without breaking the safe ones.
 
+[![CI](https://github.com/FeathBow/pefix/actions/workflows/ci.yml/badge.svg)](https://github.com/FeathBow/pefix/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/vpre/pefix.svg)](https://www.nuget.org/packages/pefix)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 `pefix` is a single-binary CLI that diagnoses and rewrites the PE header of pure-IL .NET assemblies built as `PE32+ AMD64` (x64-only) so they load on any .NET runtime, including macOS arm64 and Linux x64. Mixed-mode, native dependencies, strong-named, and other categories outside the rewrite contract are refused with a reason.
