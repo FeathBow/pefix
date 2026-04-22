@@ -8,7 +8,13 @@ internal static class PathCmd
     public static RootCommand Create()
     {
         var opts = new OptSet();
-        var command = new RootCommand("Diagnose or fix managed assembly PE header portability issues.");
+        var command = new RootCommand(
+            "Diagnose or fix managed assembly PE header portability issues.\n\n"
+            + "Exit codes:\n"
+            + "  0  No issues\n"
+            + "  1  Issues found (gate triggered or files refused)\n"
+            + "  2  Usage error\n"
+            + "  4  IO error");
         opts.AddTo(command);
         command.SetAction(parseResult => (int)Run(CreateReq(parseResult, opts)));
 
