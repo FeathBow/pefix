@@ -88,7 +88,7 @@ public static class Scanner
         {
             foreach (AsmRef asmRef in inspection.AssemblyRefs ?? [])
             {
-                if (provided.Contains(asmRef.Name) || IsFxAsm(asmRef.Name))
+                if (provided.Contains(asmRef.Name) || RefFilter.IsProvided(asmRef.Name))
                     continue;
 
                 missing.Add(new MissingRef(
@@ -131,14 +131,4 @@ public static class Scanner
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static bool IsFxAsm(string name) =>
-        string.Equals(name, "mscorlib", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(name, "netstandard", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(name, "Microsoft.CSharp", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(name, "Microsoft.VisualBasic", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(name, "Microsoft.VisualBasic.Core", StringComparison.OrdinalIgnoreCase) ||
-        name.StartsWith("System.", StringComparison.OrdinalIgnoreCase) ||
-        name.StartsWith("WindowsBase", StringComparison.OrdinalIgnoreCase) ||
-        name.StartsWith("PresentationCore", StringComparison.OrdinalIgnoreCase) ||
-        name.StartsWith("PresentationFramework", StringComparison.OrdinalIgnoreCase);
 }
