@@ -8,6 +8,25 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackageId>pefix</PackageId>
+    <Version>0.0.1-stub</Version>
+    <Authors>FeathBow</Authors>
+    <Description>Diagnose and fix PE header portability for .NET assemblies.</Description>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>pefix</ToolCommandName>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/FeathBow/pefix</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/FeathBow/pefix</PackageProjectUrl>
+    <PackageTags>dotnet;pe;assembly;portability;cross-platform;cli</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="System.CommandLine" Version="2.0.5" />
   </ItemGroup>
