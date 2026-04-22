@@ -92,3 +92,42 @@ jobs:
         with:
           name: pefix-${{ matrix.rid }}
           path: artifacts/${{ matrix.rid }}
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [test, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v7
+        with:
+          path: artifacts/
+
+      - name: Pack assets
+        shell: bash
+        run: |
+          cd artifacts
+          for dir in pefix-*/; do
+            rid="${dir%/}"
+            rid="${rid#pefix-}"
+            if [[ "$rid" == win-* ]]; then
+              (cd "pefix-${rid}" && zip -r "../pefix-${rid}.zip" .)
+            else
+              tar -C "pefix-${rid}" -czf "pefix-${rid}.tar.gz" .
+            fi
+          done
+          ls -la pefix-*.tar.gz pefix-*.zip
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ github.ref_name }}" \
+            --notes "Run \`pefix --help\` for usage." \
+            artifacts/pefix-*.tar.gz artifacts/pefix-*.zip
