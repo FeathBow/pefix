@@ -119,6 +119,14 @@ public sealed class ClassTests
     }
 
     [Fact]
+    public void Hint_AbsPath()
+    {
+        var result = PeAnalyzer.Inspect(Paths.Get("F02_x64only_managed.dll"));
+        Assert.Single(result.NextSteps);
+        Assert.Contains(result.Path, result.NextSteps[0]);
+    }
+
+    [Fact]
     public void Scan_Dir()
     {
         string fixturesDir = Path.GetDirectoryName(Paths.Get("F01_compatible_anycpu.dll"))!;

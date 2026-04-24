@@ -35,16 +35,32 @@ internal static class ClsMessages
 
     internal static string NextStep(PeSnapshot snapshot, Status status)
     {
-        string fileName = Path.GetFileName(snapshot.Path);
+        string quotedPath = QuotePath(snapshot.Path);
         return status switch
         {
-            Status.Fixable => $"Run: pefix {fileName} --fix",
+            Status.Fixable => $"Run: pefix {quotedPath} --fix",
             Status.Cautioned when snapshot.Signals.StrongName =>
-                $"Run: pefix {fileName} --fix --force. Warning: the strong name signature will be invalidated. You may need to re-sign the assembly.",
+                $"Run: pefix {quotedPath} --fix --force. Warning: the strong name signature will be invalidated. You may need to re-sign the assembly.",
             Status.Cautioned =>
-                $"Run: pefix {fileName} --fix --force. Warning: native dependencies (P/Invoke) may still fail on the target platform.",
+                $"Run: pefix {quotedPath} --fix --force. Warning: native dependencies (P/Invoke) may still fail on the target platform.",
             _ => "No action available."
         };
+    }
+
+    private static string QuotePath(string path)
+    {
+        bool needsQuoting = path.Any(c => c == ' ' || c == '\t' || c == '\'' || c == '"' || c == '\\' || c == '$' || c == '`');
+        if (!needsQuoting)
+        {
+            return path;
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            return $"\"{path.Replace("\"", "\\\"")}\"";
+        }
+
+        return $"'{path.Replace("'", "'\\''")}'";
     }
 
     internal static string? LoadReqs(PeSnapshot snapshot)
