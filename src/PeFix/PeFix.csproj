@@ -15,6 +15,7 @@
     <Description>Diagnose and fix PE header portability for .NET assemblies.</Description>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>pefix</ToolCommandName>
+    <ToolPackageRuntimeIdentifiers>linux-x64;osx-arm64;win-x64</ToolPackageRuntimeIdentifiers>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/FeathBow/pefix</RepositoryUrl>

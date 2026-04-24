@@ -25,10 +25,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
+        include:
+          - os: ubuntu-latest
+            key: u
+          - os: macos-latest
+            key: m
+          - os: windows-latest
+            key: w
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -41,7 +44,7 @@ jobs:
         shell: bash
         run: dotnet build "pefix.sln" -c Release -m:1
 
-      - name: Test with coverage
+      - name: Test cover
         shell: bash
         run: >-
           dotnet test --project "tests/PeFix.Tests.csproj" --no-build -c Release
@@ -55,13 +58,13 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: coverage-${{ matrix.os }}
+          name: coverage-${{ matrix.key }}
           path: "**/coverage.cobertura.xml"
 
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: test-results-${{ matrix.os }}
+          name: test-${{ matrix.key }}
           path: "**/*.trx"
 
   publish:
@@ -72,10 +75,13 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
+            key: lx
           - os: macos-latest
             rid: osx-arm64
+            key: oa
           - os: windows-latest
             rid: win-x64
+            key: wx
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -85,22 +91,61 @@ jobs:
           global-json-file: global.json
 
       - name: Publish
+        if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: dotnet publish "src/PeFix/PeFix.csproj" -c Release -r "${{ matrix.rid }}" --output "artifacts/${{ matrix.rid }}"
 
       - uses: actions/upload-artifact@v7
+        if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/v')
         with:
-          name: pefix-${{ matrix.rid }}
+          name: pefix-${{ matrix.key }}
           path: artifacts/${{ matrix.rid }}
+
+      - name: Pack RID
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: dotnet pack "src/PeFix/PeFix.csproj" -c Release -r "${{ matrix.rid }}" --output "artifacts/pkg/${{ matrix.rid }}"
+
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: nupkg-${{ matrix.key }}
+          path: artifacts/pkg/${{ matrix.rid }}/*.nupkg
+          if-no-files-found: error
+
+  nupkg-root:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Pack root
+        shell: bash
+        run: dotnet pack "src/PeFix/PeFix.csproj" -c Release --output "artifacts/pkg/root"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nupkg-root
+          path: artifacts/pkg/root/*.nupkg
+          if-no-files-found: error
 
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [test, publish]
+    needs: [publish, nupkg-root]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
 
       - uses: actions/download-artifact@v7
         with:
@@ -109,19 +154,73 @@ jobs:
       - name: Pack assets
         shell: bash
         run: |
-          cd artifacts
-          for dir in pefix-*/; do
-            rid="${dir%/}"
-            rid="${rid#pefix-}"
+          for rid in linux-x64 osx-arm64 win-x64; do
+            packages="$(find artifacts -type f -name "pefix.${rid}.*.nupkg" | sort)"
+            pkg_count="$(printf '%s\n' "${packages}" | sed '/^$/d' | wc -l | tr -d ' ')"
+            if [[ "${pkg_count}" -ne 1 ]]; then
+              echo "Expected 1 ${rid} NuGet package, found ${pkg_count}." >&2
+              printf '%s\n' "${packages}" >&2
+              exit 1
+            fi
+
+            package="${packages}"
+            out_dir="artifacts/x/${rid}"
+            tool_dir="${out_dir}/tools/net10.0/${rid}"
+            mkdir -p "${out_dir}"
+            unzip -q "${package}" -d "${out_dir}"
+
+            if [[ ! -d "${tool_dir}" ]]; then
+              echo "Expected tool directory ${tool_dir} in ${package}." >&2
+              find "${out_dir}" -maxdepth 4 -type d >&2
+              exit 1
+            fi
+
             if [[ "$rid" == win-* ]]; then
-              (cd "pefix-${rid}" && zip -r "../pefix-${rid}.zip" .)
+              (cd "${tool_dir}" && zip -r "${GITHUB_WORKSPACE}/artifacts/pefix-${rid}.zip" .)
             else
-              tar -C "pefix-${rid}" -czf "pefix-${rid}.tar.gz" .
+              tar -C "${tool_dir}" -czf "artifacts/pefix-${rid}.tar.gz" .
             fi
           done
-          ls -la pefix-*.tar.gz pefix-*.zip
+          ls -la artifacts/pefix-*.tar.gz artifacts/pefix-*.zip
 
-      - name: Create release
+      - name: Push NuGet
+        env:
+          NUGET_KEY: ${{ secrets.NUGET_API_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "${NUGET_KEY}" ]]; then
+            echo "NUGET_API_KEY secret is required for tagged releases." >&2
+            exit 1
+          fi
+
+          rid_pkgs="$(
+            find artifacts -type f \
+              \( -name "pefix.linux-x64.*.nupkg" -o -name "pefix.osx-arm64.*.nupkg" -o -name "pefix.win-x64.*.nupkg" \) \
+              | sort
+          )"
+          root_pkgs="$(find artifacts -type f -name "pefix.[0-9]*.nupkg" | sort)"
+          rid_count="$(printf '%s\n' "${rid_pkgs}" | sed '/^$/d' | wc -l | tr -d ' ')"
+          root_count="$(printf '%s\n' "${root_pkgs}" | sed '/^$/d' | wc -l | tr -d ' ')"
+
+          if [[ "${rid_count}" -ne 3 ]]; then
+            echo "Expected 3 RID-specific NuGet packages, found ${rid_count}." >&2
+            printf '%s\n' "${rid_pkgs}" >&2
+            exit 1
+          fi
+
+          if [[ "${root_count}" -ne 1 ]]; then
+            echo "Expected 1 NuGet root package, found ${root_count}." >&2
+            printf '%s\n' "${root_pkgs}" >&2
+            exit 1
+          fi
+
+          printf '%s\n' "${rid_pkgs}" | while IFS= read -r package; do
+            dotnet nuget push "${package}" --api-key "${NUGET_KEY}" --source "https://api.nuget.org/v3/index.json"
+          done
+
+          dotnet nuget push "${root_pkgs}" --api-key "${NUGET_KEY}" --source "https://api.nuget.org/v3/index.json"
+
+      - name: Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
