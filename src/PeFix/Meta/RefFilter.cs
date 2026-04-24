@@ -5,6 +5,7 @@ public static class RefFilter
     private static readonly HashSet<string> ExactNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "mscorlib",
+        "System",
         "netstandard",
         "Microsoft.CSharp",
         "Microsoft.VisualBasic",
@@ -12,6 +13,7 @@ public static class RefFilter
         "0Harmony",
         "Harmony",
         "GodotSharp",
+        "UnityEngine",
         "BepInEx",
         "MelonLoader",
     };

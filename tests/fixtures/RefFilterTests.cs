@@ -7,6 +7,8 @@ public sealed class RefFilterTests
 {
     [Theory]
     [InlineData("mscorlib")]
+    [InlineData("System")]
+    [InlineData("UnityEngine")]
     [InlineData("netstandard")]
     [InlineData("Microsoft.CSharp")]
     [InlineData("System.Text.Json")]
