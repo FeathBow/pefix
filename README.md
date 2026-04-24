@@ -14,6 +14,10 @@ As a .NET global tool:
 
     dotnet tool install -g pefix
 
+Run once with .NET 10 SDK, using the same arguments as `pefix`:
+
+    dotnet tool exec pefix --yes -- MyMod.dll
+
 Or build from source:
 
     git clone https://github.com/FeathBow/pefix
@@ -32,11 +36,11 @@ Inspect a single assembly:
 Output:
 
     pefix MyMod.dll
-    
+
       Status:  FIXABLE
       Summary: This assembly uses a platform-specific header, but the managed code is portable and can be fixed.
       Action:  Run: pefix MyMod.dll --fix
-    
+
       Details:
         PE Format:     PE32+ (AMD64)
         IL Only:       Yes
@@ -50,7 +54,7 @@ Apply the fix:
 Output:
 
     pefix MyMod.dll --fix
-    
+
       Result:  Patched MyMod.dll
       Backup:  MyMod.dll.bak
       Before:  PE32+ AMD64 -> not compatible with all platforms
@@ -64,11 +68,11 @@ Scan a directory:
 Output:
 
     pefix mods
-    
+
       Summary: Scanned 1 candidate files. 1 require attention.
       Action:  Run pefix <path> --fix for entries marked fixable or cautioned.
       Counts:  compatible: 0  fixable: 1  cautioned: 0  unsafe: 0  corrupt: 0
-    
+
       Group: portability
         - X64OnlyManaged.dll [fixable]
 
@@ -78,13 +82,13 @@ Add `--json` to any command for machine-readable output. Run `pefix --help` for 
 
 Every inspection produces one of five statuses:
 
-| Status      | Meaning                                                                 |
-|-------------|-------------------------------------------------------------------------|
-| compatible  | Already portable, no action needed.                                     |
-| fixable     | Header can be rewritten in place.                                       |
-| cautioned   | Could be rewritten but requires explicit consent (`--force`).           |
-| unsafe      | Refused — rewriting would not produce a working assembly.               |
-| corrupt     | Not a valid PE file or malformed beyond inspection.                     |
+| Status     | Meaning                                                       |
+| ---------- | ------------------------------------------------------------- |
+| compatible | Already portable, no action needed.                           |
+| fixable    | Header can be rewritten in place.                             |
+| cautioned  | Could be rewritten but requires explicit consent (`--force`). |
+| unsafe     | Refused — rewriting would not produce a working assembly.     |
+| corrupt    | Not a valid PE file or malformed beyond inspection.           |
 
 ## What it fixes
 
@@ -96,8 +100,8 @@ The rewrite is byte-level. It does not touch metadata, embedded resources, or st
 
 `pefix` will not rewrite the header in any of the following cases:
 
-| Refusal               | Why                                                            |
-|-----------------------|----------------------------------------------------------------|
+| Refusal               | Why                                                           |
+| --------------------- | ------------------------------------------------------------- |
 | mixed-mode (C++/CLI)  | Contains native code; needs `ijwhost.dll` or VC++ runtime.    |
 | reference assembly    | Not a runtime artifact; cannot be executed.                   |
 | satellite assembly    | Localized resource container, not a code module.              |
