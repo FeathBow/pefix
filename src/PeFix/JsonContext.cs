@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
 using PeFix.Cli;
+using PeFix.Plan;
 
 namespace PeFix;
 
+[JsonSerializable(typeof(PefixPlan))]
 [JsonSerializable(typeof(InspectJson))]
 [JsonSerializable(typeof(InspectJson[]))]
 [JsonSerializable(typeof(CorFlagsJson))]
