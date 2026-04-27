@@ -20,7 +20,7 @@ public static class Patcher
             return new PatchResult(fullPath, null, before, before, false, true);
         }
 
-        string? backupPath = options.Backup ? CreateBackup(fullPath) : null;
+        string? backupPath = options.Backup ? PeUtils.Backup(fullPath) : null;
         HdrPatcher.Patch(fullPath);
         Inspection after = PeAnalyzer.Inspect(fullPath);
         CheckPatch(after, fullPath);
@@ -51,20 +51,6 @@ public static class Patcher
         }
 
         throw new UnsafeException($"This assembly cannot be patched safely ({Labels.CatText(before.Category)}).");
-    }
-
-    private static string? CreateBackup(string path)
-    {
-        string backupPath = path + ".bak";
-        try
-        {
-            File.Copy(path, backupPath, overwrite: false);
-        }
-        catch (IOException) when (File.Exists(backupPath))
-        {
-            throw new IOException($"Backup file {backupPath} already exists. Remove it or run with --no-backup.");
-        }
-        return backupPath;
     }
 
     private static void CheckPatch(Inspection after, string path)

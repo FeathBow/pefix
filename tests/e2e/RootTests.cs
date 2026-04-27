@@ -66,7 +66,7 @@ public sealed class RootTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("<path>", result.Stdout);
         Assert.Contains("--fix", result.Stdout);
-        Assert.DoesNotContain("Commands:", result.Stdout);
+        Assert.Contains("snstrip", result.Stdout);
     }
 
     public void Dispose()

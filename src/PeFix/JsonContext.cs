@@ -5,6 +5,11 @@ using PeFix.Plan;
 namespace PeFix;
 
 [JsonSerializable(typeof(PefixPlan))]
+[JsonSerializable(typeof(SnStripJson))]
+[JsonSerializable(typeof(SnStripJson[]))]
+[JsonSerializable(typeof(SnBatchJson))]
+[JsonSerializable(typeof(SnDepJson))]
+[JsonSerializable(typeof(SnDepJson[]))]
 [JsonSerializable(typeof(InspectJson))]
 [JsonSerializable(typeof(InspectJson[]))]
 [JsonSerializable(typeof(CorFlagsJson))]
@@ -24,6 +29,7 @@ namespace PeFix;
 [JsonSerializable(typeof(ScanJson))]
 [JsonSerializable(typeof(SummaryJson))]
 [JsonSerializable(typeof(Dictionary<string, int>))]
+[JsonSerializable(typeof(string))]
 [JsonSourceGenerationOptions(WriteIndented = true, NewLine = "\n")]
 internal sealed partial class JsonContext : JsonSerializerContext
 {

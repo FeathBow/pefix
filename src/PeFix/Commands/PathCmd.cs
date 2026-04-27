@@ -1,4 +1,3 @@
-using System.CommandLine;
 using PeFix.Patch;
 
 namespace PeFix.Commands;
@@ -17,6 +16,7 @@ internal static class PathCmd
             + "  4  IO error");
         opts.AddTo(command);
         command.SetAction(parseResult => (int)Run(CreateReq(parseResult, opts)));
+        command.Subcommands.Add(SnStrip.Create());
 
         return command;
     }

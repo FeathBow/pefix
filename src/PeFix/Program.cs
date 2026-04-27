@@ -1,4 +1,3 @@
-using System.CommandLine;
 using PeFix.Commands;
 
 namespace PeFix;
