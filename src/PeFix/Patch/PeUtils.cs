@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
@@ -6,6 +7,15 @@ namespace PeFix.Patch;
 
 internal static class PeUtils
 {
+    internal static string ReadMvid(byte[] bytes)
+    {
+        using var stream = new MemoryStream(bytes, writable: false);
+        using var pe = new PEReader(stream);
+        if (pe.PEHeaders.CorHeader is null) return "";
+        MetadataReader reader = pe.GetMetadataReader();
+        return reader.GetGuid(reader.GetModuleDefinition().Mvid).ToString();
+    }
+
     internal static int RvaToOffset(PEHeaders headers, int rva)
     {
         foreach (SectionHeader section in headers.SectionHeaders)
