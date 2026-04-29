@@ -4,39 +4,10 @@ namespace PeFix.Patch;
 
 internal static class EcmaTables
 {
-    private const int Module = 0x00;
-    private const int TypeRef = 0x01;
-    private const int TypeDef = 0x02;
-    private const int Field = 0x04;
-    private const int MethodDef = 0x06;
-    private const int Param = 0x08;
-    private const int InterfaceImpl = 0x09;
-    private const int MemberRef = 0x0A;
-    private const int Constant = 0x0B;
-    private const int CustomAttribute = 0x0C;
-    private const int FieldMarshal = 0x0D;
-    private const int DeclSecurity = 0x0E;
-    private const int ClassLayout = 0x0F;
-    private const int FieldLayout = 0x10;
-    private const int StandAloneSig = 0x11;
-    private const int EventMap = 0x12;
-    private const int Event = 0x14;
-    private const int PropertyMap = 0x15;
-    private const int Property = 0x17;
-    private const int MethodSemantics = 0x18;
-    private const int MethodImpl = 0x19;
-    private const int ModuleRef = 0x1A;
-    private const int TypeSpec = 0x1B;
-    private const int ImplMap = 0x1C;
-    private const int FieldRva = 0x1D;
-    private const int Assembly = 0x20;
-    private const int AssemblyProcessor = 0x21;
-    private const int AssemblyOs = 0x22;
-    private const int AssemblyRef = 0x23;
-
-    internal static int AssemblyRefRowOffset(byte[] bytes, int tildeStream, int rowIdx)
+    internal static int RowOffset(TableId tableId, byte[] bytes, int tildeOfs, int rowIdx)
     {
-        int pos = tildeStream + 6;
+        int table = (int)tableId;
+        int pos = tildeOfs + 6;
         byte heapSizes = bytes[pos++];
         pos++;
         ulong valid = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(pos));
@@ -53,53 +24,54 @@ internal static class EcmaTables
             }
         }
 
-        if ((valid & (1UL << AssemblyRef)) == 0)
-            throw new InvalidOperationException("AssemblyRef table not present.");
-        if (rowIdx < 1 || rowIdx > rowCounts[AssemblyRef])
-            throw new ArgumentOutOfRangeException(nameof(rowIdx), $"AssemblyRef row {rowIdx} out of range [1..{rowCounts[AssemblyRef]}].");
+        if ((valid & (1UL << table)) == 0)
+            throw new InvalidOperationException($"Metadata table 0x{table:X2} not present.");
+        if (rowIdx < 1 || rowIdx > rowCounts[table])
+            throw new ArgumentOutOfRangeException(nameof(rowIdx), $"Table 0x{table:X2} row {rowIdx} out of range [1..{rowCounts[table]}].");
 
         IdxWidths w = ComputeWidths(heapSizes, rowCounts);
 
         int tableStart = pos;
-        for (int t = 0; t < AssemblyRef; t++)
+        for (int t = 0; t < table; t++)
         {
             if ((valid & (1UL << t)) != 0)
                 tableStart += RowSize(t, w) * rowCounts[t];
         }
 
-        return tableStart + (rowIdx - 1) * (2 + 2 + 2 + 2 + 4 + w.Blob + w.Str + w.Str + w.Blob);
+        return tableStart + (rowIdx - 1) * RowSize(table, w);
     }
 
     private static int RowSize(int table, IdxWidths w) => table switch
     {
-        Module => 2 + w.Str + w.Guid + w.Guid + w.Guid,
-        TypeRef => w.ResolutionScope + w.Str + w.Str,
-        TypeDef => 4 + w.Str + w.Str + w.TypeDefOrRef + w.TField + w.TMethod,
-        Field => 2 + w.Str + w.Blob,
-        MethodDef => 4 + 2 + 2 + w.Str + w.Blob + w.TParam,
-        Param => 2 + 2 + w.Str,
-        InterfaceImpl => w.TTypeDef + w.TypeDefOrRef,
-        MemberRef => w.MemberRefParent + w.Str + w.Blob,
-        Constant => 2 + w.HasConstant + w.Blob,
-        CustomAttribute => w.HasCustomAttribute + w.CustomAttributeType + w.Blob,
-        FieldMarshal => w.HasFieldMarshal + w.Blob,
-        DeclSecurity => 2 + w.HasDeclSecurity + w.Blob,
-        ClassLayout => 2 + 4 + w.TTypeDef,
-        FieldLayout => 4 + w.TField,
-        StandAloneSig => w.Blob,
-        EventMap => w.TTypeDef + w.TEvent,
-        Event => 2 + w.Str + w.TypeDefOrRef,
-        PropertyMap => w.TTypeDef + w.TProperty,
-        Property => 2 + w.Str + w.Blob,
-        MethodSemantics => 2 + w.TMethod + w.HasSemantics,
-        MethodImpl => w.TTypeDef + w.MethodDefOrRef + w.MethodDefOrRef,
-        ModuleRef => w.Str,
-        TypeSpec => w.Blob,
-        ImplMap => 2 + w.MemberForwarded + w.Str + w.TModuleRef,
-        FieldRva => 4 + w.TField,
-        Assembly => 4 + 2 + 2 + 2 + 2 + 4 + w.Blob + w.Str + w.Str,
-        AssemblyProcessor => 4,
-        AssemblyOs => 4 + 4 + 4,
+        (int)TableId.Module => 2 + w.Str + w.Guid + w.Guid + w.Guid,
+        (int)TableId.TypeRef => w.ResolutionScope + w.Str + w.Str,
+        (int)TableId.TypeDef => 4 + w.Str + w.Str + w.TypeDefOrRef + w.TField + w.TMethod,
+        (int)TableId.Field => 2 + w.Str + w.Blob,
+        (int)TableId.MethodDef => 4 + 2 + 2 + w.Str + w.Blob + w.TParam,
+        (int)TableId.Param => 2 + 2 + w.Str,
+        (int)TableId.IfaceImpl => w.TTypeDef + w.TypeDefOrRef,
+        (int)TableId.MemberRef => w.MemberRefParent + w.Str + w.Blob,
+        (int)TableId.Const => 2 + w.HasConstant + w.Blob,
+        (int)TableId.Attr => w.HasCustomAttribute + w.CustomAttributeType + w.Blob,
+        (int)TableId.FieldMarshal => w.HasFieldMarshal + w.Blob,
+        (int)TableId.DeclSec => 2 + w.HasDeclSecurity + w.Blob,
+        (int)TableId.ClassLayout => 2 + 4 + w.TTypeDef,
+        (int)TableId.FieldLayout => 4 + w.TField,
+        (int)TableId.StandSig => w.Blob,
+        (int)TableId.EventMap => w.TTypeDef + w.TEvent,
+        (int)TableId.Event => 2 + w.Str + w.TypeDefOrRef,
+        (int)TableId.PropMap => w.TTypeDef + w.TProperty,
+        (int)TableId.Prop => 2 + w.Str + w.Blob,
+        (int)TableId.MethodSem => 2 + w.TMethod + w.HasSemantics,
+        (int)TableId.MethodImpl => w.TTypeDef + w.MethodDefOrRef + w.MethodDefOrRef,
+        (int)TableId.ModuleRef => w.Str,
+        (int)TableId.TypeSpec => w.Blob,
+        (int)TableId.ImplMap => 2 + w.MemberForwarded + w.Str + w.TModuleRef,
+        (int)TableId.FieldRva => 4 + w.TField,
+        (int)TableId.Assembly => 4 + 2 + 2 + 2 + 2 + 4 + w.Blob + w.Str + w.Str,
+        (int)TableId.AsmProc => 4,
+        (int)TableId.AsmOs => 4 + 4 + 4,
+        (int)TableId.AsmRef => 2 + 2 + 2 + 2 + 4 + w.Blob + w.Str + w.Str + w.Blob,
         _ => throw new InvalidOperationException($"Unsupported metadata table 0x{table:X2}.")
     };
 
@@ -117,22 +89,31 @@ internal static class EcmaTables
             (heapSizes & 0x01) != 0 ? 4 : 2,
             (heapSizes & 0x02) != 0 ? 4 : 2,
             (heapSizes & 0x04) != 0 ? 4 : 2,
-            Coded([Module, ModuleRef, AssemblyRef, TypeRef], 2),
-            Coded([TypeDef, TypeRef, TypeSpec], 2),
-            Coded([Field, Param, Property], 2),
+            Coded([(int)TableId.Module, (int)TableId.ModuleRef, (int)TableId.AsmRef, (int)TableId.TypeRef], 2),
+            Coded([(int)TableId.TypeDef, (int)TableId.TypeRef, (int)TableId.TypeSpec], 2),
+            Coded([(int)TableId.Field, (int)TableId.Param, (int)TableId.Prop], 2),
             Coded([
-                MethodDef, Field, TypeRef, TypeDef, Param, InterfaceImpl, MemberRef, Module,
-                DeclSecurity, Property, Event, StandAloneSig, ModuleRef, TypeSpec, Assembly,
-                AssemblyRef, 0x26, 0x27, 0x28, 0x2A, 0x2C, 0x2B
+                (int)TableId.MethodDef, (int)TableId.Field, (int)TableId.TypeRef, (int)TableId.TypeDef,
+                (int)TableId.Param, (int)TableId.IfaceImpl, (int)TableId.MemberRef, (int)TableId.Module,
+                (int)TableId.DeclSec, (int)TableId.Prop, (int)TableId.Event, (int)TableId.StandSig,
+                (int)TableId.ModuleRef, (int)TableId.TypeSpec, (int)TableId.Assembly, (int)TableId.AsmRef,
+                (int)TableId.File, (int)TableId.ExportType, (int)TableId.ManifestRes,
+                (int)TableId.GenParam, (int)TableId.GenParamC, (int)TableId.MethodSpec
             ], 5),
-            Coded([Field, Param], 1),
-            Coded([TypeDef, MethodDef, Assembly], 2),
-            Coded([TypeDef, TypeRef, ModuleRef, MethodDef, TypeSpec], 3),
-            Coded([Event, Property], 1),
-            Coded([MethodDef, MemberRef], 1),
-            Coded([Field, MethodDef], 1),
-            Coded([MethodDef, MemberRef], 3),
-            Tbl(Field), Tbl(MethodDef), Tbl(Param), Tbl(Event), Tbl(Property), Tbl(TypeDef), Tbl(ModuleRef));
+            Coded([(int)TableId.Field, (int)TableId.Param], 1),
+            Coded([(int)TableId.TypeDef, (int)TableId.MethodDef, (int)TableId.Assembly], 2),
+            Coded([(int)TableId.TypeDef, (int)TableId.TypeRef, (int)TableId.ModuleRef, (int)TableId.MethodDef, (int)TableId.TypeSpec], 3),
+            Coded([(int)TableId.Event, (int)TableId.Prop], 1),
+            Coded([(int)TableId.MethodDef, (int)TableId.MemberRef], 1),
+            Coded([(int)TableId.Field, (int)TableId.MethodDef], 1),
+            Coded([(int)TableId.MethodDef, (int)TableId.MemberRef], 3),
+            Tbl((int)TableId.Field),
+            Tbl((int)TableId.MethodDef),
+            Tbl((int)TableId.Param),
+            Tbl((int)TableId.Event),
+            Tbl((int)TableId.Prop),
+            Tbl((int)TableId.TypeDef),
+            Tbl((int)TableId.ModuleRef));
     }
 
     private readonly record struct IdxWidths(

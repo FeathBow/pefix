@@ -50,7 +50,7 @@ public static class RedirPatch
 
         foreach (int rowIdx in matches)
         {
-            int rowOffset = EcmaTables.AssemblyRefRowOffset(origBytes, tildeOfs, rowIdx);
+            int rowOffset = EcmaTables.RowOffset(TableId.AsmRef, origBytes, tildeOfs, rowIdx);
             byte[] before = origBytes.AsSpan(rowOffset, VerLen).ToArray();
             BinaryPrimitives.WriteUInt16LittleEndian(patched.AsSpan(rowOffset, U16Len), (ushort)options.ToVersion.Major);
             BinaryPrimitives.WriteUInt16LittleEndian(patched.AsSpan(rowOffset + MinOfs, U16Len), (ushort)options.ToVersion.Minor);
@@ -60,8 +60,8 @@ public static class RedirPatch
             ops.Add(new MutationOp(
                 "redir.version",
                 new PlanTarget("asmref", Table: "AssemblyRef", Row: rowIdx, Offset: rowOffset),
-                Hex(before),
-                Hex(after)));
+                HexUtils.Hex(before),
+                HexUtils.Hex(after)));
         }
 
         string? backupPath = options.Backup ? PeUtils.Backup(fullPath) : null;
@@ -93,6 +93,4 @@ public static class RedirPatch
         return new RedBatch(fullDir, [.. results], [.. refusals]);
     }
 
-    private static string Hex(ReadOnlySpan<byte> bytes) =>
-        Convert.ToHexString(bytes).ToLowerInvariant();
 }
