@@ -17,6 +17,7 @@ internal static class PathCmd
         opts.AddTo(command);
         command.SetAction(parseResult => (int)Run(CreateReq(parseResult, opts)));
         command.Subcommands.Add(SnStrip.Create());
+        command.Subcommands.Add(Redir.Create());
 
         return command;
     }

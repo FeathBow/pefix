@@ -63,4 +63,11 @@ internal static class PeUtils
         }
         return backupPath;
     }
+
+    internal static void WriteAtomic(string path, byte[] bytes)
+    {
+        string tmp = $"{path}.tmp.{Environment.ProcessId}";
+        File.WriteAllBytes(tmp, bytes);
+        File.Move(tmp, path, overwrite: true);
+    }
 }
