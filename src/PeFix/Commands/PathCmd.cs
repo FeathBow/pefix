@@ -19,6 +19,7 @@ internal static class PathCmd
         command.Subcommands.Add(SnStrip.Create());
         command.Subcommands.Add(Redir.Create());
         command.Subcommands.Add(Pinvoke.Create());
+        command.Subcommands.Add(PublicCmd.Create());
 
         return command;
     }

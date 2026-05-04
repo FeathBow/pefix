@@ -1,7 +1,7 @@
 <Project>
 
   <!--
-    Single Source of Truth for test PE fixtures.
+    Single Source of Truth for staged test PE fixtures.
 
     PeFixSource   : real .NET assemblies compiled from sources/*.csproj.
                     Staged   = filename written under $(OutputPath)fixtures/.
@@ -57,6 +57,10 @@
     <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\Consumer\Consumer.csproj">
       <Staged>F18_missing_refs.dll</Staged>
       <Assembly>Consumer</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\Internals\Internals.csproj">
+      <Staged>F19_internals.dll</Staged>
+      <Assembly>Internals</Assembly>
     </PeFixSource>
   </ItemGroup>
 

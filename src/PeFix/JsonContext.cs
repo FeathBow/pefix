@@ -16,6 +16,7 @@ namespace PeFix;
 [JsonSerializable(typeof(PinvokeJson))]
 [JsonSerializable(typeof(PinvokeJson[]))]
 [JsonSerializable(typeof(PinBatchJson))]
+[JsonSerializable(typeof(PublicJson))]
 [JsonSerializable(typeof(InspectJson))]
 [JsonSerializable(typeof(InspectJson[]))]
 [JsonSerializable(typeof(CorFlagsJson))]
