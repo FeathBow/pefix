@@ -1,3 +1,4 @@
+using System.CommandLine;
 using System.Text.Json;
 using PeFix.Cli;
 using PeFix.Patch;

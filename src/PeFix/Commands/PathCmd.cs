@@ -1,3 +1,4 @@
+using System.CommandLine;
 using PeFix.Patch;
 
 namespace PeFix.Commands;
@@ -10,10 +11,14 @@ internal static class PathCmd
         var command = new RootCommand(
             "Diagnose or fix managed assembly PE header portability issues.\n\n"
             + "Exit codes:\n"
-            + "  0  No issues\n"
-            + "  1  Issues found (gate triggered or files refused)\n"
+            + "  0  Command completed without triggering an exit gate\n"
+            + "  1  Non-compatible file result, requested gate, or refused file(s)\n"
             + "  2  Usage error\n"
-            + "  4  IO error");
+            + "  4  IO error\n\n"
+            + "Single-file inspect exits with code 1 for any non-compatible result by default.\n"
+            + "Directory scans may still report directory integrity issues in text or JSON.\n"
+            + "Use --fail-on to set the per-file exit gate,\n"
+            + "or --fail-on-conflict to gate directory version conflicts.");
         opts.AddTo(command);
         command.SetAction(parseResult => (int)Run(CreateReq(parseResult, opts)));
         command.Subcommands.Add(SnStrip.Create());

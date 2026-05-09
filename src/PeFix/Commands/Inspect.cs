@@ -55,7 +55,7 @@ internal static class Inspect
     private static CliExit GetExitCode(Inspection result, Status? threshold)
     {
         if (threshold is { } t)
-            return result.Status >= t ? CliExit.Issue : CliExit.Success;
+            return GateEval.Meets(result.Status, t) ? CliExit.Issue : CliExit.Success;
         return result.Status == Status.Compatible ? CliExit.Success : CliExit.Issue;
     }
 }

@@ -1,3 +1,4 @@
+using System.CommandLine;
 using System.Text.Json;
 using PeFix.Cli;
 using PeFix.Patch;
@@ -76,7 +77,7 @@ internal static class Pinvoke
         new(r.Path, [.. r.Calls.Select(c => new PinCallJson(c.Module, c.DeclType, c.MethodName, c.EntryName))]);
 
     private static RefusalJson MapRefusal(Refusal refusal) =>
-        new(refusal.Path, refusal.Reason, JsonWriter.MapInspect(refusal.Before));
+        new(refusal.Path, refusal.Reason, InspectMap.Map(refusal.Before));
 
     private static void WriteBatch(PinBatch batch)
     {

@@ -1,3 +1,4 @@
+using System.CommandLine;
 using System.Text.Json;
 using PeFix.Cli;
 using PeFix.Patch;
@@ -100,7 +101,7 @@ internal static class Redir
         new(r.Path, r.BackupPath, r.PlanPath, r.WasDryRun, r.RowsPatched);
 
     private static RefusalJson MapRefusal(Refusal refusal) =>
-        new(refusal.Path, refusal.Reason, JsonWriter.MapInspect(refusal.Before));
+        new(refusal.Path, refusal.Reason, InspectMap.Map(refusal.Before));
 
     private static void WriteBatch(RedBatch batch)
     {

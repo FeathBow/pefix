@@ -30,19 +30,21 @@ internal static class Scan
             return CliErr.Io(ex);
         }
 
+        ScanView view = ScanBuild.Build(report, json);
+
         if (json)
         {
-            JsonOut.Write(JsonWriter.Render(report));
+            JsonOut.Write(JsonWriter.Render(view));
         }
         else
         {
-            Console.WriteLine(ScanWriter.Render(report));
+            Console.WriteLine(ScanWriter.Render(view));
         }
 
-        if (onConflict && report.Conflicts.Length > 0)
+        if (onConflict && view.Stats.HasConflict)
             return CliExit.Issue;
 
-        return threshold is { } t && report.Results.Any(r => r.Status >= t)
+        return threshold is { } t && view.Files.Any(file => GateEval.Meets(file.Status, t))
             ? CliExit.Issue
             : CliExit.Success;
     }
