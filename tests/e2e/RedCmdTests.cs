@@ -8,6 +8,25 @@ public sealed class RedCmdTests : IDisposable
     public void Dispose() => _temp.Dispose();
 
     [Fact]
+    public void RedirVerb_NoApplyFlag_DryRunsOnly()
+    {
+        string path = Path.Combine(_temp.DirPath, "dry.dll");
+        RefPe.WriteVer(path, "Newtonsoft.Json", new Version(9, 0, 0, 0));
+        DateTime before = File.GetLastWriteTimeUtc(path);
+
+        CliResult result = CliRunner.Run(
+            "redir",
+            path,
+            "--from",
+            "Newtonsoft.Json:9.0.0.0",
+            "--to",
+            "13.0.0.0");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(before, File.GetLastWriteTimeUtc(path));
+    }
+
+    [Fact]
     public void RedRefuse()
     {
         RefPe.WriteVer(Path.Combine(_temp.DirPath, "a.dll"), "Newtonsoft.Json", new Version(9, 0, 0, 0));
@@ -19,7 +38,6 @@ public sealed class RedCmdTests : IDisposable
             "Newtonsoft.Json:9.0.0.0",
             "--to",
             "13.0.0.0",
-            "--dry-run",
             "--json");
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("\"refusals\"", result.Stdout);

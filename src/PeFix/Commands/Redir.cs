@@ -10,14 +10,14 @@ internal static class Redir
     internal static Command Create()
     {
         var opts = new OptSet();
-        var cmd = new Command("redir", "Rewrite AssemblyRef version fields in a managed assembly or directory.");
+        var cmd = new Command("redir", "Rewrite AssemblyRef version fields. Defaults to dry-run; pass --apply to write.");
         opts.AddTo(cmd);
         cmd.SetAction(r => (int)Run(
             r.GetValue(opts.PathArg)!,
             r.GetValue(opts.FromOpt),
             r.GetValue(opts.ToOpt),
             !r.GetValue(opts.NoBackupOpt),
-            r.GetValue(opts.DryRunOpt),
+            !r.GetValue(opts.ApplyOpt),
             r.GetValue(PathCmd.JsonOpt)));
         return cmd;
     }
@@ -128,9 +128,10 @@ internal static class Redir
         {
             Description = "Skip .bak file creation."
         };
-        public Option<bool> DryRunOpt { get; } = new("--dry-run")
+        public Option<bool> ApplyOpt { get; } = new("--apply")
         {
-            Description = "Report without modifying the file."
+            Description = "Write changes to disk. Without this flag, the command only reports what would change.",
+            DefaultValueFactory = _ => false
         };
         public void AddTo(Command cmd)
         {
@@ -138,7 +139,7 @@ internal static class Redir
             cmd.Options.Add(FromOpt);
             cmd.Options.Add(ToOpt);
             cmd.Options.Add(NoBackupOpt);
-            cmd.Options.Add(DryRunOpt);
+            cmd.Options.Add(ApplyOpt);
         }
     }
 }
