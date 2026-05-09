@@ -11,13 +11,13 @@ internal static class SnStrip
     internal static Command Create()
     {
         var opts = new OptSet();
-        var cmd = new Command("snstrip", "Strip strong-name signing from a managed assembly or directory.");
+        var cmd = new Command("snstrip", "Strip strong-name signing. Defaults to dry-run; pass --apply to write.");
         opts.AddTo(cmd);
         cmd.SetAction(r => (int)Run(
             r.GetValue(opts.PathArg)!,
             new SnStripOpts(
                 Backup: !r.GetValue(opts.NoBackupOpt),
-                DryRun: r.GetValue(opts.DryRunOpt),
+                DryRun: !r.GetValue(opts.ApplyOpt),
                 Force: r.GetValue(opts.ForceOpt)),
             r.GetValue(PathCmd.JsonOpt)));
         return cmd;
@@ -134,9 +134,10 @@ internal static class SnStrip
         {
             Description = "Skip .bak file creation."
         };
-        public Option<bool> DryRunOpt { get; } = new("--dry-run")
+        public Option<bool> ApplyOpt { get; } = new("--apply")
         {
-            Description = "Report without modifying the file."
+            Description = "Write changes to disk. Without this flag, the command only reports what would change.",
+            DefaultValueFactory = _ => false
         };
         public Option<bool> ForceOpt { get; } = new("--force")
         {
@@ -146,7 +147,7 @@ internal static class SnStrip
         {
             cmd.Arguments.Add(PathArg);
             cmd.Options.Add(NoBackupOpt);
-            cmd.Options.Add(DryRunOpt);
+            cmd.Options.Add(ApplyOpt);
             cmd.Options.Add(ForceOpt);
         }
     }
