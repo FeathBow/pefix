@@ -23,6 +23,7 @@ internal static class PathCmd
         command.SetAction(parseResult => (int)Run(CreateReq(parseResult, opts)));
         command.Subcommands.Add(InspectCmd.Create());
         command.Subcommands.Add(ScanCmd.Create());
+        command.Subcommands.Add(FixCmd.Create());
         command.Subcommands.Add(SnStrip.Create());
         command.Subcommands.Add(Redir.Create());
         command.Subcommands.Add(Pinvoke.Create());

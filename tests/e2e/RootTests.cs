@@ -90,6 +90,28 @@ public sealed class RootTests : IDisposable
         Assert.Equal(verbResult.Stdout, pathFirstResult.Stdout);
     }
 
+    [Fact]
+    public void FixVerb_NoApplyFlag_DryRunsOnly()
+    {
+        var path = _temp.Copy("F02_x64only_managed.dll");
+        var before = File.GetLastWriteTimeUtc(path);
+        var result = CliRunner.Run("fix", path);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Dry run only", result.Stdout);
+        Assert.Equal(before, File.GetLastWriteTimeUtc(path));
+    }
+
+    [Fact]
+    public void FixVerb_WithApplyFlag_WritesFile()
+    {
+        var path = _temp.Copy("F02_x64only_managed.dll");
+        var before = File.GetLastWriteTimeUtc(path);
+        var result = CliRunner.Run("fix", path, "--apply");
+        Assert.Equal(0, result.ExitCode);
+        Assert.NotEqual(before, File.GetLastWriteTimeUtc(path));
+        Assert.True(File.Exists(path + ".bak"));
+    }
+
     public void Dispose()
     {
         _temp.Dispose();
