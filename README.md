@@ -1,12 +1,12 @@
 # pefix
 
-Make x64-only .NET DLLs load on macOS and Linux — without breaking the safe ones.
+Static portability and load-failure diagnostics for .NET assemblies, with one safe header fix.
 
 [![CI](https://github.com/FeathBow/pefix/actions/workflows/ci.yml/badge.svg)](https://github.com/FeathBow/pefix/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/vpre/pefix.svg)](https://www.nuget.org/packages/pefix)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-`pefix` is a single-binary CLI that diagnoses and rewrites the PE header of pure-IL .NET assemblies built as `PE32+ AMD64` (x64-only) so they load on any .NET runtime, including macOS arm64 and Linux x64. Mixed-mode, native dependencies, strong-named, and other categories outside the rewrite contract are refused with a reason.
+`pefix` is a single-binary CLI that inspects .NET assemblies for portability and load-failure causes: PE header layout, target framework, ReadyToRun, trimming, single-file bundles, platform restrictions, mixed-mode native code, reference assemblies, and more. Directory scans also surface missing managed references, duplicate providers, and version conflicts. The single rewrite contract is the byte-level PE header fix for pure-IL `PE32+ AMD64` assemblies; everything else is reported with a stable reason code and a remediation hint.
 
 ## Install
 
@@ -69,12 +69,18 @@ Output:
 
     pefix mods
 
-      Summary: Scanned 1 candidate files. 1 require attention.
+      Summary: Scanned 3 candidate files. 2 require attention.
       Action:  Run pefix <path> --fix for entries marked fixable or cautioned.
-      Counts:  compatible: 0  fixable: 1  cautioned: 0  unsafe: 0  corrupt: 0
+      Counts:  compatible: 1  fixable: 1  cautioned: 0  unsafe: 1  corrupt: 0  issues: 0
 
       Group: portability
-        - X64OnlyManaged.dll [fixable]
+        - Compatible.dll [compatible] reason=portable action=none
+        - X64OnlyManaged.dll [fixable] reason=non_portable action=fix
+          why: This assembly uses a platform-specific header, but the managed code is portable and can be fixed.
+
+      Group: ref_assembly
+        - Reference.dll [unsafe] reason=ref_assembly action=blocked
+          why: Reference assembly, not a runtime assembly.
 
 Add `--json` to any command for machine-readable output. Run `pefix --help` for the full option list and exit codes.
 
@@ -87,8 +93,10 @@ Every inspection produces one of five statuses:
 | compatible | Already portable, no action needed.                           |
 | fixable    | Header can be rewritten in place.                             |
 | cautioned  | Could be rewritten but requires explicit consent (`--force`). |
-| unsafe     | Refused — rewriting would not produce a working assembly.     |
+| unsafe     | Refused. Rewriting would not produce a working assembly.      |
 | corrupt    | Not a valid PE file or malformed beyond inspection.           |
+
+Each result also carries a stable `reason_code` printed in text and JSON output, so machine consumers can switch on it. Run `pefix --help` for the full option list and exit codes.
 
 ## What it fixes
 
