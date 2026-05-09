@@ -21,6 +21,7 @@ internal static class PathCmd
             + "or --fail-on-conflict to gate directory version conflicts.");
         opts.AddTo(command);
         command.SetAction(parseResult => (int)Run(CreateReq(parseResult, opts)));
+        command.Subcommands.Add(InspectCmd.Create());
         command.Subcommands.Add(SnStrip.Create());
         command.Subcommands.Add(Redir.Create());
         command.Subcommands.Add(Pinvoke.Create());

@@ -70,6 +70,16 @@ public sealed class RootTests : IDisposable
         Assert.Contains("snstrip", result.Stdout);
     }
 
+    [Fact]
+    public void Inspect_VerbAndPathFirst_ProduceSameOutput()
+    {
+        var path = Paths.Get("F02_x64only_managed.dll");
+        var verbResult = CliRunner.Run("inspect", path);
+        var pathFirstResult = CliRunner.Run(path);
+        Assert.Equal(verbResult.ExitCode, pathFirstResult.ExitCode);
+        Assert.Equal(verbResult.Stdout, pathFirstResult.Stdout);
+    }
+
     public void Dispose()
     {
         _temp.Dispose();
