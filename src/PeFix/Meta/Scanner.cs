@@ -6,23 +6,13 @@ public static class Scanner
     {
         string fullPath = Path.GetFullPath(path);
         CheckDir(fullPath);
-        string[] files = ScanFiles(fullPath).ToArray();
+        string[] files = ScanFiles(fullPath);
         var results = new Inspection[files.Length];
         Parallel.For(0, files.Length, index => results[index] = PeAnalyzer.Inspect(files[index]));
         VerConflict[] conflicts = FindConfs(results);
         MissingRef[] missingRefs = FindMissing(results);
         DupProvider[] dupProviders = FindDup(results);
         return new ScanReport(fullPath, results, conflicts, missingRefs, dupProviders);
-    }
-
-    public static bool HasFixable(ScanReport report)
-    {
-        return report.Results.Any(IsFixable);
-    }
-
-    public static bool IsFixable(Inspection result)
-    {
-        return result.Status is Status.Fixable or Status.Cautioned;
     }
 
     private static void CheckDir(string path)
@@ -72,8 +62,8 @@ public static class Scanner
                         asmRef.Name,
                         asmRef.Version,
                         found.Version,
-                        Path.GetFileName(inspection.Path),
-                        Path.GetFileName(found.Path)));
+                        inspection.Path,
+                        found.Path));
                 }
             }
         }
@@ -94,7 +84,7 @@ public static class Scanner
                 missing.Add(new MissingRef(
                     asmRef.Name,
                     asmRef.Version,
-                    Path.GetFileName(inspection.Path)));
+                    inspection.Path));
             }
         }
         return [.. missing.DistinctBy(item => (item.RefName, item.NeedBy))];
@@ -112,7 +102,7 @@ public static class Scanner
                 found[asmName] = files;
             }
 
-            files.Add(Path.GetFileName(item.Path));
+            files.Add(item.Path);
         }
 
         return [.. found
@@ -120,7 +110,7 @@ public static class Scanner
             .OrderBy(item => item.Key, StringComparer.Ordinal)
             .Select(item => new DupProvider(
                 item.Key,
-                [.. item.Value.OrderBy(name => name, StringComparer.OrdinalIgnoreCase)]))];
+                [.. item.Value.OrderBy(path => path, StringComparer.OrdinalIgnoreCase)]))];
     }
 
     private static HashSet<string> FindProvided(Inspection[] results)
@@ -130,5 +120,4 @@ public static class Scanner
             .Select(item => item.AssemblyDef!.Value.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
-
 }
