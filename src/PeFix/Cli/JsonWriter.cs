@@ -8,17 +8,21 @@ internal static class JsonWriter
 {
     public static string Render(Inspection result)
     {
-        return JsonSerializer.Serialize(MapInspect(result), JsonContext.Default.InspectJson);
+        return JsonSerializer.Serialize(InspectMap.Map(result), JsonContext.Default.InspectJson);
     }
 
-    public static string Render(ScanReport report)
+    public static string Render(ScanView view)
     {
-        InspectJson[] models = report.Results.Select(MapInspect).ToArray();
-        SummaryJson summary = MapSummary(report);
-        ConflictJson[] conflicts = report.Conflicts.Select(MapConflict).ToArray();
-        MissRefJson[] missingRefs = report.MissingRefs.Select(MapMissRef).ToArray();
-        DupJson[] dupProviders = report.DupProviders.Select(MapDup).ToArray();
-        var scanJson = new ScanJson(report.Directory, summary, models, conflicts, missingRefs, dupProviders);
+        ScanJsonMeta json = view.Json ?? throw new InvalidOperationException("Scan JSON metadata was not built.");
+        var scanJson = new ScanJson(
+            view.Directory,
+            json.Summary,
+            [.. view.Files.Select(file => file.Json)],
+            [.. view.Conflicts.Select(MapConf)],
+            [.. view.MissingRefs.Select(MapMiss)],
+            [.. view.DupProviders.Select(MapDup)],
+            [.. view.Issues.Select(MapIssue)],
+            json.Gate);
         return JsonSerializer.Serialize(scanJson, JsonContext.Default.ScanJson);
     }
 
@@ -35,98 +39,6 @@ internal static class JsonWriter
     public static string Render(BatchResult result)
     {
         return JsonSerializer.Serialize(CreateBatch(result), JsonContext.Default.BatchFixJson);
-    }
-
-    internal static InspectJson MapInspect(Inspection result)
-    {
-        return new InspectJson(
-            result.Path,
-            result.ValidPe,
-            result.HasCliHeader,
-            result.PeFormat,
-            result.Machine,
-            new CorFlagsJson(
-                result.CliFlags.IlOnly,
-                result.CliFlags.Required32Bit,
-                result.CliFlags.Preferred32Bit,
-                result.CliFlags.Signed),
-            new SignalsJson(
-                result.Signals.StrongName,
-                result.Signals.HasPInvoke,
-                result.Signals.IsRefAsm,
-                result.Signals.IsMixedMode),
-            result.Category is null ? null : Labels.CatText(result.Category),
-            Labels.StatusText(result.Status),
-            result.ReasonCode,
-            GetAction(result),
-            result.PrimaryCause,
-            result.RuntimeRisks,
-            result.Warnings,
-            result.NextSteps,
-            result.LoadReqs,
-            result.PInvokeDeps,
-            result.Tfm,
-            result.MetaVersion,
-            result.OsPlatforms,
-            result.AssemblyRefs?.Select(r => new AsmRefJson(r.Name, r.Version)).ToArray(),
-            result.AssemblyDef is { } def ? new AsmRefJson(def.Name, def.Version) : null,
-            result.HasR2R,
-            result.IsTrimmable);
-    }
-
-    private static string GetAction(Inspection result) => result.Status switch
-    {
-        Status.Compatible => "none",
-        Status.Fixable => "fix",
-        Status.Cautioned when result.Category == Category.Portability => "fix",
-        Status.Cautioned => "acknowledge",
-        _ => "blocked"
-    };
-
-    private static ConflictJson MapConflict(VerConflict conflict)
-    {
-        return new ConflictJson(
-            conflict.AssemblyName,
-            conflict.Expected,
-            conflict.Actual,
-            conflict.ReferencedBy,
-            conflict.ProvidedBy);
-    }
-
-    private static MissRefJson MapMissRef(MissingRef missingRef)
-    {
-        return new MissRefJson(
-            missingRef.RefName,
-            missingRef.NeedVer,
-            missingRef.NeedBy);
-    }
-
-    private static DupJson MapDup(DupProvider dupProvider)
-    {
-        return new DupJson(
-            dupProvider.AsmName,
-            dupProvider.Files);
-    }
-
-    private static SummaryJson MapSummary(ScanReport report)
-    {
-        Inspection[] results = report.Results;
-        var byCategory = results
-            .GroupBy(r => r.Category is null ? "unknown" : Labels.CatText(r.Category), StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
-        var byAction = results
-            .GroupBy(r => GetAction(r), StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
-        return new SummaryJson(
-            results.Length,
-            results.Count(r => r.Status == Status.Compatible),
-            results.Count(r => r.Status == Status.Fixable),
-            results.Count(r => r.Status == Status.Cautioned),
-            results.Count(r => r.Status == Status.Unsafe),
-            results.Count(r => r.Status == Status.Corrupt),
-            byCategory,
-            byAction,
-            report.DupProviders.Length);
     }
 
     private static FixJson CreateFix(PatchResult result)
@@ -150,8 +62,8 @@ internal static class JsonWriter
             result.DryRun,
             resultText,
             verifyText,
-            MapInspect(result.Before),
-            MapInspect(result.After));
+            InspectMap.Map(result.Before),
+            InspectMap.Map(result.After));
     }
 
     private static RefusalJson MapRefusal(Refusal refusal)
@@ -159,7 +71,40 @@ internal static class JsonWriter
         return new RefusalJson(
             refusal.Path,
             refusal.Reason,
-            MapInspect(refusal.Before));
+            InspectMap.Map(refusal.Before));
+    }
+
+    private static ScanConflict MapConf(DirConf conflict)
+    {
+        return new ScanConflict(
+            conflict.Assembly,
+            conflict.Expected,
+            conflict.Actual,
+            conflict.ReferencedBy,
+            conflict.ProvidedBy);
+    }
+
+    private static ScanMissing MapMiss(DirMiss missingRef)
+    {
+        return new ScanMissing(
+            missingRef.Assembly,
+            missingRef.Version,
+            missingRef.RequiredBy);
+    }
+
+    private static ScanDup MapDup(DirDup dupProvider)
+    {
+        return new ScanDup(dupProvider.Assembly, dupProvider.Files);
+    }
+
+    private static ScanIssue MapIssue(DirIssue issue)
+    {
+        return new ScanIssue(
+            issue.Code,
+            issue.Subject,
+            issue.Summary,
+            issue.Files,
+            issue.NextSteps);
     }
 
     private static BatchFixJson CreateBatch(BatchResult result)

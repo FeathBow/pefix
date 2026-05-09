@@ -1,113 +1,114 @@
-using PeFix.Meta;
-
 namespace PeFix.Cli;
 
 internal static class ScanWriter
 {
-    public static string Render(ScanReport report)
+    public static string Render(ScanView view)
     {
         using var writer = new StringWriter();
-        WriteHeader(writer, report);
-        WriteCounts(writer, report);
-        WriteGroups(writer, report);
-        WriteConfs(writer, report);
-        WriteMissing(writer, report);
-        WriteDup(writer, report);
-        WriteHint(writer, report);
+        WriteHeader(writer, view);
+        WriteCounts(writer, view);
+        WriteGroups(writer, view);
+        WriteConfs(writer, view);
+        WriteMissing(writer, view);
+        WriteDup(writer, view);
+        WriteNexts(writer, view);
+        WriteHint(writer, view);
         return writer.ToString().TrimEnd();
     }
 
-    private static void WriteHeader(StringWriter writer, ScanReport report)
+    private static void WriteHeader(StringWriter writer, ScanView view)
     {
-        writer.WriteLine($"pefix {Path.GetFileName(report.Directory)}");
+        writer.WriteLine($"pefix {Path.GetFileName(view.Directory)}");
         writer.WriteLine();
-        writer.WriteLine($"  Summary: Scanned {report.Results.Length} candidate files. {NeedCount(report.Results)} require attention.");
-        writer.WriteLine($"  Action:  {Action(report)}");
+        writer.WriteLine($"  Summary: Scanned {view.Files.Length} candidate files. {view.Stats.NeedCount} require attention.");
+        writer.WriteLine($"  Action:  {ActionText(view)}");
     }
 
-    private static void WriteCounts(StringWriter writer, ScanReport report)
+    private static void WriteCounts(StringWriter writer, ScanView view)
     {
-        int compatible = report.Results.Count(r => r.Status == Status.Compatible);
-        int fixable = report.Results.Count(r => r.Status == Status.Fixable);
-        int cautioned = report.Results.Count(r => r.Status == Status.Cautioned);
-        int @unsafe = report.Results.Count(r => r.Status == Status.Unsafe);
-        int corrupt = report.Results.Count(r => r.Status == Status.Corrupt);
-        writer.WriteLine($"  Counts:  compatible: {compatible}  fixable: {fixable}  cautioned: {cautioned}  unsafe: {@unsafe}  corrupt: {corrupt}");
+        writer.WriteLine($"  Counts:  compatible: {view.Stats.Counts.Compatible}  fixable: {view.Stats.Counts.Fixable}  cautioned: {view.Stats.Counts.Cautioned}  unsafe: {view.Stats.Counts.Unsafe}  corrupt: {view.Stats.Counts.Corrupt}  issues: {view.Issues.Length}");
     }
 
-    private static void WriteGroups(StringWriter writer, ScanReport report)
+    private static void WriteGroups(StringWriter writer, ScanView view)
     {
-        if (report.Results.Length == 0)
+        if (view.Files.Length == 0)
         {
             writer.WriteLine();
             writer.WriteLine("  Groups:  No .dll, .exe, or .wasm files were found.");
             return;
         }
 
-        foreach (IGrouping<string, Inspection>? group in report.Results
-                     .GroupBy(result => Labels.CatText(result.Category), StringComparer.Ordinal)
+        foreach (IGrouping<string, ScanFile>? group in view.Files
+                     .GroupBy(file => file.Category, StringComparer.Ordinal)
                      .OrderBy(group => group.Key, StringComparer.Ordinal))
         {
             writer.WriteLine();
             writer.WriteLine($"  Group: {group.Key}");
-            foreach (Inspection result in group.OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase))
+            foreach (ScanFile file in group)
             {
-                string relativePath = Path.GetRelativePath(report.Directory, result.Path);
-                writer.WriteLine($"    - {relativePath} [{Labels.StatusText(result.Status)}]");
+                writer.WriteLine($"    - {file.ViewPath} [{Labels.StatusText(file.Status)}] reason={file.ReasonCode} action={file.Action}");
+                if (file.NeedsWork)
+                    writer.WriteLine($"      why: {file.Why}");
             }
         }
     }
 
-    private static void WriteConfs(StringWriter writer, ScanReport report)
+    private static void WriteConfs(StringWriter writer, ScanView view)
     {
-        if (report.Conflicts.Length == 0)
+        if (view.Conflicts.Length == 0)
             return;
 
         writer.WriteLine();
-        writer.WriteLine($"  Version Conflicts ({report.Conflicts.Length}):");
-        foreach (VerConflict conflict in report.Conflicts)
-        {
-            writer.WriteLine($"    - {conflict.AssemblyName}: {conflict.ReferencedBy} expects v{conflict.Expected}, but v{conflict.Actual} is provided by {conflict.ProvidedBy}");
-        }
+        writer.WriteLine($"  Version Conflicts ({view.Conflicts.Length}):");
+        foreach (DirConf conflict in view.Conflicts)
+            writer.WriteLine($"    - {conflict.Assembly}: {conflict.ReferencedBy} expects v{conflict.Expected}, but v{conflict.Actual} is provided by {conflict.ProvidedBy}");
     }
 
-    private static void WriteMissing(StringWriter writer, ScanReport report)
+    private static void WriteMissing(StringWriter writer, ScanView view)
     {
-        if (report.MissingRefs.Length == 0)
+        if (view.MissingRefs.Length == 0)
             return;
 
         writer.WriteLine();
-        writer.WriteLine($"  Missing refs ({report.MissingRefs.Length}):");
-        foreach (MissingRef missingRef in report.MissingRefs)
-        {
-            writer.WriteLine($"    - {missingRef.RefName}: {missingRef.NeedBy} expects v{missingRef.NeedVer}, but no provider was found");
-        }
+        writer.WriteLine($"  Missing refs ({view.MissingRefs.Length}):");
+        foreach (DirMiss missingRef in view.MissingRefs)
+            writer.WriteLine($"    - {missingRef.Assembly}: {missingRef.RequiredBy} expects v{missingRef.Version}, but no provider was found");
     }
 
-    private static void WriteDup(StringWriter writer, ScanReport report)
+    private static void WriteDup(StringWriter writer, ScanView view)
     {
-        if (report.DupProviders.Length == 0)
+        if (view.DupProviders.Length == 0)
             return;
 
         writer.WriteLine();
-        writer.WriteLine($"  Dup providers ({report.DupProviders.Length}):");
-        foreach (DupProvider dupProvider in report.DupProviders)
-        {
-            writer.WriteLine($"    - {dupProvider.AsmName}: {string.Join(", ", dupProvider.Files)}");
-        }
+        writer.WriteLine($"  Dup providers ({view.DupProviders.Length}):");
+        foreach (DirDup dupProvider in view.DupProviders)
+            writer.WriteLine($"    - {dupProvider.Assembly}: {string.Join(", ", dupProvider.Files)}");
     }
 
-    private static void WriteHint(StringWriter writer, ScanReport report)
+    private static void WriteNexts(StringWriter writer, ScanView view)
     {
-        if (report.Results.Length == 0)
-        {
+        if (!view.HasIssues)
             return;
-        }
 
-        bool allOk = report.Results.All(r => r.Status == Status.Compatible)
-            && report.Conflicts.Length == 0
-            && report.MissingRefs.Length == 0
-            && report.DupProviders.Length == 0;
+        string[] steps = [.. view.Issues
+            .SelectMany(issue => issue.NextSteps)
+            .Distinct(StringComparer.Ordinal)];
+        if (steps.Length == 0)
+            return;
+
+        writer.WriteLine();
+        writer.WriteLine("  Next Steps:");
+        foreach (string step in steps)
+            writer.WriteLine($"    - {step}");
+    }
+
+    private static void WriteHint(StringWriter writer, ScanView view)
+    {
+        if (view.Files.Length == 0)
+            return;
+
+        bool allOk = view.Stats.Counts.Compatible == view.Files.Length && !view.HasIssues;
         if (allOk)
         {
             writer.WriteLine();
@@ -116,14 +117,16 @@ internal static class ScanWriter
         }
     }
 
-    private static int NeedCount(Inspection[] results)
+    private static string ActionText(ScanView view)
     {
-        return results.Count(result => result.Status != Status.Compatible);
-    }
+        if (view.HasIssues)
+        {
+            return view.Stats.HasFixable
+                ? "Resolve directory issues below, then run pefix <path> --fix for entries marked fixable or cautioned."
+                : "Resolve directory issues below before attempting runtime validation.";
+        }
 
-    private static string Action(ScanReport report)
-    {
-        return Scanner.HasFixable(report)
+        return view.Stats.HasFixable
             ? "Run pefix <path> --fix for entries marked fixable or cautioned."
             : "No fixable assemblies were found.";
     }
