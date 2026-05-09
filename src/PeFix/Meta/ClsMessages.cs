@@ -65,7 +65,7 @@ internal static class ClsMessages
 
     internal static string? LoadReqs(PeSnapshot snapshot)
     {
-        // True AnyCPU: IlOnly + I386 + not Required32Bit — no host architecture restriction.
+        // True AnyCPU: IlOnly + I386 + not Required32Bit; no host architecture restriction.
         if (snapshot.CliFlags.IlOnly
             && string.Equals(snapshot.Machine, "I386", StringComparison.Ordinal)
             && !snapshot.CliFlags.Required32Bit)
@@ -73,7 +73,7 @@ internal static class ClsMessages
             return null;
         }
 
-        // AnyCPU Prefer32Bit variant — still loads in both 32/64-bit, no restriction.
+        // AnyCPU Prefer32Bit variant; still loads in both 32/64-bit, no restriction.
         if (snapshot.CliFlags.IlOnly && snapshot.CliFlags.Preferred32Bit)
         {
             return null;

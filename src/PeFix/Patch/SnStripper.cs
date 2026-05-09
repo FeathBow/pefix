@@ -97,7 +97,7 @@ public static class SnStripper
         using var readStream = new MemoryStream(bytes, writable: false);
         using var peReader = new PEReader(readStream);
         CorHeader corHeader = peReader.PEHeaders.CorHeader
-            ?? throw new InvalidOperationException("No CLI header — not a managed assembly.");
+            ?? throw new InvalidOperationException("No CLI header. Not a managed assembly.");
         MetadataReader reader = peReader.GetMetadataReader();
 
         bool hadIvt = HasSignedIvt(reader);
