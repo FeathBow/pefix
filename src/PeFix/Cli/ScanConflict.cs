@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace PeFix.Cli;
 
-internal sealed record ConflictJson(
+internal sealed record ScanConflict(
     [property: JsonPropertyName("assembly")] string Assembly,
     [property: JsonPropertyName("expected")] string Expected,
     [property: JsonPropertyName("actual")] string Actual,

@@ -4,8 +4,10 @@ namespace PeFix.Cli;
 
 internal sealed record ScanJson(
     [property: JsonPropertyName("directory")] string Directory,
-    [property: JsonPropertyName("summary")] SummaryJson Summary,
+    [property: JsonPropertyName("summary")] ScanSummary Summary,
     [property: JsonPropertyName("results")] InspectJson[] Results,
-    [property: JsonPropertyName("conflicts")] ConflictJson[] Conflicts,
-    [property: JsonPropertyName("missing_refs")] MissRefJson[] MissingRefs,
-    [property: JsonPropertyName("dup_providers")] DupJson[] DupProviders);
+    [property: JsonPropertyName("conflicts")] ScanConflict[] Conflicts,
+    [property: JsonPropertyName("missing_refs")] ScanMissing[] MissingRefs,
+    [property: JsonPropertyName("dup_providers")] ScanDup[] DupProviders,
+    [property: JsonPropertyName("issues")] ScanIssue[] Issues,
+    [property: JsonPropertyName("gate")] ScanGate Gate);

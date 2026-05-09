@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace PeFix.Cli;
 
-internal sealed record SummaryJson(
+internal sealed record ScanSummary(
     [property: JsonPropertyName("total")] int Total,
     [property: JsonPropertyName("compatible")] int Compatible,
     [property: JsonPropertyName("fixable")] int Fixable,
@@ -11,4 +11,6 @@ internal sealed record SummaryJson(
     [property: JsonPropertyName("corrupt")] int Corrupt,
     [property: JsonPropertyName("by_category")] Dictionary<string, int> ByCategory,
     [property: JsonPropertyName("by_action")] Dictionary<string, int> ByAction,
-    [property: JsonPropertyName("dup_providers")] int DupProviders);
+    [property: JsonPropertyName("dup_providers")] int DupProviders,
+    [property: JsonPropertyName("issues")] int Issues,
+    [property: JsonPropertyName("by_issue")] Dictionary<string, int> ByIssue);
