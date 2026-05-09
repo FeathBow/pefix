@@ -15,7 +15,7 @@ internal static class FixCmd
         {
             string path = r.GetValue(opts.PathArg)!;
             bool apply = r.GetValue(opts.ApplyOpt);
-            bool json = r.GetValue(opts.JsonOpt);
+            bool json = r.GetValue(PathCmd.JsonOpt);
             bool noBackup = r.GetValue(opts.NoBackupOpt);
             bool force = r.GetValue(opts.ForceOpt);
             PatchOptions options = new(
@@ -40,11 +40,6 @@ internal static class FixCmd
             DefaultValueFactory = _ => false
         };
 
-        public Option<bool> JsonOpt { get; } = new("--json")
-        {
-            Description = "Write structured JSON output."
-        };
-
         public Option<bool> NoBackupOpt { get; } = new("--no-backup")
         {
             Description = "Skip .bak file creation. Only meaningful with --apply."
@@ -59,7 +54,6 @@ internal static class FixCmd
         {
             cmd.Arguments.Add(PathArg);
             cmd.Options.Add(ApplyOpt);
-            cmd.Options.Add(JsonOpt);
             cmd.Options.Add(NoBackupOpt);
             cmd.Options.Add(ForceOpt);
         }

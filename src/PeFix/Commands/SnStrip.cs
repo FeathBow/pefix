@@ -19,7 +19,7 @@ internal static class SnStrip
                 Backup: !r.GetValue(opts.NoBackupOpt),
                 DryRun: r.GetValue(opts.DryRunOpt),
                 Force: r.GetValue(opts.ForceOpt)),
-            r.GetValue(opts.JsonOpt)));
+            r.GetValue(PathCmd.JsonOpt)));
         return cmd;
     }
 
@@ -142,17 +142,12 @@ internal static class SnStrip
         {
             Description = "Strip even when InternalsVisibleTo uses a signed PublicKey."
         };
-        public Option<bool> JsonOpt { get; } = new("--json")
-        {
-            Description = "Write structured JSON output."
-        };
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
             cmd.Options.Add(NoBackupOpt);
             cmd.Options.Add(DryRunOpt);
             cmd.Options.Add(ForceOpt);
-            cmd.Options.Add(JsonOpt);
         }
     }
 }

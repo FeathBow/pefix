@@ -11,7 +11,7 @@ internal static class ScanCmd
         opts.AddTo(cmd);
         cmd.SetAction(r => (int)Scan.Run(
             r.GetValue(opts.PathArg)!,
-            r.GetValue(opts.JsonOpt),
+            r.GetValue(PathCmd.JsonOpt),
             r.GetValue(opts.FailOnOpt),
             r.GetValue(opts.ConflictOpt)));
         return cmd;
@@ -22,11 +22,6 @@ internal static class ScanCmd
         public Argument<string> PathArg { get; } = new("path")
         {
             Description = "Directory to scan."
-        };
-
-        public Option<bool> JsonOpt { get; } = new("--json")
-        {
-            Description = "Write structured JSON output."
         };
 
         public Option<string?> FailOnOpt { get; } = new("--fail-on")
@@ -42,7 +37,6 @@ internal static class ScanCmd
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
-            cmd.Options.Add(JsonOpt);
             cmd.Options.Add(FailOnOpt);
             cmd.Options.Add(ConflictOpt);
         }

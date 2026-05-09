@@ -5,6 +5,12 @@ namespace PeFix.Commands;
 
 internal static class PathCmd
 {
+    internal static readonly Option<bool> JsonOpt = new("--json")
+    {
+        Description = "Write structured JSON output.",
+        Recursive = true
+    };
+
     public static RootCommand Create()
     {
         var opts = new OptSet();
@@ -48,7 +54,7 @@ internal static class PathCmd
         return new Req(
             parseResult.GetValue(opts.PathArg)!,
             parseResult.GetValue(opts.FixOpt),
-            parseResult.GetValue(opts.JsonOpt),
+            parseResult.GetValue(JsonOpt),
             parseResult.GetValue(opts.FailOnOpt),
             parseResult.GetValue(opts.ConflictOpt),
             new PatchOptions(
@@ -124,11 +130,6 @@ internal static class PathCmd
             Description = "Attempt a safe PE header fix."
         };
 
-        public Option<bool> JsonOpt { get; } = new("--json")
-        {
-            Description = "Write structured JSON output."
-        };
-
         public Option<string?> FailOnOpt { get; } = new("--fail-on")
         {
             Description = "Exit with code 1 when the result meets or exceeds the given severity."
@@ -158,7 +159,7 @@ internal static class PathCmd
         {
             command.Arguments.Add(PathArg);
             command.Options.Add(FixOpt);
-            command.Options.Add(JsonOpt);
+            command.Options.Add(PathCmd.JsonOpt);
             command.Options.Add(FailOnOpt);
             command.Options.Add(ConflictOpt);
             command.Options.Add(DryRunOpt);

@@ -17,7 +17,7 @@ internal static class PublicCmd
             new PubOptions(
                 Backup: !r.GetValue(opts.NoBackupOpt),
                 DryRun: !r.GetValue(opts.ApplyOpt)),
-            r.GetValue(opts.JsonOpt)));
+            r.GetValue(PathCmd.JsonOpt)));
         return cmd;
     }
 
@@ -68,16 +68,11 @@ internal static class PublicCmd
         {
             Description = "Skip .bak file creation."
         };
-        public Option<bool> JsonOpt { get; } = new("--json")
-        {
-            Description = "Write structured JSON output."
-        };
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
             cmd.Options.Add(ApplyOpt);
             cmd.Options.Add(NoBackupOpt);
-            cmd.Options.Add(JsonOpt);
         }
     }
 }

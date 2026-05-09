@@ -14,7 +14,7 @@ internal static class Pinvoke
         opts.AddTo(cmd);
         cmd.SetAction(r => (int)Run(
             r.GetValue(opts.PathArg)!,
-            r.GetValue(opts.JsonOpt)));
+            r.GetValue(PathCmd.JsonOpt)));
         return cmd;
     }
 
@@ -92,14 +92,9 @@ internal static class Pinvoke
         {
             Description = "Assembly file or directory to inspect."
         };
-        public Option<bool> JsonOpt { get; } = new("--json")
-        {
-            Description = "Write structured JSON output."
-        };
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
-            cmd.Options.Add(JsonOpt);
         }
     }
 }

@@ -11,7 +11,7 @@ internal static class InspectCmd
         opts.AddTo(cmd);
         cmd.SetAction(r => (int)Inspect.Run(
             r.GetValue(opts.PathArg)!,
-            r.GetValue(opts.JsonOpt),
+            r.GetValue(PathCmd.JsonOpt),
             r.GetValue(opts.FailOnOpt)));
         return cmd;
     }
@@ -23,11 +23,6 @@ internal static class InspectCmd
             Description = "Assembly file to inspect."
         };
 
-        public Option<bool> JsonOpt { get; } = new("--json")
-        {
-            Description = "Write structured JSON output."
-        };
-
         public Option<string?> FailOnOpt { get; } = new("--fail-on")
         {
             Description = "Exit with code 1 when the result meets or exceeds the given severity."
@@ -36,7 +31,6 @@ internal static class InspectCmd
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
-            cmd.Options.Add(JsonOpt);
             cmd.Options.Add(FailOnOpt);
         }
     }

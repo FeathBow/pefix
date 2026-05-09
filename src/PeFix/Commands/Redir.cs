@@ -18,7 +18,7 @@ internal static class Redir
             r.GetValue(opts.ToOpt),
             !r.GetValue(opts.NoBackupOpt),
             r.GetValue(opts.DryRunOpt),
-            r.GetValue(opts.JsonOpt)));
+            r.GetValue(PathCmd.JsonOpt)));
         return cmd;
     }
 
@@ -132,10 +132,6 @@ internal static class Redir
         {
             Description = "Report without modifying the file."
         };
-        public Option<bool> JsonOpt { get; } = new("--json")
-        {
-            Description = "Write structured JSON output."
-        };
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
@@ -143,7 +139,6 @@ internal static class Redir
             cmd.Options.Add(ToOpt);
             cmd.Options.Add(NoBackupOpt);
             cmd.Options.Add(DryRunOpt);
-            cmd.Options.Add(JsonOpt);
         }
     }
 }
