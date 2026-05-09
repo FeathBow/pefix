@@ -80,6 +80,16 @@ public sealed class RootTests : IDisposable
         Assert.Equal(verbResult.Stdout, pathFirstResult.Stdout);
     }
 
+    [Fact]
+    public void Scan_VerbAndPathFirst_ProduceSameOutput()
+    {
+        _temp.CopyAll("F01_compatible_anycpu.dll", "F02_x64only_managed.dll");
+        var verbResult = CliRunner.Run("scan", _temp.DirPath);
+        var pathFirstResult = CliRunner.Run(_temp.DirPath);
+        Assert.Equal(verbResult.ExitCode, pathFirstResult.ExitCode);
+        Assert.Equal(verbResult.Stdout, pathFirstResult.Stdout);
+    }
+
     public void Dispose()
     {
         _temp.Dispose();
