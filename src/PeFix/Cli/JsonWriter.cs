@@ -17,7 +17,7 @@ internal static class JsonWriter
         var scanJson = new ScanJson(
             view.Directory,
             json.Summary,
-            [.. view.Files.Select(file => file.Json)],
+            [.. view.Files.Select(file => file.Json!)],
             [.. view.Conflicts.Select(MapConf)],
             [.. view.MissingRefs.Select(MapMiss)],
             [.. view.DupProviders.Select(MapDup)],

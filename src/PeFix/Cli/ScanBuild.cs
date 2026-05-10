@@ -13,7 +13,7 @@ internal static class ScanBuild
     public static ScanView Build(ScanReport report, bool withJson)
     {
         ScanRel rel = new(report.Directory);
-        ScanFile[] files = BuildFiles(report, rel);
+        ScanFile[] files = BuildFiles(report, rel, withJson);
         DirConf[] conflicts = BuildConfs(report, rel);
         DirMiss[] missingRefs = BuildMisses(report, rel);
         DirDup[] dupProviders = BuildDups(report, rel);
@@ -31,21 +31,22 @@ internal static class ScanBuild
             json);
     }
 
-    private static ScanFile[] BuildFiles(ScanReport report, ScanRel rel)
+    private static ScanFile[] BuildFiles(ScanReport report, ScanRel rel, bool withJson)
     {
-        return [.. report.Results.Select(result => BuildFile(result, rel))];
+        return [.. report.Results.Select(result => BuildFile(result, rel, withJson))];
     }
 
-    private static ScanFile BuildFile(Inspection result, ScanRel rel)
+    private static ScanFile BuildFile(Inspection result, ScanRel rel, bool withJson)
     {
-        InspectJson json = InspectMap.Map(result);
         return new ScanFile(
             rel.One(result.Path),
-            json.Category ?? Labels.CatText(result.Category),
+            Labels.CatText(result.Category),
             result.Status,
             InspectMap.CanPatch(result),
             InspectText.Summary(result),
-            json);
+            InspectMap.ActionCode(result),
+            result.ReasonCode,
+            withJson ? InspectMap.Map(result) : null);
     }
 
     private static DirConf[] BuildConfs(ScanReport report, ScanRel rel)
