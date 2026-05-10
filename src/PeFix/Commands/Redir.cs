@@ -1,4 +1,3 @@
-using System.CommandLine;
 using System.Text.Json;
 using PeFix.Cli;
 using PeFix.Patch;
@@ -7,22 +6,7 @@ namespace PeFix.Commands;
 
 internal static class Redir
 {
-    internal static Command Create()
-    {
-        var opts = new OptSet();
-        var cmd = new Command("redir", "Rewrite AssemblyRef version fields. Defaults to dry-run; pass --apply to write.");
-        opts.AddTo(cmd);
-        cmd.SetAction(r => (int)Run(
-            r.GetValue(opts.PathArg)!,
-            r.GetValue(opts.FromOpt),
-            r.GetValue(opts.ToOpt),
-            !r.GetValue(opts.NoBackupOpt),
-            !r.GetValue(opts.ApplyOpt),
-            r.GetValue(RootCmd.JsonOpt)));
-        return cmd;
-    }
-
-    private static CliExit Run(string path, string? fromArg, string? toArg, bool backup, bool dryRun, bool json)
+    internal static CliExit Run(string path, string? fromArg, string? toArg, bool backup, bool dryRun, bool json)
     {
         if (string.IsNullOrEmpty(fromArg)) return CliErr.Usage("--from is required.");
         if (string.IsNullOrEmpty(toArg)) return CliErr.Usage("--to is required.");
@@ -99,38 +83,5 @@ internal static class Redir
         foreach (RedirResult r in batch.Results) WriteText(r);
         foreach (Refusal r in batch.Refusals)
             Console.Error.WriteLine($"refused: {r.Path}: {r.Reason}");
-    }
-
-    private sealed class OptSet
-    {
-        public Argument<string> PathArg { get; } = new("path")
-        {
-            Description = "Assembly file or directory to redirect."
-        };
-        public Option<string?> FromOpt { get; } = new("--from")
-        {
-            Description = "Match AssemblyRef in form <name>:<version>."
-        };
-        public Option<string?> ToOpt { get; } = new("--to")
-        {
-            Description = "Target version (Major.Minor.Build.Revision)."
-        };
-        public Option<bool> NoBackupOpt { get; } = new("--no-backup")
-        {
-            Description = "Skip .bak file creation."
-        };
-        public Option<bool> ApplyOpt { get; } = new("--apply")
-        {
-            Description = "Write changes to disk. Without this flag, the command only reports what would change.",
-            DefaultValueFactory = _ => false
-        };
-        public void AddTo(Command cmd)
-        {
-            cmd.Arguments.Add(PathArg);
-            cmd.Options.Add(FromOpt);
-            cmd.Options.Add(ToOpt);
-            cmd.Options.Add(NoBackupOpt);
-            cmd.Options.Add(ApplyOpt);
-        }
     }
 }

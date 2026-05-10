@@ -1,4 +1,3 @@
-using System.CommandLine;
 using System.Text.Json;
 using PeFix.Cli;
 using PeFix.Patch;
@@ -7,18 +6,7 @@ namespace PeFix.Commands;
 
 internal static class Pinvoke
 {
-    internal static Command Create()
-    {
-        var opts = new OptSet();
-        var cmd = new Command("pinvoke", "List P/Invoke calls in a managed assembly or directory.");
-        opts.AddTo(cmd);
-        cmd.SetAction(r => (int)Run(
-            r.GetValue(opts.PathArg)!,
-            r.GetValue(RootCmd.JsonOpt)));
-        return cmd;
-    }
-
-    private static CliExit Run(string path, bool json)
+    internal static CliExit Run(string path, bool json)
     {
         return PathRun.FileOrDir(
             path,
@@ -84,17 +72,5 @@ internal static class Pinvoke
         foreach (PinvokeRes r in batch.Results) WriteText(r);
         foreach (Refusal r in batch.Refusals)
             Console.Error.WriteLine($"refused: {r.Path}: {r.Reason}");
-    }
-
-    private sealed class OptSet
-    {
-        public Argument<string> PathArg { get; } = new("path")
-        {
-            Description = "Assembly file or directory to inspect."
-        };
-        public void AddTo(Command cmd)
-        {
-            cmd.Arguments.Add(PathArg);
-        }
     }
 }
