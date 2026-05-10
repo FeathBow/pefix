@@ -142,8 +142,8 @@ public sealed class ScanTests : IDisposable
         JsonElement dups = doc.RootElement.GetProperty("dup_providers");
         JsonElement issueFiles = doc.RootElement.GetProperty("issues")[0].GetProperty("files");
         JsonElement summary = doc.RootElement.GetProperty("summary");
-        string fileA = Path.Combine("a", "Plugin.dll");
-        string fileB = Path.Combine("b", "Plugin.dll");
+        const string fileA = "a/Plugin.dll";
+        const string fileB = "b/Plugin.dll";
 
         Assert.Contains("2 require attention.", text.Stdout);
         Assert.Equal(2, dups[0].GetProperty("files").GetArrayLength());
@@ -225,8 +225,8 @@ public sealed class ScanTests : IDisposable
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
         JsonElement conflict = doc.RootElement.GetProperty("conflicts")[0];
-        string referencedBy = Path.Combine("refs", "Consumer.dll");
-        string providedBy = Path.Combine("providers", "CompatibleAnyCpu.dll");
+        const string referencedBy = "refs/Consumer.dll";
+        const string providedBy = "providers/CompatibleAnyCpu.dll";
 
         Assert.Equal(referencedBy, conflict.GetProperty("referenced_by").GetString());
         Assert.Equal(providedBy, conflict.GetProperty("provided_by").GetString());
@@ -249,7 +249,7 @@ public sealed class ScanTests : IDisposable
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
         JsonElement missing = doc.RootElement.GetProperty("missing_refs");
-        string requiredBy = Path.Combine("refs", "F18_missing_refs.dll");
+        const string requiredBy = "refs/F18_missing_refs.dll";
 
         Assert.Equal(2, missing.GetArrayLength());
         Assert.Equal(requiredBy, missing[0].GetProperty("required_by").GetString());

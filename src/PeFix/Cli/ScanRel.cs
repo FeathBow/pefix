@@ -15,7 +15,7 @@ internal sealed class ScanRel
         if (_cache.TryGetValue(path, out string? rel))
             return rel;
 
-        rel = Path.GetRelativePath(_root, path);
+        rel = Path.GetRelativePath(_root, path).Replace('\\', '/');
         _cache[path] = rel;
         return rel;
     }

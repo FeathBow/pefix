@@ -6,9 +6,3 @@ internal static class FixResult
     public const string Patched = "patched";
     public const string Unchanged = "unchanged";
 }
-
-internal static class FixVerify
-{
-    public const string Ok = "ok";
-    public const string Skipped = "skipped";
-}

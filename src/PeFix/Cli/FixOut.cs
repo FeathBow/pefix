@@ -7,17 +7,9 @@ internal static class FixOut
 {
     public static string Render(PatchResult result)
     {
-        string status = result.DryRun ? "DRY-RUN"
-            : result.WasPatched ? "PATCHED"
-            : "UNCHANGED";
-
-        string summary = result.DryRun ? "Would patch PE header to AnyCPU."
-            : result.WasPatched ? "PE header patched to AnyCPU."
-            : "Assembly already compatible; nothing to fix.";
-
-        string action = result.DryRun ? $"Run: pefix fix {Path.GetFileName(result.Path)} --apply"
-            : result.WasPatched ? BackupAction(result)
-            : "No action needed.";
+        string status = StatusOf(result);
+        string summary = SummaryOf(result);
+        string action = ActionOf(result);
 
         List<(string, string)> details = new()
         {
@@ -36,6 +28,27 @@ internal static class FixOut
             action,
             details.ToArray()).Render();
     }
+
+    private static string StatusOf(PatchResult r) => (r.DryRun, r.WasPatched) switch
+    {
+        (true, _) => "DRY-RUN",
+        (false, true) => "PATCHED",
+        _ => "UNCHANGED",
+    };
+
+    private static string SummaryOf(PatchResult r) => (r.DryRun, r.WasPatched) switch
+    {
+        (true, _) => "Would patch PE header to AnyCPU.",
+        (false, true) => "PE header patched to AnyCPU.",
+        _ => "Assembly already compatible; nothing to fix.",
+    };
+
+    private static string ActionOf(PatchResult r) => (r.DryRun, r.WasPatched) switch
+    {
+        (true, _) => $"Run: pefix fix {Path.GetFileName(r.Path)} --apply",
+        (false, true) => BackupAction(r),
+        _ => "No action needed.",
+    };
 
     private static string FormatPe(PatchResult result)
     {

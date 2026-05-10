@@ -1,3 +1,4 @@
+using System.Globalization;
 using PeFix.Patch;
 
 namespace PeFix.Cli;
@@ -6,22 +7,13 @@ internal static class RedirOut
 {
     public static string Render(RedirResult r)
     {
-        string status = r.WasDryRun ? "DRY-RUN"
-            : r.RowsPatched > 0 ? "PATCHED"
-            : "UNCHANGED";
-
-        string summary = r.WasDryRun && r.RowsPatched == 0 ? "No matching AssemblyRef rows found."
-            : r.WasDryRun ? $"Would redirect {r.RowsPatched} AssemblyRef row(s)."
-            : r.RowsPatched > 0 ? $"Redirected {r.RowsPatched} AssemblyRef row(s)."
-            : "No matching AssemblyRef rows found; nothing to redirect.";
-
-        string action = r.WasDryRun ? $"Run: pefix redir {Path.GetFileName(r.Path)} --from <name>:<ver> --to <ver> --apply"
-            : r.RowsPatched > 0 ? BackupAction(r)
-            : "No action needed.";
+        string status = Status(r);
+        string summary = SummaryOf(r);
+        string action = ActionOf(r);
 
         List<(string, string)> details = new()
         {
-            ("Rows Patched:", r.RowsPatched.ToString())
+            ("Rows Patched:", r.RowsPatched.ToString(CultureInfo.InvariantCulture))
         };
 
         if (r.WasDryRun)
@@ -46,6 +38,28 @@ internal static class RedirOut
             action,
             details.ToArray()).Render();
     }
+
+    private static string Status(RedirResult r) => (r.WasDryRun, r.RowsPatched > 0) switch
+    {
+        (true, _) => "DRY-RUN",
+        (false, true) => "PATCHED",
+        _ => "UNCHANGED",
+    };
+
+    private static string SummaryOf(RedirResult r) => (r.WasDryRun, r.RowsPatched) switch
+    {
+        (true, 0) => "No matching AssemblyRef rows found.",
+        (true, _) => $"Would redirect {r.RowsPatched} AssemblyRef row(s).",
+        (false, > 0) => $"Redirected {r.RowsPatched} AssemblyRef row(s).",
+        _ => "No matching AssemblyRef rows found; nothing to redirect.",
+    };
+
+    private static string ActionOf(RedirResult r) => (r.WasDryRun, r.RowsPatched > 0) switch
+    {
+        (true, _) => $"Run: pefix redir {Path.GetFileName(r.Path)} --from <name>:<ver> --to <ver> --apply",
+        (false, true) => BackupAction(r),
+        _ => "No action needed.",
+    };
 
     private static string BackupAction(RedirResult r)
     {

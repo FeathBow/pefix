@@ -1,3 +1,4 @@
+using System.Globalization;
 using PeFix.Patch;
 
 namespace PeFix.Cli;
@@ -6,21 +7,13 @@ internal static class PublicOut
 {
     public static string Render(PublicResult r)
     {
-        string status = r.WasDryRun ? "DRY-RUN"
-            : r.OpsCount > 0 ? "PATCHED"
-            : "UNCHANGED";
-
-        string summary = r.WasDryRun ? $"Would flip {r.OpsCount} visibility flag(s)."
-            : r.OpsCount > 0 ? $"Flipped {r.OpsCount} visibility flag(s)."
-            : "No non-public members found; nothing to publicize.";
-
-        string action = r.WasDryRun ? $"Run: pefix publicize {Path.GetFileName(r.Path)} --apply"
-            : r.OpsCount > 0 ? BackupAction(r)
-            : "No action needed.";
+        string status = Status(r);
+        string summary = SummaryOf(r);
+        string action = ActionOf(r);
 
         List<(string, string)> details = new()
         {
-            ("Ops:", r.OpsCount.ToString())
+            ("Ops:", r.OpsCount.ToString(CultureInfo.InvariantCulture))
         };
 
         if (r.WasDryRun)
@@ -45,6 +38,27 @@ internal static class PublicOut
             action,
             details.ToArray()).Render();
     }
+
+    private static string Status(PublicResult r) => (r.WasDryRun, r.OpsCount > 0) switch
+    {
+        (true, _) => "DRY-RUN",
+        (false, true) => "PATCHED",
+        _ => "UNCHANGED",
+    };
+
+    private static string SummaryOf(PublicResult r) => (r.WasDryRun, r.OpsCount > 0) switch
+    {
+        (true, _) => $"Would flip {r.OpsCount} visibility flag(s).",
+        (false, true) => $"Flipped {r.OpsCount} visibility flag(s).",
+        _ => "No non-public members found; nothing to publicize.",
+    };
+
+    private static string ActionOf(PublicResult r) => (r.WasDryRun, r.OpsCount > 0) switch
+    {
+        (true, _) => $"Run: pefix publicize {Path.GetFileName(r.Path)} --apply",
+        (false, true) => BackupAction(r),
+        _ => "No action needed.",
+    };
 
     private static string BackupAction(PublicResult r)
     {

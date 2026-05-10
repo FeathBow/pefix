@@ -1,3 +1,4 @@
+using System.Globalization;
 using PeFix.Patch;
 
 namespace PeFix.Cli;
@@ -6,21 +7,13 @@ internal static class SnStripOut
 {
     public static string Render(SnStripRes r)
     {
-        string status = r.WasDryRun ? "DRY-RUN"
-            : r.WasPatched ? "PATCHED"
-            : "UNCHANGED";
-
-        string summary = r.WasDryRun ? "Would strip strong-name signing from this assembly."
-            : r.WasPatched ? "Strong-name signing stripped."
-            : "Assembly is not strong-name signed; nothing to strip.";
-
-        string action = r.WasDryRun ? $"Run: pefix snstrip {Path.GetFileName(r.Path)} --apply"
-            : r.WasPatched ? BackupAction(r)
-            : "No action needed.";
+        string status = Status(r);
+        string summary = SummaryOf(r);
+        string action = ActionOf(r);
 
         List<(string, string)> details = new()
         {
-            ("Strong Name:", r.WasPatched ? "No (was Yes)" : r.WasDryRun ? "Yes" : "No"),
+            ("Strong Name:", StrongNameLabel(r)),
             ("Signed IVT:", InspectOut.FormatBool(r.HadSignedIvt))
         };
 
@@ -40,7 +33,7 @@ internal static class SnStripOut
 
         if (r.DepsPatched > 0)
         {
-            details.Add(("Deps Patched:", r.DepsPatched.ToString()));
+            details.Add(("Deps Patched:", r.DepsPatched.ToString(CultureInfo.InvariantCulture)));
         }
 
         return new MutBlock(
@@ -51,6 +44,34 @@ internal static class SnStripOut
             action,
             details.ToArray()).Render();
     }
+
+    private static string Status(SnStripRes r) => (r.WasDryRun, r.WasPatched) switch
+    {
+        (true, _) => "DRY-RUN",
+        (false, true) => "PATCHED",
+        _ => "UNCHANGED",
+    };
+
+    private static string SummaryOf(SnStripRes r) => (r.WasDryRun, r.WasPatched) switch
+    {
+        (true, _) => "Would strip strong-name signing from this assembly.",
+        (false, true) => "Strong-name signing stripped.",
+        _ => "Assembly is not strong-name signed; nothing to strip.",
+    };
+
+    private static string ActionOf(SnStripRes r) => (r.WasDryRun, r.WasPatched) switch
+    {
+        (true, _) => $"Run: pefix snstrip {Path.GetFileName(r.Path)} --apply",
+        (false, true) => BackupAction(r),
+        _ => "No action needed.",
+    };
+
+    private static string StrongNameLabel(SnStripRes r) => (r.WasPatched, r.WasDryRun) switch
+    {
+        (true, _) => "No (was Yes)",
+        (false, true) => "Yes",
+        _ => "No",
+    };
 
     private static string BackupAction(SnStripRes r)
     {

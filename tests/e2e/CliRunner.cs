@@ -31,7 +31,7 @@ internal static class CliRunner
     {
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Name;
         var dllPath = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "PeFix", configuration, "PeFix.dll"));
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "PeFix", configuration, "pefix.dll"));
         if (File.Exists(dllPath))
         {
             return dllPath;
