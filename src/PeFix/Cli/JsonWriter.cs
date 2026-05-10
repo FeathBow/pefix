@@ -45,15 +45,15 @@ internal static class JsonWriter
     {
         string resultText = (result.DryRun, result.WasPatched) switch
         {
-            (true, _) => "Dry run only",
-            (false, true) => $"Patched {Path.GetFileName(result.Path)}",
-            _ => "No changes were needed"
+            (true, _) => FixResult.DryRun,
+            (false, true) => FixResult.Patched,
+            _ => FixResult.Unchanged
         };
         string verifyText = (result.DryRun, result.WasPatched) switch
         {
-            (true, _) => "Skipped because no file was modified.",
-            (false, false) => "Skipped because the assembly was already compatible.",
-            _ => "Re-inspection passed. Assembly manifest was validated."
+            (true, _) => FixVerify.Skipped,
+            (false, false) => FixVerify.Skipped,
+            _ => FixVerify.Ok
         };
         return new FixJson(
             result.Path,
