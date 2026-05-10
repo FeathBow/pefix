@@ -21,7 +21,7 @@ internal static class SnStripOut
         List<(string, string)> details = new()
         {
             ("Strong Name:", r.WasPatched ? "No (was Yes)" : r.WasDryRun ? "Yes" : "No"),
-            ("Signed IVT:", FormatYesNo(r.HadSignedIvt))
+            ("Signed IVT:", InspectOut.FormatBool(r.HadSignedIvt))
         };
 
         if (r.WasDryRun)
@@ -58,6 +58,4 @@ internal static class SnStripOut
             ? $"Backup written to {Path.GetFileName(r.BackupPath)}."
             : "Backup skipped (--no-backup).";
     }
-
-    private static string FormatYesNo(bool value) => value ? "Yes" : "No";
 }

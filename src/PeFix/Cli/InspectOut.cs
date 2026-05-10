@@ -24,7 +24,7 @@ internal static class InspectOut
         ).Render();
     }
 
-    private static string FormatBool(bool value)
+    internal static string FormatBool(bool value)
     {
         return value ? "Yes" : "No";
     }
