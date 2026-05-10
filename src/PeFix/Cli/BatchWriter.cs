@@ -7,7 +7,7 @@ internal static class BatchWriter
     public static string Render(BatchResult result)
     {
         using var writer = new StringWriter();
-        writer.WriteLine($"pefix {Path.GetFileName(result.Directory)} --fix");
+        writer.WriteLine($"pefix fix {Path.GetFileName(result.Directory)} --apply");
         writer.WriteLine();
         writer.WriteLine($"  Summary: {Summary(result)}");
         writer.WriteLine($"  Action:  {Action(result)}");
@@ -50,7 +50,7 @@ internal static class BatchWriter
 
         if (result.Results.Any(item => item.WasPatched))
         {
-            return "Re-run pefix <path> to confirm the updated directory state.";
+            return "Re-run pefix scan <path> to confirm the updated directory state.";
         }
 
         return "No changes were needed.";

@@ -38,11 +38,11 @@ internal static class ClsMessages
         string quotedPath = QuotePath(snapshot.Path);
         return status switch
         {
-            Status.Fixable => $"Run: pefix {quotedPath} --fix",
+            Status.Fixable => $"Run: pefix fix {quotedPath} --apply",
             Status.Cautioned when snapshot.Signals.StrongName =>
-                $"Run: pefix {quotedPath} --fix --force. Warning: the strong name signature will be invalidated. You may need to re-sign the assembly.",
+                $"Run: pefix fix {quotedPath} --apply --force. Warning: the strong name signature will be invalidated. You may need to re-sign the assembly.",
             Status.Cautioned =>
-                $"Run: pefix {quotedPath} --fix --force. Warning: native dependencies (P/Invoke) may still fail on the target platform.",
+                $"Run: pefix fix {quotedPath} --apply --force. Warning: native dependencies (P/Invoke) may still fail on the target platform.",
             _ => "No action available."
         };
     }

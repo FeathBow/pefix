@@ -122,12 +122,12 @@ internal static class ScanWriter
         if (view.HasIssues)
         {
             return view.Stats.HasFixable
-                ? "Resolve directory issues below, then run pefix <path> --fix for entries marked fixable or cautioned."
+                ? "Resolve directory issues below, then run pefix fix <path> --apply for entries marked fixable or cautioned."
                 : "Resolve directory issues below before attempting runtime validation.";
         }
 
         return view.Stats.HasFixable
-            ? "Run pefix <path> --fix for entries marked fixable or cautioned."
+            ? "Run pefix fix <path> --apply for entries marked fixable or cautioned."
             : "No fixable assemblies were found.";
     }
 }
