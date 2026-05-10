@@ -14,7 +14,7 @@ internal static class Pinvoke
         opts.AddTo(cmd);
         cmd.SetAction(r => (int)Run(
             r.GetValue(opts.PathArg)!,
-            r.GetValue(PathCmd.JsonOpt)));
+            r.GetValue(RootCmd.JsonOpt)));
         return cmd;
     }
 

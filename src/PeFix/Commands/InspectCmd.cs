@@ -11,7 +11,7 @@ internal static class InspectCmd
         opts.AddTo(cmd);
         cmd.SetAction(r => (int)Inspect.Run(
             r.GetValue(opts.PathArg)!,
-            r.GetValue(PathCmd.JsonOpt),
+            r.GetValue(RootCmd.JsonOpt),
             r.GetValue(opts.FailOnOpt)));
         return cmd;
     }

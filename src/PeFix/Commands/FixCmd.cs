@@ -15,7 +15,7 @@ internal static class FixCmd
         {
             string path = r.GetValue(opts.PathArg)!;
             bool apply = r.GetValue(opts.ApplyOpt);
-            bool json = r.GetValue(PathCmd.JsonOpt);
+            bool json = r.GetValue(RootCmd.JsonOpt);
             bool noBackup = r.GetValue(opts.NoBackupOpt);
             bool force = r.GetValue(opts.ForceOpt);
             PatchOptions options = new(

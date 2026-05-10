@@ -19,7 +19,7 @@ internal static class SnStrip
                 Backup: !r.GetValue(opts.NoBackupOpt),
                 DryRun: !r.GetValue(opts.ApplyOpt),
                 Force: r.GetValue(opts.ForceOpt)),
-            r.GetValue(PathCmd.JsonOpt)));
+            r.GetValue(RootCmd.JsonOpt)));
         return cmd;
     }
 
@@ -78,7 +78,7 @@ internal static class SnStrip
 
     private static void WriteText(SnStripRes r)
     {
-        Console.WriteLine(SnStripWriter.Render(r));
+        Console.WriteLine(SnStripOut.Render(r));
         if (r.HadSignedIvt)
             Console.Error.WriteLine("warning: InternalsVisibleTo uses a signed PublicKey");
         foreach (Refusal fail in r.DepFails)

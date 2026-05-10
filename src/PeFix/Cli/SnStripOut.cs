@@ -2,7 +2,7 @@ using PeFix.Patch;
 
 namespace PeFix.Cli;
 
-internal static class SnStripWriter
+internal static class SnStripOut
 {
     public static string Render(SnStripRes r)
     {

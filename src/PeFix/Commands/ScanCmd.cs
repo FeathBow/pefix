@@ -11,7 +11,7 @@ internal static class ScanCmd
         opts.AddTo(cmd);
         cmd.SetAction(r => (int)Scan.Run(
             r.GetValue(opts.PathArg)!,
-            r.GetValue(PathCmd.JsonOpt),
+            r.GetValue(RootCmd.JsonOpt),
             r.GetValue(opts.FailOnOpt),
             r.GetValue(opts.ConflictOpt)));
         return cmd;

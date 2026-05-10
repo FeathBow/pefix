@@ -17,7 +17,7 @@ internal static class PublicCmd
             new PubOptions(
                 Backup: !r.GetValue(opts.NoBackupOpt),
                 DryRun: !r.GetValue(opts.ApplyOpt)),
-            r.GetValue(PathCmd.JsonOpt)));
+            r.GetValue(RootCmd.JsonOpt)));
         return cmd;
     }
 

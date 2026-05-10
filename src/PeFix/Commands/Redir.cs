@@ -18,7 +18,7 @@ internal static class Redir
             r.GetValue(opts.ToOpt),
             !r.GetValue(opts.NoBackupOpt),
             !r.GetValue(opts.ApplyOpt),
-            r.GetValue(PathCmd.JsonOpt)));
+            r.GetValue(RootCmd.JsonOpt)));
         return cmd;
     }
 

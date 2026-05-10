@@ -2,7 +2,7 @@ using System.CommandLine;
 
 namespace PeFix.Commands;
 
-internal static class PathCmd
+internal static class RootCmd
 {
     internal static readonly Option<bool> JsonOpt = new("--json")
     {
