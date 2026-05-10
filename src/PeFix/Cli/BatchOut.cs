@@ -2,7 +2,7 @@ using PeFix.Patch;
 
 namespace PeFix.Cli;
 
-internal static class BatchWriter
+internal static class BatchOut
 {
     public static string Render(BatchResult result)
     {

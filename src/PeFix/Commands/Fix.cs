@@ -74,7 +74,7 @@ internal static class Fix
         }
         else
         {
-            Console.WriteLine(BatchWriter.Render(result));
+            Console.WriteLine(BatchOut.Render(result));
         }
 
         return result.Refusals.Length > 0
