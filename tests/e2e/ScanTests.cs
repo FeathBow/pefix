@@ -37,7 +37,6 @@ public sealed class ScanTests : IDisposable
 
         Assert.Equal("pass", gate.GetProperty("integrity").GetString());
         Assert.Equal("pass", gate.GetProperty("version_conflict").GetString());
-        Assert.Equal("pass", gate.GetProperty("conflict").GetString());
         Assert.Equal(0, gate.GetProperty("issue_count").GetInt32());
         Assert.Equal(0, gate.GetProperty("issue_codes").GetArrayLength());
         Assert.Equal(0, issues.GetArrayLength());
@@ -83,7 +82,6 @@ public sealed class ScanTests : IDisposable
         Assert.Equal(2, issues.GetArrayLength());
         Assert.Equal("fail", gate.GetProperty("integrity").GetString());
         Assert.Equal("pass", gate.GetProperty("version_conflict").GetString());
-        Assert.Equal("pass", gate.GetProperty("conflict").GetString());
         Assert.Equal(2, gate.GetProperty("issue_count").GetInt32());
         Assert.Equal(2, summary.GetProperty("issues").GetInt32());
         Assert.Equal(2, summary.GetProperty("by_issue").GetProperty("missing_ref").GetInt32());
@@ -125,7 +123,6 @@ public sealed class ScanTests : IDisposable
         Assert.Equal("dup_provider", issues[0].GetProperty("code").GetString());
         Assert.Equal("fail", gate.GetProperty("integrity").GetString());
         Assert.Equal("pass", gate.GetProperty("version_conflict").GetString());
-        Assert.Equal("pass", gate.GetProperty("conflict").GetString());
         Assert.Equal(1, summary.GetProperty("dup_providers").GetInt32());
         Assert.Equal(1, summary.GetProperty("issues").GetInt32());
         Assert.Equal("CompatibleAnyCpu", dups[0].GetProperty("assembly").GetString());
@@ -217,7 +214,6 @@ public sealed class ScanTests : IDisposable
         JsonElement gate = doc.RootElement.GetProperty("gate");
         Assert.Equal("fail", gate.GetProperty("integrity").GetString());
         Assert.Equal("fail", gate.GetProperty("version_conflict").GetString());
-        Assert.Equal("fail", gate.GetProperty("conflict").GetString());
     }
 
     [Fact]

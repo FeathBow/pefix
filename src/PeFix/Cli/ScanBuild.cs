@@ -180,7 +180,6 @@ internal static class ScanBuild
         ScanGate gate = new(
             issues.Length == 0 ? Pass : Fail,
             conflict,
-            conflict,
             issues.Length,
             [.. issues
                 .Select(issue => issue.Code)
