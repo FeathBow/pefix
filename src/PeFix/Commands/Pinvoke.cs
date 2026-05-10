@@ -65,7 +65,7 @@ internal static class Pinvoke
         new(r.Path, [.. r.Calls.Select(c => new PinCallJson(c.Module, c.DeclType, c.MethodName, c.EntryName))]);
 
     private static RefusalJson MapRefusal(Refusal refusal) =>
-        new(refusal.Path, refusal.Reason, InspectMap.Map(refusal.Before));
+        InspectMap.MapRefusal(refusal);
 
     private static void WriteBatch(PinBatch batch)
     {

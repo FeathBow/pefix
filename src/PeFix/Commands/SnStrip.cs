@@ -88,5 +88,5 @@ internal static class SnStrip
         new(dep.Path, dep.BackupPath, dep.PlanPath);
 
     private static RefusalJson MapRefusal(Refusal refusal) =>
-        new(refusal.Path, refusal.Reason, InspectMap.Map(refusal.Before));
+        InspectMap.MapRefusal(refusal);
 }

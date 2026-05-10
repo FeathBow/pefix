@@ -1,4 +1,5 @@
 using PeFix.Meta;
+using PeFix.Patch;
 
 namespace PeFix.Cli;
 
@@ -39,6 +40,11 @@ internal static class InspectMap
             result.AssemblyDef is { } def ? new AsmRefJson(def.Name, def.Version) : null,
             result.HasR2R,
             result.IsTrimmable);
+    }
+
+    public static RefusalJson MapRefusal(Refusal refusal)
+    {
+        return new(refusal.Path, refusal.Reason, Map(refusal.Before));
     }
 
     public static bool CanPatch(Inspection result)

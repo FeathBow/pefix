@@ -68,10 +68,7 @@ internal static class JsonWriter
 
     private static RefusalJson MapRefusal(Refusal refusal)
     {
-        return new RefusalJson(
-            refusal.Path,
-            refusal.Reason,
-            InspectMap.Map(refusal.Before));
+        return InspectMap.MapRefusal(refusal);
     }
 
     private static ScanConflict MapConf(DirConf conflict)

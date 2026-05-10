@@ -76,7 +76,7 @@ internal static class Redir
         new(r.Path, r.BackupPath, r.PlanPath, r.WasDryRun, r.RowsPatched);
 
     private static RefusalJson MapRefusal(Refusal refusal) =>
-        new(refusal.Path, refusal.Reason, InspectMap.Map(refusal.Before));
+        InspectMap.MapRefusal(refusal);
 
     private static void WriteBatch(RedBatch batch)
     {
