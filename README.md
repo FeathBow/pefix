@@ -31,7 +31,7 @@ The resulting `./out/PeFix` is a self-contained native binary with no .NET runti
 
 Inspect a single assembly:
 
-    pefix MyMod.dll
+    pefix inspect MyMod.dll
 
 Output:
 
@@ -39,38 +39,47 @@ Output:
 
       Status:  FIXABLE
       Summary: This assembly uses a platform-specific header, but the managed code is portable and can be fixed.
-      Action:  Run: pefix MyMod.dll --fix
+      Action:  Run: pefix fix MyMod.dll --apply
 
       Details:
-        PE Format:     PE32+ (AMD64)
-        IL Only:       Yes
+        PE Format:      PE32+ (AMD64)
+        IL Only:        Yes
         ...
-        Status:        fixable
+        Status:         fixable
+
+Preview a fix (dry-run by default):
+
+    pefix fix MyMod.dll
 
 Apply the fix:
 
-    pefix MyMod.dll --fix
+    pefix fix MyMod.dll --apply
 
 Output:
 
-    pefix MyMod.dll --fix
+    pefix MyMod.dll fix
 
-      Result:  Patched MyMod.dll
-      Backup:  MyMod.dll.bak
-      Before:  PE32+ AMD64 -> not compatible with all platforms
-      After:   PE32 I386 -> compatible with all platforms
-      Verify:  Re-inspection passed. Assembly manifest was validated.
+      Status:  PATCHED
+      Summary: PE header patched to AnyCPU.
+      Action:  Backup written to MyMod.dll.bak.
+
+      Details:
+        PE Format:        PE32+ (AMD64)
+        Status Before:    not compatible
+        Status After:     compatible
+        Backup:           MyMod.dll.bak
+        Verify:           re-inspection passed
 
 Scan a directory:
 
-    pefix ./mods
+    pefix scan ./mods
 
 Output:
 
     pefix mods
 
       Summary: Scanned 3 candidate files. 2 require attention.
-      Action:  Run pefix <path> --fix for entries marked fixable or cautioned.
+      Action:  Run pefix fix <path> --apply for entries marked fixable or cautioned.
       Counts:  compatible: 1  fixable: 1  cautioned: 0  unsafe: 1  corrupt: 0  issues: 0
 
       Group: portability
@@ -82,7 +91,7 @@ Output:
         - Reference.dll [unsafe] reason=ref_assembly action=blocked
           why: Reference assembly, not a runtime assembly.
 
-Add `--json` to any command for machine-readable output. Run `pefix --help` for the full option list and exit codes.
+Add `--json` to any command for machine-readable output.
 
 ## Status legend
 
@@ -92,11 +101,11 @@ Every inspection produces one of five statuses:
 | ---------- | ------------------------------------------------------------- |
 | compatible | Already portable, no action needed.                           |
 | fixable    | Header can be rewritten in place.                             |
-| cautioned  | Could be rewritten but requires explicit consent (`--force`). |
+| cautioned  | Could be rewritten but requires explicit consent (`--apply --force`). |
 | unsafe     | Refused. Rewriting would not produce a working assembly.      |
 | corrupt    | Not a valid PE file or malformed beyond inspection.           |
 
-Each result also carries a stable `reason_code` printed in text and JSON output, so machine consumers can switch on it. Run `pefix --help` for the full option list and exit codes.
+Each result also carries a stable `reason_code` printed in text and JSON output. Run `pefix --help` for the full option list and exit codes.
 
 ## What it fixes
 
@@ -115,7 +124,7 @@ The rewrite is byte-level. It does not touch metadata, embedded resources, or st
 | satellite assembly    | Localized resource container, not a code module.              |
 | multi-module assembly | Not supported on .NET Core or .NET 5+.                        |
 | corrupt / non-PE      | Not a parseable PE file.                                      |
-| strong-named          | Cautioned. `--force` accepts that the strong-name will break. |
+| strong-named          | Cautioned. `--apply --force` accepts that the strong-name will break. |
 | native dependencies   | Cautioned. P/Invoke targets must be available on the host.    |
 
 Direction is one-way: `pefix` rewrites `PE32+ AMD64` to `PE32 I386`. Already compatible assemblies are left untouched.
