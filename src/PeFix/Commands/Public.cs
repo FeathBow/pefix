@@ -21,7 +21,7 @@ internal static class Public
 
     private static void WriteText(PublicResult r)
     {
-        Console.WriteLine(PublicWriter.Render(r));
+        Console.WriteLine(PublicOut.Render(r));
     }
 
     private static string ToJson(PublicResult r) =>

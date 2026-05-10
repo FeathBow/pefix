@@ -58,7 +58,7 @@ internal static class Redir
 
     private static void WriteText(RedirResult r)
     {
-        Console.WriteLine(RedirWriter.Render(r));
+        Console.WriteLine(RedirOut.Render(r));
     }
 
     private static string ToJson(RedirResult r) =>

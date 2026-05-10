@@ -42,7 +42,7 @@ public sealed class ScanViewTest
         Assert.Equal(1, root.GetProperty("summary").GetProperty("by_action").GetProperty("none").GetInt32());
         Assert.Equal(3, root.GetProperty("gate").GetProperty("issue_count").GetInt32());
 
-        string text = ScanWriter.Render(view);
+        string text = ScanOut.Render(view);
         Assert.Contains("mods/Fix.dll [fixable] reason=non_portable action=fix", text);
         Assert.Contains("Align the directory to a single version for this assembly name", text);
     }

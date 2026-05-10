@@ -2,25 +2,26 @@ using PeFix.Patch;
 
 namespace PeFix.Cli;
 
-internal static class PublicWriter
+internal static class RedirOut
 {
-    public static string Render(PublicResult r)
+    public static string Render(RedirResult r)
     {
         string status = r.WasDryRun ? "DRY-RUN"
-            : r.OpsCount > 0 ? "PATCHED"
+            : r.RowsPatched > 0 ? "PATCHED"
             : "UNCHANGED";
 
-        string summary = r.WasDryRun ? $"Would flip {r.OpsCount} visibility flag(s)."
-            : r.OpsCount > 0 ? $"Flipped {r.OpsCount} visibility flag(s)."
-            : "No non-public members found; nothing to publicize.";
+        string summary = r.WasDryRun && r.RowsPatched == 0 ? "No matching AssemblyRef rows found."
+            : r.WasDryRun ? $"Would redirect {r.RowsPatched} AssemblyRef row(s)."
+            : r.RowsPatched > 0 ? $"Redirected {r.RowsPatched} AssemblyRef row(s)."
+            : "No matching AssemblyRef rows found; nothing to redirect.";
 
-        string action = r.WasDryRun ? $"Run: pefix publicize {Path.GetFileName(r.Path)} --apply"
-            : r.OpsCount > 0 ? BackupAction(r)
+        string action = r.WasDryRun ? $"Run: pefix redir {Path.GetFileName(r.Path)} --from <name>:<ver> --to <ver> --apply"
+            : r.RowsPatched > 0 ? BackupAction(r)
             : "No action needed.";
 
         List<(string, string)> details = new()
         {
-            ("Ops:", r.OpsCount.ToString())
+            ("Rows Patched:", r.RowsPatched.ToString())
         };
 
         if (r.WasDryRun)
@@ -39,14 +40,14 @@ internal static class PublicWriter
 
         return new MutBlock(
             Path.GetFileName(r.Path),
-            "publicize",
+            "redir",
             status,
             summary,
             action,
             details.ToArray()).Render();
     }
 
-    private static string BackupAction(PublicResult r)
+    private static string BackupAction(RedirResult r)
     {
         return r.BackupPath is not null
             ? $"Backup written to {Path.GetFileName(r.BackupPath)}."

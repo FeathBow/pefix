@@ -2,26 +2,25 @@ using PeFix.Patch;
 
 namespace PeFix.Cli;
 
-internal static class RedirWriter
+internal static class PublicOut
 {
-    public static string Render(RedirResult r)
+    public static string Render(PublicResult r)
     {
         string status = r.WasDryRun ? "DRY-RUN"
-            : r.RowsPatched > 0 ? "PATCHED"
+            : r.OpsCount > 0 ? "PATCHED"
             : "UNCHANGED";
 
-        string summary = r.WasDryRun && r.RowsPatched == 0 ? "No matching AssemblyRef rows found."
-            : r.WasDryRun ? $"Would redirect {r.RowsPatched} AssemblyRef row(s)."
-            : r.RowsPatched > 0 ? $"Redirected {r.RowsPatched} AssemblyRef row(s)."
-            : "No matching AssemblyRef rows found; nothing to redirect.";
+        string summary = r.WasDryRun ? $"Would flip {r.OpsCount} visibility flag(s)."
+            : r.OpsCount > 0 ? $"Flipped {r.OpsCount} visibility flag(s)."
+            : "No non-public members found; nothing to publicize.";
 
-        string action = r.WasDryRun ? $"Run: pefix redir {Path.GetFileName(r.Path)} --from <name>:<ver> --to <ver> --apply"
-            : r.RowsPatched > 0 ? BackupAction(r)
+        string action = r.WasDryRun ? $"Run: pefix publicize {Path.GetFileName(r.Path)} --apply"
+            : r.OpsCount > 0 ? BackupAction(r)
             : "No action needed.";
 
         List<(string, string)> details = new()
         {
-            ("Rows Patched:", r.RowsPatched.ToString())
+            ("Ops:", r.OpsCount.ToString())
         };
 
         if (r.WasDryRun)
@@ -40,14 +39,14 @@ internal static class RedirWriter
 
         return new MutBlock(
             Path.GetFileName(r.Path),
-            "redir",
+            "publicize",
             status,
             summary,
             action,
             details.ToArray()).Render();
     }
 
-    private static string BackupAction(RedirResult r)
+    private static string BackupAction(PublicResult r)
     {
         return r.BackupPath is not null
             ? $"Backup written to {Path.GetFileName(r.BackupPath)}."

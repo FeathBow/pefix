@@ -3,7 +3,7 @@ using PeFix.Patch;
 
 namespace PeFix.Cli;
 
-internal static class FixWriter
+internal static class FixOut
 {
     public static string Render(PatchResult result)
     {

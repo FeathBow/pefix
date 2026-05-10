@@ -24,7 +24,7 @@ internal static class Fix
             }
             else
             {
-                Console.WriteLine(FixWriter.Render(result));
+                Console.WriteLine(FixOut.Render(result));
             }
             return CliExit.Success;
         }

@@ -38,7 +38,7 @@ internal static class Scan
         }
         else
         {
-            Console.WriteLine(ScanWriter.Render(view));
+            Console.WriteLine(ScanOut.Render(view));
         }
 
         if (onConflict && view.Stats.HasConflict)

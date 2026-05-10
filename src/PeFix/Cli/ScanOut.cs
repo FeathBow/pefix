@@ -1,6 +1,6 @@
 namespace PeFix.Cli;
 
-internal static class ScanWriter
+internal static class ScanOut
 {
     public static string Render(ScanView view)
     {
