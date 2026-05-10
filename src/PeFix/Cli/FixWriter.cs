@@ -7,76 +7,68 @@ internal static class FixWriter
 {
     public static string Render(PatchResult result)
     {
-        using var writer = new StringWriter();
-        writer.WriteLine($"pefix {Path.GetFileName(result.Path)} --fix");
-        writer.WriteLine();
-        writer.WriteLine($"  Result:  {Result(result)}");
-        writer.WriteLine($"  Backup:  {Backup(result)}");
-        writer.WriteLine($"  Before:  {FormatState(result.Before)}");
-        writer.WriteLine($"  After:   {AfterText(result)}");
-        writer.WriteLine($"  Verify:  {Verify(result)}");
-        return writer.ToString().TrimEnd();
+        string status = result.DryRun ? "DRY-RUN"
+            : result.WasPatched ? "PATCHED"
+            : "UNCHANGED";
+
+        string summary = result.DryRun ? "Would patch PE header to AnyCPU."
+            : result.WasPatched ? "PE header patched to AnyCPU."
+            : "Assembly already compatible; nothing to fix.";
+
+        string action = result.DryRun ? $"Run: pefix fix {Path.GetFileName(result.Path)} --apply"
+            : result.WasPatched ? BackupAction(result)
+            : "No action needed.";
+
+        List<(string, string)> details = new()
+        {
+            ("PE Format:", FormatPe(result)),
+            ("Status Before:", InspectCompat(result.Before.Status)),
+            ("Status After:", result.DryRun ? "not written" : InspectCompat(result.After.Status)),
+            ("Backup:", result.DryRun ? "(not created)" : BackupDetail(result)),
+            ("Verify:", Verify(result))
+        };
+
+        return new MutBlock(
+            Path.GetFileName(result.Path),
+            "fix",
+            status,
+            summary,
+            action,
+            details.ToArray()).Render();
     }
 
-    private static string Result(PatchResult result)
+    private static string FormatPe(PatchResult result)
     {
-        if (result.DryRun)
-        {
-            return "Dry run only";
-        }
-
-        if (result.WasPatched)
-        {
-            return $"Patched {Path.GetFileName(result.Path)}";
-        }
-
-        return "No changes were needed";
+        return $"{result.Before.PeFormat ?? "Unknown"} ({result.Before.Machine ?? "Unknown"})";
     }
 
-    private static string Backup(PatchResult result)
+    private static string InspectCompat(Status status)
     {
-        return result.BackupPath is null ? "(not created)" : Path.GetFileName(result.BackupPath);
+        return status == Status.Compatible
+            ? "compatible"
+            : "not compatible";
     }
 
-    private static string FormatState(Inspection result)
+    private static string BackupDetail(PatchResult result)
     {
-        return $"{result.PeFormat ?? "Unknown"} {result.Machine ?? "Unknown"} -> {Compat(result.Status)}";
+        return result.BackupPath is not null
+            ? Path.GetFileName(result.BackupPath)
+            : "(not created)";
     }
 
-    private static string AfterText(PatchResult result)
+    private static string BackupAction(PatchResult result)
     {
-        if (result.DryRun)
-        {
-            return "not written (--dry-run)";
-        }
-
-        if (!result.WasPatched)
-        {
-            return "unchanged (already compatible)";
-        }
-
-        return $"{result.After.PeFormat ?? "Unknown"} {result.After.Machine ?? "Unknown"} -> compatible with all platforms";
+        return result.BackupPath is not null
+            ? $"Backup written to {Path.GetFileName(result.BackupPath)}."
+            : "Backup skipped (--no-backup).";
     }
 
     private static string Verify(PatchResult result)
     {
         if (result.DryRun)
-        {
-            return "Skipped because no file was modified.";
-        }
-
+            return "skipped (--dry-run)";
         if (!result.WasPatched)
-        {
-            return "Skipped because the assembly was already compatible.";
-        }
-
-        return "Re-inspection passed. Assembly manifest was validated.";
-    }
-
-    private static string Compat(Status status)
-    {
-        return status == Status.Compatible
-            ? "already compatible"
-            : "not compatible with all platforms";
+            return "skipped (already compatible)";
+        return "re-inspection passed";
     }
 }

@@ -36,17 +36,7 @@ internal static class PublicCmd
 
     private static void WriteText(PublicResult r)
     {
-        if (r.WasDryRun)
-        {
-            Console.WriteLine($"dry-run: {r.Path}");
-            Console.WriteLine($"  ops:     {r.OpsCount} flag(s) would flip");
-            Console.WriteLine("  hint:    pass --apply to write the file");
-            return;
-        }
-        Console.WriteLine($"publicized: {r.Path}");
-        if (r.BackupPath is not null) Console.WriteLine($"  backup:  {r.BackupPath}");
-        if (r.PlanPath is not null) Console.WriteLine($"  plan:    {r.PlanPath}");
-        Console.WriteLine($"  ops:     {r.OpsCount} flag(s) flipped");
+        Console.WriteLine(PublicWriter.Render(r));
     }
 
     private static string ToJson(PublicResult r) =>

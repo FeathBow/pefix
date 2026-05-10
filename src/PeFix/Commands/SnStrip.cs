@@ -78,27 +78,9 @@ internal static class SnStrip
 
     private static void WriteText(SnStripRes r)
     {
-        if (r.WasDryRun)
-        {
-            Console.WriteLine($"dry-run: {r.Path}");
-            if (r.HadSignedIvt) Console.WriteLine("  warning: InternalsVisibleTo uses a signed PublicKey");
-            return;
-        }
-        if (!r.WasPatched)
-        {
-            Console.WriteLine($"unchanged: {r.Path}");
-            return;
-        }
-        Console.WriteLine($"stripped: {r.Path}");
-        if (r.BackupPath is not null) Console.WriteLine($"  backup:  {r.BackupPath}");
-        if (r.PlanPath is not null) Console.WriteLine($"  plan:    {r.PlanPath}");
-        if (r.HadSignedIvt) Console.WriteLine("  warning: InternalsVisibleTo uses a signed PublicKey");
-        if (r.DepsPatched > 0)
-        {
-            Console.WriteLine($"  deps:    {r.DepsPatched} sibling DLL(s) patched");
-            foreach (SnDep dep in r.Deps)
-                Console.WriteLine($"  dep:     {dep.Path}");
-        }
+        Console.WriteLine(SnStripWriter.Render(r));
+        if (r.HadSignedIvt)
+            Console.Error.WriteLine("warning: InternalsVisibleTo uses a signed PublicKey");
         foreach (Refusal fail in r.DepFails)
             Console.Error.WriteLine($"refused: {fail.Path}: {fail.Reason}");
     }

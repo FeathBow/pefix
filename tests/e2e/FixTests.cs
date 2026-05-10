@@ -11,7 +11,8 @@ public sealed class FixTests : IDisposable
         var path = _temp.Copy("F02_x64only_managed.dll");
         var result = CliRunner.Run(path, "--fix");
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Verify:  Re-inspection passed. Assembly manifest was validated.", result.Stdout);
+        Assert.Contains("Status:  PATCHED", result.Stdout);
+        Assert.Contains("re-inspection passed", result.Stdout);
     }
 
     [Fact]
@@ -20,8 +21,8 @@ public sealed class FixTests : IDisposable
         var path = _temp.Copy("F01_compatible_anycpu.dll");
         var result = CliRunner.Run(path, "--fix");
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Result:  No changes were needed", result.Stdout);
-        Assert.Contains("Verify:  Skipped because the assembly was already compatible.", result.Stdout);
+        Assert.Contains("Status:  UNCHANGED", result.Stdout);
+        Assert.Contains("skipped (already compatible)", result.Stdout);
     }
 
     [Fact]

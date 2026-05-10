@@ -27,4 +27,15 @@ public sealed class SnCmdTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         Assert.Equal(before, File.GetLastWriteTimeUtc(path));
     }
+
+    [Fact]
+    public void SnStripVerb_DryRun_BlockFormat()
+    {
+        string path = _temp.Copy("F03_x64_strongname.dll");
+        CliResult result = CliRunner.Run("snstrip", path);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Status:  DRY-RUN", result.Stdout);
+        Assert.Contains("Action:  Run:", result.Stdout);
+        Assert.Contains("Details:", result.Stdout);
+    }
 }

@@ -40,7 +40,7 @@ public sealed class RootTests : IDisposable
         var path = _temp.Copy("F02_x64only_managed.dll");
         var result = CliRunner.Run(path, "--fix", "--dry-run");
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Result:  Dry run only", result.Stdout);
+        Assert.Contains("Status:  DRY-RUN", result.Stdout);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public sealed class RootTests : IDisposable
         var before = File.GetLastWriteTimeUtc(path);
         var result = CliRunner.Run("fix", path);
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Dry run only", result.Stdout);
+        Assert.Contains("Status:  DRY-RUN", result.Stdout);
         Assert.Equal(before, File.GetLastWriteTimeUtc(path));
     }
 

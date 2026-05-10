@@ -74,16 +74,7 @@ internal static class Redir
 
     private static void WriteText(RedirResult r)
     {
-        if (r.WasDryRun)
-        {
-            Console.WriteLine($"dry-run: {r.Path}");
-            Console.WriteLine($"  rows:    {r.RowsPatched} matching AssemblyRef row(s)");
-            return;
-        }
-        Console.WriteLine($"redirected: {r.Path}");
-        if (r.BackupPath is not null) Console.WriteLine($"  backup:  {r.BackupPath}");
-        if (r.PlanPath is not null) Console.WriteLine($"  plan:    {r.PlanPath}");
-        Console.WriteLine($"  rows:    {r.RowsPatched} AssemblyRef row(s) patched");
+        Console.WriteLine(RedirWriter.Render(r));
     }
 
     private static string ToJson(RedirResult r) =>
