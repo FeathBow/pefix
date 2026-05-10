@@ -12,7 +12,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_Groups()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F02_x64only_managed.dll", "F06_mixed_mode.dll");
-        var result = CliRunner.Run(_temp.DirPath);
+        var result = CliRunner.Run("scan", _temp.DirPath);
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Group: portability", result.Stdout);
         Assert.Contains("F02_x64only_managed.dll [fixable] reason=non_portable action=fix", result.Stdout);
@@ -25,7 +25,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_Json()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F02_x64only_managed.dll");
-        var result = CliRunner.Run(_temp.DirPath, "--json");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--json");
         Assert.Equal(0, result.ExitCode);
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
@@ -54,7 +54,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_Miss()
     {
         _temp.CopyAll("F18_missing_refs.dll");
-        var result = CliRunner.Run(_temp.DirPath);
+        var result = CliRunner.Run("scan", _temp.DirPath);
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Missing refs (2):", result.Stdout);
         Assert.Contains("Dependency: F18_missing_refs.dll expects v1.0.0.0, but no provider was found", result.Stdout);
@@ -67,7 +67,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_MissJs()
     {
         _temp.CopyAll("F18_missing_refs.dll");
-        var result = CliRunner.Run(_temp.DirPath, "--json");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--json");
         Assert.Equal(0, result.ExitCode);
         Assert.DoesNotContain("\r", result.Stdout);
         Assert.EndsWith("\n", result.Stdout);
@@ -96,7 +96,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_DupText()
     {
         CopyDup();
-        var result = CliRunner.Run(_temp.DirPath);
+        var result = CliRunner.Run("scan", _temp.DirPath);
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Dup providers (1):", result.Stdout);
         Assert.Contains("CompatibleAnyCpu: PluginA.dll, PluginB.dll", result.Stdout);
@@ -108,7 +108,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_DupJson()
     {
         CopyDup();
-        var result = CliRunner.Run(_temp.DirPath, "--json");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--json");
         Assert.Equal(0, result.ExitCode);
         Assert.DoesNotContain("\r", result.Stdout);
         Assert.EndsWith("\n", result.Stdout);
@@ -136,8 +136,8 @@ public sealed class ScanTests : IDisposable
     public void Scan_DupRel()
     {
         CopyDupNest();
-        var text = CliRunner.Run(_temp.DirPath);
-        var result = CliRunner.Run(_temp.DirPath, "--json");
+        var text = CliRunner.Run("scan", _temp.DirPath);
+        var result = CliRunner.Run("scan", _temp.DirPath, "--json");
         Assert.Equal(0, text.ExitCode);
         Assert.Equal(0, result.ExitCode);
 
@@ -162,7 +162,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_DupOk()
     {
         CopyDup();
-        var result = CliRunner.Run(_temp.DirPath, "--fail-on-conflict");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--fail-on-conflict");
         Assert.Equal(0, result.ExitCode);
     }
 
@@ -170,7 +170,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_Fixable()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F02_x64only_managed.dll");
-        var result = CliRunner.Run(_temp.DirPath, "--fail-on", "fixable");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--fail-on", "fixable");
         Assert.Equal(1, result.ExitCode);
     }
 
@@ -178,7 +178,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_Unsafe()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F06_mixed_mode.dll");
-        var result = CliRunner.Run(_temp.DirPath, "--fail-on", "unsafe");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--fail-on", "unsafe");
         Assert.Equal(1, result.ExitCode);
     }
 
@@ -186,7 +186,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_BadFail()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll");
-        var result = CliRunner.Run(_temp.DirPath, "--fail-on", "bad");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--fail-on", "bad");
         Assert.Equal(2, result.ExitCode);
     }
 
@@ -194,7 +194,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_ConfOk()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll");
-        var result = CliRunner.Run(_temp.DirPath, "--fail-on-conflict");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--fail-on-conflict");
         Assert.Equal(0, result.ExitCode);
     }
 
@@ -202,7 +202,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_ConfHit()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F17_conflict.dll");
-        var result = CliRunner.Run(_temp.DirPath, "--fail-on-conflict");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--fail-on-conflict");
         Assert.Equal(1, result.ExitCode);
     }
 
@@ -210,7 +210,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_ConfJs()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F17_conflict.dll");
-        var result = CliRunner.Run(_temp.DirPath, "--json");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--json");
         Assert.Equal(0, result.ExitCode);
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
@@ -224,7 +224,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_ConfRel()
     {
         CopyConfNest();
-        var result = CliRunner.Run(_temp.DirPath, "--json");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--json");
         Assert.Equal(0, result.ExitCode);
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
@@ -240,7 +240,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_MissOk()
     {
         _temp.CopyAll("F18_missing_refs.dll");
-        var result = CliRunner.Run(_temp.DirPath, "--fail-on-conflict");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--fail-on-conflict");
         Assert.Equal(0, result.ExitCode);
     }
 
@@ -248,7 +248,7 @@ public sealed class ScanTests : IDisposable
     public void Scan_MissRel()
     {
         CopyMissNest();
-        var result = CliRunner.Run(_temp.DirPath, "--json");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--json");
         Assert.Equal(0, result.ExitCode);
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
