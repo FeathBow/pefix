@@ -50,6 +50,12 @@ internal static class SnStrip
                 JsonContext.Default.SnBatchJson));
         else
         {
+            string dirName = Path.GetFileName(dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            string suffix = options.DryRun ? "" : " --apply";
+            Console.WriteLine($"pefix snstrip {dirName}{suffix}");
+            Console.WriteLine();
+            Console.WriteLine($"  Summary: Scanned {batch.Results.Length + batch.Refusals.Length} candidate files.");
+            Console.WriteLine();
             foreach (SnStripRes r in batch.Results) WriteText(r);
             foreach (Refusal r in batch.Refusals) Console.Error.WriteLine($"refused: {r.Path}: {r.Reason}");
             foreach (SnDep d in batch.Deps) Console.WriteLine($"dep: {d.Path}");

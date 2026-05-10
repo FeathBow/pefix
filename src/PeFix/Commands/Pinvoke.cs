@@ -28,7 +28,14 @@ internal static class Pinvoke
         if (json)
             JsonOut.Write(ToJson(batch));
         else
+        {
+            string dirName = Path.GetFileName(dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            Console.WriteLine($"pefix pinvoke {dirName}");
+            Console.WriteLine();
+            Console.WriteLine($"  Summary: Scanned {batch.Results.Length + batch.Refusals.Length} candidate files.");
+            Console.WriteLine();
             WriteBatch(batch);
+        }
         return batch.Refusals.Length > 0 ? CliExit.Issue : CliExit.Success;
     }
 
