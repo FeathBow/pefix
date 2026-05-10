@@ -10,4 +10,5 @@ internal sealed record FixJson(
     [property: JsonPropertyName("result")] string Result,
     [property: JsonPropertyName("verify")] string Verify,
     [property: JsonPropertyName("before")] InspectJson Before,
-    [property: JsonPropertyName("after")] InspectJson After);
+    [property: JsonPropertyName("after")] InspectJson After,
+    [property: JsonPropertyName("schema_version"), JsonPropertyOrder(-1)] int SchemaVersion = 1);

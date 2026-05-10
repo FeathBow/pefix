@@ -6,4 +6,5 @@ internal sealed record SnBatchJson(
     [property: JsonPropertyName("directory")] string Directory,
     [property: JsonPropertyName("results")] SnStripJson[] Results,
     [property: JsonPropertyName("refusals")] RefusalJson[] Refusals,
-    [property: JsonPropertyName("deps")] SnDepJson[] Deps);
+    [property: JsonPropertyName("deps")] SnDepJson[] Deps,
+    [property: JsonPropertyName("schema_version"), JsonPropertyOrder(-1)] int SchemaVersion = 1);

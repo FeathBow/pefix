@@ -7,4 +7,5 @@ internal sealed record RedirJson(
     [property: JsonPropertyName("backup_path")] string? BackupPath,
     [property: JsonPropertyName("plan_path")] string? PlanPath,
     [property: JsonPropertyName("dry_run")] bool DryRun,
-    [property: JsonPropertyName("rows_patched")] int RowsPatched);
+    [property: JsonPropertyName("rows_patched")] int RowsPatched,
+    [property: JsonPropertyName("schema_version"), JsonPropertyOrder(-1)] int SchemaVersion = 1);

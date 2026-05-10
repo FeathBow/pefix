@@ -11,4 +11,5 @@ internal sealed record SnStripJson(
     [property: JsonPropertyName("signed_ivt")] bool SignedIvt,
     [property: JsonPropertyName("deps_patched")] int DepsPatched,
     [property: JsonPropertyName("deps")] SnDepJson[] Deps,
-    [property: JsonPropertyName("dep_fails")] RefusalJson[] DepFails);
+    [property: JsonPropertyName("dep_fails")] RefusalJson[] DepFails,
+    [property: JsonPropertyName("schema_version"), JsonPropertyOrder(-1)] int SchemaVersion = 1);
