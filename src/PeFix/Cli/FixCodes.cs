@@ -11,5 +11,4 @@ internal static class FixVerify
 {
     public const string Ok = "ok";
     public const string Skipped = "skipped";
-    public const string Failed = "failed";
 }
