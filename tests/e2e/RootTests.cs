@@ -22,7 +22,7 @@ public sealed class RootTests : IDisposable
     {
         var result = CliRunner.Run("inspect", Paths.Get("F01_compatible_anycpu.dll"));
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Status:        compatible", result.Stdout);
+        Assert.Contains("Status:         compatible", result.Stdout);
     }
 
     [Fact]
