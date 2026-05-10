@@ -165,12 +165,12 @@ jobs:
 
             package="${packages}"
             out_dir="artifacts/x/${rid}"
-            tool_dir="${out_dir}/tools/net10.0/${rid}"
             mkdir -p "${out_dir}"
             unzip -q "${package}" -d "${out_dir}"
 
-            if [[ ! -d "${tool_dir}" ]]; then
-              echo "Expected tool directory ${tool_dir} in ${package}." >&2
+            tool_dir="$(find "${out_dir}/tools" -mindepth 2 -maxdepth 2 -type d -name "${rid}" | head -n1)"
+            if [[ -z "${tool_dir}" || ! -d "${tool_dir}" ]]; then
+              echo "Expected tool directory ${out_dir}/tools/<tfm>/${rid} in ${package}." >&2
               find "${out_dir}" -maxdepth 4 -type d >&2
               exit 1
             fi
