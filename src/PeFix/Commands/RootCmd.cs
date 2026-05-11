@@ -23,6 +23,7 @@ internal static class RootCmd
         command.Options.Add(JsonOpt);
         command.Subcommands.Add(InspectCmd.Create());
         command.Subcommands.Add(ScanCmd.Create());
+        command.Subcommands.Add(ClosureCmd.Create());
         command.Subcommands.Add(FixCmd.Create());
         command.Subcommands.Add(SnStripCmd.Create());
         command.Subcommands.Add(RedirCmd.Create());

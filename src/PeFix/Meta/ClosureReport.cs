@@ -7,7 +7,3 @@ public readonly record struct ClosureReport(
     ClosureChain[] CycleChains,
     int RefsWalked,
     int HostLeaves);
-
-public readonly record struct ClosureChain(
-    ClosureNode Entry,
-    ClosureNode[] Segments);
