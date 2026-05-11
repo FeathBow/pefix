@@ -8,7 +8,7 @@ public static class ClosureGraph
     {
         ArgumentNullException.ThrowIfNull(inspections);
 
-        WalkCtx ctx = new(BuildMap(inspections));
+        WalkCtx ctx = new(DepIndex.Build(inspections));
         List<string> entries = [];
 
         foreach (Inspection entry in inspections)
@@ -39,18 +39,6 @@ public static class ClosureGraph
             ctx.HostLeaves);
     }
 
-    private static Dictionary<string, Inspection> BuildMap(IReadOnlyList<Inspection> inspections)
-    {
-        Dictionary<string, Inspection> providers = new(StringComparer.OrdinalIgnoreCase);
-        foreach (Inspection insp in inspections)
-        {
-            if (insp.AssemblyDef.HasValue)
-                providers.TryAdd(insp.AssemblyDef.Value.Name, insp);
-        }
-
-        return providers;
-    }
-
     private static void WalkRef(ClosureNode entryNode, AsmRef directRef, WalkCtx ctx)
     {
         HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase) { entryNode.AssemblyName };
@@ -62,7 +50,7 @@ public static class ClosureGraph
             WalkFrm frm = stack.Pop();
             ctx.CountRef();
 
-            if (RefFilter.IsProvided(frm.Ref.Name))
+            if (DepIndex.ClassifyProvided(frm.Ref.Name) != ProvidedKind.None)
             {
                 ctx.CountHost();
                 continue;
@@ -74,7 +62,7 @@ public static class ClosureGraph
                 continue;
             }
 
-            if (!ctx.Providers.TryGetValue(frm.Ref.Name, out Inspection nextProv))
+            if (!ctx.Deps.TryGetProvider(frm.Ref.Name, out Inspection nextProv))
             {
                 ctx.Emit(entryNode, frm.Trail.Path, Leaf(frm.Ref, ChainKind.Unresolved));
                 continue;
@@ -142,12 +130,12 @@ public static class ClosureGraph
         private readonly List<ClosureChain> _chains = [];
         private readonly HashSet<string> _emitted = new(StringComparer.OrdinalIgnoreCase);
 
-        public WalkCtx(Dictionary<string, Inspection> providers)
+        public WalkCtx(DepIndex deps)
         {
-            Providers = providers;
+            Deps = deps;
         }
 
-        public Dictionary<string, Inspection> Providers { get; }
+        public DepIndex Deps { get; }
         public int RefsWalked { get; private set; }
         public int HostLeaves { get; private set; }
 

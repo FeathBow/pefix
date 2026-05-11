@@ -2,38 +2,51 @@ namespace PeFix.Meta;
 
 public static class RefFilter
 {
-    private static readonly HashSet<string> ExactNames = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, ProvidedKind> ExactNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        "mscorlib",
-        "System",
-        "netstandard",
-        "Microsoft.CSharp",
-        "Microsoft.VisualBasic",
-        "Microsoft.VisualBasic.Core",
-        "0Harmony",
-        "Harmony",
-        "GodotSharp",
-        "UnityEngine",
-        "BepInEx",
-        "MelonLoader",
+        ["mscorlib"] = ProvidedKind.Framework,
+        ["System"] = ProvidedKind.Framework,
+        ["netstandard"] = ProvidedKind.Framework,
+        ["Microsoft.CSharp"] = ProvidedKind.Framework,
+        ["Microsoft.VisualBasic"] = ProvidedKind.Framework,
+        ["Microsoft.VisualBasic.Core"] = ProvidedKind.Framework,
+        ["0Harmony"] = ProvidedKind.Loader,
+        ["Harmony"] = ProvidedKind.Loader,
+        ["GodotSharp"] = ProvidedKind.Host,
+        ["UnityEngine"] = ProvidedKind.Host,
+        ["BepInEx"] = ProvidedKind.Loader,
+        ["MelonLoader"] = ProvidedKind.Loader,
     };
 
-    private static readonly string[] PrefixNames =
+    private static readonly (string Prefix, ProvidedKind Kind)[] PrefixNames =
     [
-        "System.",
-        "WindowsBase",
-        "PresentationCore",
-        "PresentationFramework",
-        "UnityEngine.",
-        "UnityEditor.",
-        "BepInEx.",
-        "MelonLoader.",
+        ("System.", ProvidedKind.Framework),
+        ("WindowsBase", ProvidedKind.Framework),
+        ("PresentationCore", ProvidedKind.Framework),
+        ("PresentationFramework", ProvidedKind.Framework),
+        ("UnityEngine.", ProvidedKind.Host),
+        ("UnityEditor.", ProvidedKind.Host),
+        ("BepInEx.", ProvidedKind.Loader),
+        ("MelonLoader.", ProvidedKind.Loader),
     ];
 
     public static bool IsProvided(string name)
     {
+        return Classify(name) != ProvidedKind.None;
+    }
+
+    internal static ProvidedKind Classify(string name)
+    {
         ArgumentNullException.ThrowIfNull(name);
-        return ExactNames.Contains(name)
-            || PrefixNames.Any(p => name.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+        if (ExactNames.TryGetValue(name, out ProvidedKind exact))
+            return exact;
+
+        foreach ((string prefix, ProvidedKind kind) in PrefixNames)
+        {
+            if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return kind;
+        }
+
+        return ProvidedKind.None;
     }
 }

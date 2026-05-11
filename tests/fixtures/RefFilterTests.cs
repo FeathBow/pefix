@@ -40,4 +40,15 @@ public sealed class RefFilterTests
     {
         Assert.False(RefFilter.IsProvided(name));
     }
+
+    [Theory]
+    [InlineData("System.Text.Json", "Framework")]
+    [InlineData("UnityEngine.UI", "Host")]
+    [InlineData("BepInEx.Core", "Loader")]
+    [InlineData("MelonLoader", "Loader")]
+    [InlineData("Newtonsoft.Json", "None")]
+    public void Classify_ReturnsPolicyKind(string name, string expected)
+    {
+        Assert.Equal(expected, RefFilter.Classify(name).ToString());
+    }
 }
