@@ -160,16 +160,15 @@ public static class PeAnalyzer
         foreach (CustomAttributeHandle handle in assembly.GetCustomAttributes())
         {
             CustomAttribute attr = reader.GetCustomAttribute(handle);
-            if (!IsAttrMatch(reader, attr, "System.Reflection", "AssemblyMetadataAttribute"))
+            if (!AttrReader.IsMatch(reader, attr, "System.Reflection", "AssemblyMetadataAttribute"))
                 continue;
 
-            CustomAttributeValue<object?> decoded = attr.DecodeValue(AttrTypes.Instance);
-            if (decoded.FixedArguments.Length < 2)
+            string? key = AttrReader.ReadFixedString(attr, 0);
+            string? value = AttrReader.ReadFixedString(attr, 1);
+            if (key is null || value is null)
                 continue;
 
-            if (decoded.FixedArguments[0].Value is string key
-                && decoded.FixedArguments[1].Value is string value
-                && string.Equals(key, "IsTrimmable", StringComparison.OrdinalIgnoreCase)
+            if (string.Equals(key, "IsTrimmable", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(value, "True", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
@@ -263,35 +262,11 @@ public static class PeAnalyzer
 
     private static bool IsRefAsm(MetadataReader reader, CustomAttribute attribute)
     {
-        return attribute.Constructor.Kind switch
-        {
-            HandleKind.MemberReference => MatchesType(reader, reader.GetMemberReference((MemberReferenceHandle)attribute.Constructor).Parent, "System.Runtime.CompilerServices", "ReferenceAssemblyAttribute"),
-            HandleKind.MethodDefinition => MatchesType(reader, reader.GetMethodDefinition((MethodDefinitionHandle)attribute.Constructor).GetDeclaringType(), "System.Runtime.CompilerServices", "ReferenceAssemblyAttribute"),
-            _ => false
-        };
-    }
-
-    private static bool MatchesType(MetadataReader reader, EntityHandle handle, string ns, string name)
-    {
-        switch (handle.Kind)
-        {
-            case HandleKind.TypeReference:
-                TypeReference typeRef = reader.GetTypeReference((TypeReferenceHandle)handle);
-                return MatchesType(reader, typeRef.Namespace, typeRef.Name, ns, name);
-            case HandleKind.TypeDefinition:
-                TypeDefinition typeDef = reader.GetTypeDefinition((TypeDefinitionHandle)handle);
-                return MatchesType(reader, typeDef.Namespace, typeDef.Name, ns, name);
-            default:
-                return false;
-        }
-    }
-
-    private static bool MatchesType(MetadataReader reader, StringHandle nsHandle, StringHandle nameHandle, string ns, string name)
-    {
-        string nsValue = reader.GetString(nsHandle);
-        string typeName = reader.GetString(nameHandle);
-        return string.Equals(nsValue, ns, StringComparison.Ordinal)
-            && string.Equals(typeName, name, StringComparison.Ordinal);
+        return AttrReader.IsMatch(
+            reader,
+            attribute,
+            "System.Runtime.CompilerServices",
+            "ReferenceAssemblyAttribute");
     }
 
     private static string? ReadTfm(MetadataReader reader)
@@ -300,11 +275,11 @@ public static class PeAnalyzer
         foreach (CustomAttributeHandle handle in assembly.GetCustomAttributes())
         {
             CustomAttribute attr = reader.GetCustomAttribute(handle);
-            if (!IsAttrMatch(reader, attr, "System.Runtime.Versioning", "TargetFrameworkAttribute"))
+            if (!AttrReader.IsMatch(reader, attr, "System.Runtime.Versioning", "TargetFrameworkAttribute"))
                 continue;
 
-            CustomAttributeValue<object?> decoded = attr.DecodeValue(AttrTypes.Instance);
-            if (decoded.FixedArguments.Length > 0 && decoded.FixedArguments[0].Value is string tfm)
+            string? tfm = AttrReader.ReadFixedString(attr, 0);
+            if (tfm is not null)
             {
                 return ParseTfm(tfm);
             }
@@ -344,26 +319,16 @@ public static class PeAnalyzer
         foreach (CustomAttributeHandle handle in assembly.GetCustomAttributes())
         {
             CustomAttribute attr = reader.GetCustomAttribute(handle);
-            if (!IsAttrMatch(reader, attr, "System.Runtime.Versioning", "SupportedOSPlatformAttribute"))
+            if (!AttrReader.IsMatch(reader, attr, "System.Runtime.Versioning", "SupportedOSPlatformAttribute"))
                 continue;
 
-            CustomAttributeValue<object?> decoded = attr.DecodeValue(AttrTypes.Instance);
-            if (decoded.FixedArguments.Length > 0 && decoded.FixedArguments[0].Value is string platform)
+            string? platform = AttrReader.ReadFixedString(attr, 0);
+            if (platform is not null)
             {
                 platforms.Add(platform);
             }
         }
         return platforms.Count > 0 ? [.. platforms] : null;
-    }
-
-    private static bool IsAttrMatch(MetadataReader reader, CustomAttribute attr, string ns, string name)
-    {
-        return attr.Constructor.Kind switch
-        {
-            HandleKind.MemberReference => MatchesType(reader, reader.GetMemberReference((MemberReferenceHandle)attr.Constructor).Parent, ns, name),
-            HandleKind.MethodDefinition => MatchesType(reader, reader.GetMethodDefinition((MethodDefinitionHandle)attr.Constructor).GetDeclaringType(), ns, name),
-            _ => false
-        };
     }
 
     private static AsmRef? ReadAsmDef(MetadataReader reader)

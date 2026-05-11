@@ -230,38 +230,14 @@ public static class SnStripper
         foreach (CustomAttributeHandle handle in reader.GetAssemblyDefinition().GetCustomAttributes())
         {
             CustomAttribute attr = reader.GetCustomAttribute(handle);
-            if (!IsIvtConstructor(reader, attr)) continue;
-            CustomAttributeValue<object?> val = attr.DecodeValue(AttrTypes.Instance);
-            if (val.FixedArguments.Length > 0
-                && val.FixedArguments[0].Value is string name
+            if (!AttrReader.IsMatch(reader, attr, "System.Runtime.CompilerServices", "InternalsVisibleToAttribute"))
+                continue;
+
+            string? name = AttrReader.ReadFixedString(attr, 0);
+            if (name is not null
                 && name.Contains(", PublicKey=", StringComparison.OrdinalIgnoreCase))
                 return true;
         }
         return false;
     }
-
-    private static bool IsIvtConstructor(MetadataReader reader, CustomAttribute attr)
-    {
-        EntityHandle parent = attr.Constructor.Kind switch
-        {
-            HandleKind.MemberReference => reader.GetMemberReference((MemberReferenceHandle)attr.Constructor).Parent,
-            HandleKind.MethodDefinition => reader.GetMethodDefinition((MethodDefinitionHandle)attr.Constructor).GetDeclaringType(),
-            _ => default
-        };
-        if (parent.IsNil) return false;
-        return parent.Kind switch
-        {
-            HandleKind.TypeReference => IsIvt(reader, reader.GetTypeReference((TypeReferenceHandle)parent)),
-            HandleKind.TypeDefinition => IsIvt(reader, reader.GetTypeDefinition((TypeDefinitionHandle)parent)),
-            _ => false
-        };
-    }
-
-    private static bool IsIvt(MetadataReader r, TypeReference t) =>
-        string.Equals(r.GetString(t.Namespace), "System.Runtime.CompilerServices", StringComparison.Ordinal) &&
-        string.Equals(r.GetString(t.Name), "InternalsVisibleToAttribute", StringComparison.Ordinal);
-
-    private static bool IsIvt(MetadataReader r, TypeDefinition t) =>
-        string.Equals(r.GetString(t.Namespace), "System.Runtime.CompilerServices", StringComparison.Ordinal) &&
-        string.Equals(r.GetString(t.Name), "InternalsVisibleToAttribute", StringComparison.Ordinal);
 }
