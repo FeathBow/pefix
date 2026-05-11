@@ -12,7 +12,7 @@ public sealed class RedCmdTests : IDisposable
     {
         string path = Path.Combine(_temp.DirPath, "dry.dll");
         RefPe.WriteVer(path, "Newtonsoft.Json", new Version(9, 0, 0, 0));
-        DateTime before = File.GetLastWriteTimeUtc(path);
+        byte[] before = FileAssert.ReadBytes(path);
 
         CliResult result = CliRunner.Run(
             "redir",
@@ -23,7 +23,7 @@ public sealed class RedCmdTests : IDisposable
             "13.0.0.0");
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal(before, File.GetLastWriteTimeUtc(path));
+        FileAssert.Unchanged(before, path);
     }
 
     [Fact]
@@ -40,7 +40,9 @@ public sealed class RedCmdTests : IDisposable
             "13.0.0.0",
             "--json");
         Assert.Equal(1, result.ExitCode);
-        Assert.Contains("\"refusals\"", result.Stdout);
-        Assert.Contains("F07_native_pe.dll", result.Stdout);
+
+        var root = JsonAssert.ParseObject(result.Stdout);
+        var refusal = Assert.Single(root.GetProperty("refusals").EnumerateArray());
+        Assert.EndsWith("F07_native_pe.dll", refusal.GetProperty("path").GetString());
     }
 }

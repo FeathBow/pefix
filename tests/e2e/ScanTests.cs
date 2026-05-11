@@ -41,10 +41,10 @@ public sealed class ScanTests : IDisposable
         Assert.Equal(0, gate.GetProperty("issue_codes").GetArrayLength());
         Assert.Equal(0, issues.GetArrayLength());
         Assert.Equal(0, summary.GetProperty("issues").GetInt32());
-        Assert.Equal("portable", results[0].GetProperty("reason_code").GetString());
-        Assert.Equal("none", results[0].GetProperty("action").GetString());
-        Assert.Equal("non_portable", results[1].GetProperty("reason_code").GetString());
-        Assert.Equal("fix", results[1].GetProperty("action").GetString());
+        JsonElement ok = JsonAssert.SingleBy(results, "reason_code", "portable");
+        JsonElement fix = JsonAssert.SingleBy(results, "reason_code", "non_portable");
+        Assert.Equal("none", ok.GetProperty("action").GetString());
+        Assert.Equal("fix", fix.GetProperty("action").GetString());
         Assert.Equal(1, summary.GetProperty("by_action").GetProperty("none").GetInt32());
         Assert.Equal(1, summary.GetProperty("by_action").GetProperty("fix").GetInt32());
     }
@@ -85,9 +85,9 @@ public sealed class ScanTests : IDisposable
         Assert.Equal(2, gate.GetProperty("issue_count").GetInt32());
         Assert.Equal(2, summary.GetProperty("issues").GetInt32());
         Assert.Equal(2, summary.GetProperty("by_issue").GetProperty("missing_ref").GetInt32());
-        Assert.False(issues[0].TryGetProperty("level", out _));
-        Assert.Equal("Dependency", missing[0].GetProperty("assembly").GetString());
-        Assert.Equal("F18_missing_refs.dll", missing[0].GetProperty("required_by").GetString());
+        Assert.All(issues.EnumerateArray(), issue => Assert.False(issue.TryGetProperty("level", out _)));
+        JsonElement dep = JsonAssert.SingleBy(missing, "assembly", "Dependency");
+        Assert.Equal("F18_missing_refs.dll", dep.GetProperty("required_by").GetString());
     }
 
     [Fact]
@@ -140,18 +140,15 @@ public sealed class ScanTests : IDisposable
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
         JsonElement dups = doc.RootElement.GetProperty("dup_providers");
-        JsonElement issueFiles = doc.RootElement.GetProperty("issues")[0].GetProperty("files");
+        JsonElement dupFiles = Assert.Single(dups.EnumerateArray()).GetProperty("files");
+        JsonElement issueFiles = Assert.Single(doc.RootElement.GetProperty("issues").EnumerateArray()).GetProperty("files");
         JsonElement summary = doc.RootElement.GetProperty("summary");
         const string fileA = "a/Plugin.dll";
         const string fileB = "b/Plugin.dll";
 
         Assert.Contains("2 require attention.", text.Stdout);
-        Assert.Equal(2, dups[0].GetProperty("files").GetArrayLength());
-        Assert.Equal(fileA, dups[0].GetProperty("files")[0].GetString());
-        Assert.Equal(fileB, dups[0].GetProperty("files")[1].GetString());
-        Assert.Equal(2, issueFiles.GetArrayLength());
-        Assert.Equal(fileA, issueFiles[0].GetString());
-        Assert.Equal(fileB, issueFiles[1].GetString());
+        Assert.Equal([fileA, fileB], JsonAssert.StringArray(dupFiles));
+        Assert.Equal([fileA, fileB], JsonAssert.StringArray(issueFiles));
         Assert.Equal(1, summary.GetProperty("issues").GetInt32());
     }
 
@@ -224,7 +221,7 @@ public sealed class ScanTests : IDisposable
         Assert.Equal(0, result.ExitCode);
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
-        JsonElement conflict = doc.RootElement.GetProperty("conflicts")[0];
+        JsonElement conflict = Assert.Single(doc.RootElement.GetProperty("conflicts").EnumerateArray());
         const string referencedBy = "refs/Consumer.dll";
         const string providedBy = "providers/CompatibleAnyCpu.dll";
 
@@ -252,8 +249,7 @@ public sealed class ScanTests : IDisposable
         const string requiredBy = "refs/F18_missing_refs.dll";
 
         Assert.Equal(2, missing.GetArrayLength());
-        Assert.Equal(requiredBy, missing[0].GetProperty("required_by").GetString());
-        Assert.Equal(requiredBy, missing[1].GetProperty("required_by").GetString());
+        Assert.All(missing.EnumerateArray(), item => Assert.Equal(requiredBy, item.GetProperty("required_by").GetString()));
     }
 
     private void CopyDup()

@@ -1,4 +1,6 @@
 
+using System.Text.Json;
+
 namespace PeFix.Tests;
 
 [Trait("Category", "E2E")]
@@ -13,13 +15,13 @@ public sealed class InspectTests
     }
 
     [Fact]
-    public void FixJson()
+    public void Inspect_Json()
     {
-        var result = CliRunner.Run("inspect", Paths.Get("F02_x64only_managed.dll"), "--json");
+        var result = RunJson("F02_x64only_managed.dll");
         Assert.Equal(1, result.ExitCode);
         Assert.DoesNotContain("\r", result.Stdout);
         Assert.EndsWith("\n", result.Stdout);
-        Assert.Contains("\"status\": \"fixable\"", result.Stdout);
+        Assert.Equal("fixable", JsonAssert.ParseObject(result.Stdout).GetProperty("status").GetString());
     }
 
     [Fact]
@@ -45,8 +47,8 @@ public sealed class InspectTests
     [InlineData("F06_mixed_mode.dll", "blocked")]
     public void Action(string fixture, string action)
     {
-        var result = CliRunner.Run("inspect", Paths.Get(fixture), "--json");
-        Assert.Contains($"\"action\": \"{action}\"", result.Stdout);
+        JsonElement root = JsonAssert.ParseObject(RunJson(fixture).Stdout);
+        Assert.Equal(action, root.GetProperty("action").GetString());
     }
 
     [Theory]
@@ -57,7 +59,12 @@ public sealed class InspectTests
     [InlineData("F16_netfx_stub.dll", "tfm_mismatch")]
     public void Inspect_Code(string fixture, string reasonCode)
     {
-        var result = CliRunner.Run("inspect", Paths.Get(fixture), "--json");
-        Assert.Contains($"\"reason_code\": \"{reasonCode}\"", result.Stdout);
+        JsonElement root = JsonAssert.ParseObject(RunJson(fixture).Stdout);
+        Assert.Equal(reasonCode, root.GetProperty("reason_code").GetString());
+    }
+
+    private static CliResult RunJson(string fixture)
+    {
+        return CliRunner.Run("inspect", Paths.Get(fixture), "--json");
     }
 }

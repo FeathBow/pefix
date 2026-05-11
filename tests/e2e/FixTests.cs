@@ -71,10 +71,12 @@ public sealed class FixTests : IDisposable
         Assert.Equal(1, result.ExitCode);
         Assert.DoesNotContain("\r", result.Stdout);
         Assert.EndsWith("\n", result.Stdout);
-        Assert.Contains("\"directory\":", result.Stdout);
-        Assert.Contains("\"summary\":", result.Stdout);
-        Assert.Contains("\"was_patched\": true", result.Stdout);
-        Assert.Contains("\"refusals\":", result.Stdout);
+
+        var root = JsonAssert.ParseObject(result.Stdout);
+        Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("directory").GetString()));
+        Assert.Equal(3, root.GetProperty("summary").GetProperty("total_candidates").GetInt32());
+        Assert.Contains(root.GetProperty("results").EnumerateArray(), item => item.GetProperty("was_patched").GetBoolean());
+        Assert.Single(root.GetProperty("refusals").EnumerateArray());
     }
 
     [Fact]
@@ -88,9 +90,12 @@ public sealed class FixTests : IDisposable
         Assert.Equal(string.Empty, result.Stderr);
         Assert.DoesNotContain("\r", result.Stdout);
         Assert.EndsWith("\n", result.Stdout);
-        Assert.Contains("\"reason\":", result.Stdout);
-        Assert.Contains("\"reason_code\": \"mixed_mode\"", result.Stdout);
-        Assert.Contains("\"status\": \"unsafe\"", result.Stdout);
+
+        var root = JsonAssert.ParseObject(result.Stdout);
+        Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("reason").GetString()));
+        var before = root.GetProperty("before");
+        Assert.Equal("mixed_mode", before.GetProperty("reason_code").GetString());
+        Assert.Equal("unsafe", before.GetProperty("status").GetString());
     }
 
     public void Dispose()

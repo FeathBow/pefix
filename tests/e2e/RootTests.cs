@@ -50,21 +50,21 @@ public sealed class RootTests : IDisposable
     public void FixVerb_NoApplyFlag_DryRunsOnly()
     {
         var path = _temp.Copy("F02_x64only_managed.dll");
-        var before = File.GetLastWriteTimeUtc(path);
+        byte[] before = FileAssert.ReadBytes(path);
         var result = CliRunner.Run("fix", path);
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Status:  DRY-RUN", result.Stdout);
-        Assert.Equal(before, File.GetLastWriteTimeUtc(path));
+        FileAssert.Unchanged(before, path);
     }
 
     [Fact]
     public void FixVerb_WithApplyFlag_WritesFile()
     {
         var path = _temp.Copy("F02_x64only_managed.dll");
-        var before = File.GetLastWriteTimeUtc(path);
+        byte[] before = FileAssert.ReadBytes(path);
         var result = CliRunner.Run("fix", path, "--apply");
         Assert.Equal(0, result.ExitCode);
-        Assert.NotEqual(before, File.GetLastWriteTimeUtc(path));
+        FileAssert.Changed(before, path);
         Assert.True(File.Exists(path + ".bak"));
     }
 

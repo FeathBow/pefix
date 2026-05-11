@@ -50,14 +50,14 @@ public sealed class PlanTests
     [Fact]
     public void JsonKeys()
     {
-        var json = PlanJson.Write(MakePlan());
-        Assert.Contains("\"version\"", json);
-        Assert.Contains("\"tool\"", json);
-        Assert.Contains("\"inputs\"", json);
-        Assert.Contains("\"ops\"", json);
-        Assert.Contains("\"outputs\"", json);
-        Assert.Contains("\"rollback\"", json);
-        Assert.Contains("\"provenance\"", json);
+        JsonElement root = JsonAssert.ParseObject(PlanJson.Write(MakePlan()));
+        JsonAssert.HasProp(root, "version");
+        JsonAssert.HasProp(root, "tool");
+        JsonAssert.HasProp(root, "inputs");
+        JsonAssert.HasProp(root, "ops");
+        JsonAssert.HasProp(root, "outputs");
+        JsonAssert.HasProp(root, "rollback");
+        JsonAssert.HasProp(root, "provenance");
     }
 
     [Fact]
@@ -112,8 +112,8 @@ public sealed class PlanTests
     [Fact]
     public void VerOne()
     {
-        var json = PlanJson.Write(MakePlan());
-        Assert.Contains("\"version\": 1", json);
+        JsonElement root = JsonAssert.ParseObject(PlanJson.Write(MakePlan()));
+        Assert.Equal(1, root.GetProperty("version").GetInt32());
     }
 
     [Fact]

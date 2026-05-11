@@ -35,9 +35,10 @@ public sealed class ScanViewTest
         JsonElement root = doc.RootElement;
         Assert.Equal(3, root.GetProperty("issues").GetArrayLength());
         Assert.Equal("fail", root.GetProperty("gate").GetProperty("integrity").GetString());
-        Assert.Equal("mods/Fix.dll", root.GetProperty("conflicts")[0].GetProperty("referenced_by").GetString());
-        Assert.Equal("non_portable", root.GetProperty("results")[0].GetProperty("reason_code").GetString());
-        Assert.Equal("fix", root.GetProperty("results")[0].GetProperty("action").GetString());
+        JsonElement conflict = Assert.Single(root.GetProperty("conflicts").EnumerateArray());
+        JsonElement fixResult = JsonAssert.SingleBy(root.GetProperty("results"), "reason_code", "non_portable");
+        Assert.Equal("mods/Fix.dll", conflict.GetProperty("referenced_by").GetString());
+        Assert.Equal("fix", fixResult.GetProperty("action").GetString());
         Assert.Equal(1, root.GetProperty("summary").GetProperty("by_action").GetProperty("fix").GetInt32());
         Assert.Equal(1, root.GetProperty("summary").GetProperty("by_action").GetProperty("none").GetInt32());
         Assert.Equal(3, root.GetProperty("gate").GetProperty("issue_count").GetInt32());

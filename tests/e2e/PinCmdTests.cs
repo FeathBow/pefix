@@ -14,7 +14,9 @@ public sealed class PinCmdTests : IDisposable
         _temp.Copy("F07_native_pe.dll");
         CliResult result = CliRunner.Run("pinvoke", _temp.DirPath, "--json");
         Assert.Equal(1, result.ExitCode);
-        Assert.Contains("\"refusals\"", result.Stdout);
-        Assert.Contains("F07_native_pe.dll", result.Stdout);
+
+        var root = JsonAssert.ParseObject(result.Stdout);
+        var refusal = Assert.Single(root.GetProperty("refusals").EnumerateArray());
+        Assert.EndsWith("F07_native_pe.dll", refusal.GetProperty("path").GetString());
     }
 }
