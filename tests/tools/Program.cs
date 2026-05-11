@@ -5,7 +5,7 @@ using System.Reflection.PortableExecutable;
 if (args.Length != 3)
 {
     Console.Error.WriteLine("usage: Deriver <transform> <source-or-placeholder> <target>");
-    Console.Error.WriteLine("transforms: mixed-mode | native-pe | corrupt | empty | r2r-marker | webcil | single-file-bundle | conflict");
+    Console.Error.WriteLine("transforms: mixed-mode | native-pe | corrupt | empty | r2r-marker | webcil | single-file-bundle | conflict | cycle-a | cycle-b");
     return 2;
 }
 
@@ -43,6 +43,12 @@ switch (transform)
         break;
     case "conflict":
         PeWrites.WriteConf(target);
+        break;
+    case "cycle-a":
+        PeWrites.WriteCycle(target, "ClosureCycleA", "ClosureCycleB");
+        break;
+    case "cycle-b":
+        PeWrites.WriteCycle(target, "ClosureCycleB", "ClosureCycleA");
         break;
     default:
         Console.Error.WriteLine($"unknown transform: {transform}");

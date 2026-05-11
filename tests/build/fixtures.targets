@@ -62,6 +62,18 @@
       <Staged>F19_internals.dll</Staged>
       <Assembly>Internals</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ClosureEntry\ClosureEntry.csproj">
+      <Staged>F20_closure_entry.dll</Staged>
+      <Assembly>ClosureEntry</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ClosureMid\ClosureMid.csproj">
+      <Staged>F21_closure_mid.dll</Staged>
+      <Assembly>ClosureMid</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ClosureDeep\ClosureDeep.csproj">
+      <Staged>F22_closure_deep.dll</Staged>
+      <Assembly>ClosureDeep</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>
@@ -95,6 +107,14 @@
     </PeFixDerived>
     <PeFixDerived Include="F17_conflict.dll">
       <Transform>conflict</Transform>
+      <From>F01_compatible_anycpu.dll</From>
+    </PeFixDerived>
+    <PeFixDerived Include="F23_closure_cycle_a.dll">
+      <Transform>cycle-a</Transform>
+      <From>F01_compatible_anycpu.dll</From>
+    </PeFixDerived>
+    <PeFixDerived Include="F24_closure_cycle_b.dll">
+      <Transform>cycle-b</Transform>
       <From>F01_compatible_anycpu.dll</From>
     </PeFixDerived>
   </ItemGroup>

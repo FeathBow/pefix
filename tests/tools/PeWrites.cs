@@ -49,7 +49,14 @@ internal static class PeWrites
 
     public static void WriteConf(string targetPath)
     {
-        byte[] meta = BuildMeta();
+        byte[] meta = BuildMeta("VerConflictConsumer", "CompatibleAnyCpu", new Version(2, 0, 0, 0));
+        byte[] pe = BuildPe(meta);
+        File.WriteAllBytes(targetPath, pe);
+    }
+
+    public static void WriteCycle(string targetPath, string asmName, string refName)
+    {
+        byte[] meta = BuildMeta(asmName, refName, new Version(1, 0, 0, 0));
         byte[] pe = BuildPe(meta);
         File.WriteAllBytes(targetPath, pe);
     }
@@ -91,13 +98,13 @@ internal static class PeWrites
         BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(dirOffset + 4, 4), size);
     }
 
-    private static byte[] BuildMeta()
+    private static byte[] BuildMeta(string asmName, string refName, Version refVer)
     {
         var meta = new MetadataBuilder();
 
         meta.AddModule(
             generation: 0,
-            moduleName: meta.GetOrAddString("VerConflictConsumer.dll"),
+            moduleName: meta.GetOrAddString($"{asmName}.dll"),
             mvid: meta.GetOrAddGuid(new Guid("11111111-1111-1111-1111-111111111111")),
             encId: default,
             encBaseId: default);
@@ -111,7 +118,7 @@ internal static class PeWrites
             methodList: MetadataTokens.MethodDefinitionHandle(1));
 
         meta.AddAssembly(
-            name: meta.GetOrAddString("VerConflictConsumer"),
+            name: meta.GetOrAddString(asmName),
             version: new Version(1, 0, 0, 0),
             culture: default,
             publicKey: default,
@@ -119,8 +126,8 @@ internal static class PeWrites
             hashAlgorithm: default);
 
         meta.AddAssemblyReference(
-            name: meta.GetOrAddString("CompatibleAnyCpu"),
-            version: new Version(2, 0, 0, 0),
+            name: meta.GetOrAddString(refName),
+            version: refVer,
             culture: default,
             publicKeyOrToken: default,
             flags: default,
