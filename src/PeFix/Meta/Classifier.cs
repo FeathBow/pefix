@@ -8,7 +8,7 @@ internal static class Classifier
             return CreateBad(snapshot.Path, "This file is not a valid PE file or is corrupted.");
         if (!snapshot.HasCliHeader)
             return CreateNative(snapshot);
-        return ClassifyCli(snapshot);
+        return ClassifyCli(snapshot) with { Bep = snapshot.Bep };
     }
 
     private static Inspection ClassifyCli(PeSnapshot snapshot)

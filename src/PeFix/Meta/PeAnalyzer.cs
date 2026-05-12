@@ -119,12 +119,13 @@ public static class PeAnalyzer
         bool moduleNest = HasNest(reader);
         bool moduleRefs = HasRefs(reader);
         bool isSatellite = IsSatellite(reader);
+        BepInfo? bep = BepReader.Read(reader);
 
         return new PeSnapshot(
             path, true, true, peFormat, machine, flags, signals,
             pinvokeDeps, tfm, metaVersion, osPlatforms,
             assemblyRefs, assemblyDef, r2r, isTrimmable, moduleNest, moduleRefs,
-            isBundle, isSatellite);
+            isBundle, isSatellite, bep);
     }
 
     private static bool IsSatellite(MetadataReader reader)

@@ -19,4 +19,5 @@ internal readonly record struct PeSnapshot(
     bool HasNest = false,
     bool HasRefs = false,
     bool IsBundle = false,
-    bool IsSatellite = false);
+    bool IsSatellite = false,
+    BepInfo? Bep = null);

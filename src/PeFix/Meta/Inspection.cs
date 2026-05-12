@@ -23,4 +23,5 @@ public readonly record struct Inspection(
     AsmRef[]? AssemblyRefs,
     AsmRef? AssemblyDef,
     bool? HasR2R = null,
-    bool? IsTrimmable = null);
+    bool? IsTrimmable = null,
+    BepInfo? Bep = null);
