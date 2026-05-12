@@ -25,6 +25,18 @@ public sealed class InspectTests
     }
 
     [Fact]
+    public void Inspect_Json_ShowsBepInExPluginMeta()
+    {
+        JsonElement plugin = JsonAssert.ParseObject(RunJson("F26_bep_meta.dll").Stdout)
+            .GetProperty("bepinex")
+            .GetProperty("plugins")[0];
+
+        Assert.Equal("test.meta", plugin.GetProperty("guid").GetString());
+        Assert.Equal("Meta Plugin", plugin.GetProperty("name").GetString());
+        Assert.Equal("1.2.3", plugin.GetProperty("version").GetString());
+    }
+
+    [Fact]
     public void Unsafe()
     {
         var result = CliRunner.Run("inspect", Paths.Get("F06_mixed_mode.dll"), "--fail-on", "cautioned");
