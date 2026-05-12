@@ -13,13 +13,20 @@ internal static class ScanBuild
     public static ScanView Build(ScanReport report, bool withJson)
     {
         ScanRel rel = new(report.Directory);
-        ScanFile[] files = BuildFiles(report, rel, withJson);
+        var bepIndex = BepIndex.From(report.Results);
+        ScanBuildCtx ctx = new(rel, withJson, bepIndex);
+        ScanFile[] files = BuildFiles(report, ctx);
         DirConf[] conflicts = BuildConfs(report, rel);
         DirMiss[] missingRefs = BuildMisses(report, rel);
         DirDup[] dupProviders = BuildDups(report, rel);
-        DirIssue[] issues = BuildIssues(conflicts, missingRefs, dupProviders);
+        DirIssue[] issues = [
+            .. BuildIssues(conflicts, missingRefs, dupProviders),
+            .. BepIssues.Build(report.Results, rel, bepIndex)
+        ];
         ScanStats stats = BuildStats(files, conflicts.Length > 0, issues);
-        ScanJsonMeta? json = withJson ? BuildJson(files, stats, dupProviders.Length, issues) : null;
+        ScanJsonMeta? json = withJson
+            ? BuildJson(new ScanJsonBuild(files, stats, dupProviders.Length, issues))
+            : null;
         return new ScanView(
             report.Directory,
             stats,
@@ -31,22 +38,22 @@ internal static class ScanBuild
             json);
     }
 
-    private static ScanFile[] BuildFiles(ScanReport report, ScanRel rel, bool withJson)
+    private static ScanFile[] BuildFiles(ScanReport report, ScanBuildCtx ctx)
     {
-        return [.. report.Results.Select(result => BuildFile(result, rel, withJson))];
+        return [.. report.Results.Select(result => BuildFile(result, ctx))];
     }
 
-    private static ScanFile BuildFile(Inspection result, ScanRel rel, bool withJson)
+    private static ScanFile BuildFile(Inspection result, ScanBuildCtx ctx)
     {
         return new ScanFile(
-            rel.One(result.Path),
+            ctx.Rel.One(result.Path),
             Labels.CatText(result.Category),
             result.Status,
             InspectMap.CanPatch(result),
             InspectText.Summary(result),
             InspectMap.ActionCode(result),
             result.ReasonCode,
-            withJson ? InspectMap.Map(result) : null);
+            ctx.WithJson ? InspectMap.Map(result, dep => ctx.BepIndex.Status(dep.Guid)) : null);
     }
 
     private static DirConf[] BuildConfs(ScanReport report, ScanRel rel)
@@ -133,16 +140,12 @@ internal static class ScanBuild
     private static ScanStats BuildStats(ScanFile[] files, bool hasConflict, DirIssue[] issues)
     {
         var need = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        int compatible = 0;
-        int fixable = 0;
-        int cautioned = 0;
-        int @unsafe = 0;
-        int corrupt = 0;
+        ScanCounts counts = new(0, 0, 0, 0, 0);
         bool hasFixable = false;
 
         foreach (ScanFile file in files)
         {
-            CountStatus(file.Status, ref compatible, ref fixable, ref cautioned, ref @unsafe, ref corrupt);
+            counts = CountStatus(counts, file.Status);
             if (file.NeedsWork)
                 need.Add(file.ViewPath);
 
@@ -157,32 +160,32 @@ internal static class ScanBuild
         }
 
         return new ScanStats(
-            new ScanCounts(compatible, fixable, cautioned, @unsafe, corrupt),
+            counts,
             need.Count,
             hasFixable,
             hasConflict);
     }
 
-    private static ScanJsonMeta BuildJson(ScanFile[] files, ScanStats stats, int dupCount, DirIssue[] issues)
+    private static ScanJsonMeta BuildJson(ScanJsonBuild ctx)
     {
         ScanSummary summary = new(
-            files.Length,
-            stats.Counts.Compatible,
-            stats.Counts.Fixable,
-            stats.Counts.Cautioned,
-            stats.Counts.Unsafe,
-            stats.Counts.Corrupt,
-            CountByCat(files),
-            CountByAct(files),
-            dupCount,
-            issues.Length,
-            CountByIssue(issues));
-        string conflict = stats.HasConflict ? Fail : Pass;
+            ctx.Files.Length,
+            ctx.Stats.Counts.Compatible,
+            ctx.Stats.Counts.Fixable,
+            ctx.Stats.Counts.Cautioned,
+            ctx.Stats.Counts.Unsafe,
+            ctx.Stats.Counts.Corrupt,
+            CountByCat(ctx.Files),
+            CountByAct(ctx.Files),
+            ctx.DupCount,
+            ctx.Issues.Length,
+            CountByIssue(ctx.Issues));
+        string conflict = ctx.Stats.HasConflict ? Fail : Pass;
         ScanGate gate = new(
-            issues.Length == 0 ? Pass : Fail,
+            ctx.Issues.Length == 0 ? Pass : Fail,
             conflict,
-            issues.Length,
-            [.. issues
+            ctx.Issues.Length,
+            [.. ctx.Issues
                 .Select(issue => issue.Code)
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(code => code, StringComparer.Ordinal)]);
@@ -213,38 +216,25 @@ internal static class ScanBuild
         return counts;
     }
 
-    private static void CountStatus(
-        Status status,
-        ref int compatible,
-        ref int fixable,
-        ref int cautioned,
-        ref int @unsafe,
-        ref int corrupt)
+    private static ScanCounts CountStatus(ScanCounts counts, Status status)
     {
-        switch (status)
+        return status switch
         {
-            case Status.Compatible:
-                compatible++;
-                break;
-            case Status.Fixable:
-                fixable++;
-                break;
-            case Status.Cautioned:
-                cautioned++;
-                break;
-            case Status.Unsafe:
-                @unsafe++;
-                break;
-            case Status.Corrupt:
-                corrupt++;
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(status), status, "Unsupported inspection status.");
-        }
+            Status.Compatible => counts with { Compatible = counts.Compatible + 1 },
+            Status.Fixable => counts with { Fixable = counts.Fixable + 1 },
+            Status.Cautioned => counts with { Cautioned = counts.Cautioned + 1 },
+            Status.Unsafe => counts with { Unsafe = counts.Unsafe + 1 },
+            Status.Corrupt => counts with { Corrupt = counts.Corrupt + 1 },
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, "Unsupported inspection status.")
+        };
     }
 
     private static void AddCount(Dictionary<string, int> counts, string key)
     {
         counts[key] = counts.TryGetValue(key, out int count) ? count + 1 : 1;
     }
+
+    private readonly record struct ScanBuildCtx(ScanRel Rel, bool WithJson, BepIndex BepIndex);
+
+    private readonly record struct ScanJsonBuild(ScanFile[] Files, ScanStats Stats, int DupCount, DirIssue[] Issues);
 }

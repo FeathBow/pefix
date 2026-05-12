@@ -25,6 +25,7 @@ internal sealed record InspectJson(
     [property: JsonPropertyName("os_platforms")] string[]? OsPlatforms,
     [property: JsonPropertyName("assembly_refs")] AsmRefJson[]? AssemblyRefs,
     [property: JsonPropertyName("assembly_def")] AsmRefJson? AssemblyDef,
+    [property: JsonPropertyName("bepinex")] BepJson? BepInEx = null,
     [property: JsonPropertyName("has_r2r")] bool? HasR2R = null,
     [property: JsonPropertyName("is_trimmable")] bool? IsTrimmable = null,
     [property: JsonPropertyName("schema_version"), JsonPropertyOrder(-1)] int SchemaVersion = 1);

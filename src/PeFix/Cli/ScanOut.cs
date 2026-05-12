@@ -11,6 +11,7 @@ internal static class ScanOut
         WriteConfs(writer, view);
         WriteMissing(writer, view);
         WriteDup(writer, view);
+        WriteBep(writer, view);
         WriteNexts(writer, view);
         WriteHint(writer, view);
         return writer.ToString().TrimEnd();
@@ -84,6 +85,19 @@ internal static class ScanOut
         writer.WriteLine($"  Dup providers ({view.DupProviders.Length}):");
         foreach (DirDup dupProvider in view.DupProviders)
             writer.WriteLine($"    - {dupProvider.Assembly}: {string.Join(", ", dupProvider.Files)}");
+    }
+
+    private static void WriteBep(StringWriter writer, ScanView view)
+    {
+        DirIssue[] issues = [.. view.Issues.Where(issue =>
+            string.Equals(issue.Code, IssueCode.BepMissing, StringComparison.Ordinal))];
+        if (issues.Length == 0)
+            return;
+
+        writer.WriteLine();
+        writer.WriteLine($"  BepInEx deps ({issues.Length}):");
+        foreach (DirIssue issue in issues)
+            writer.WriteLine($"    - {issue.Summary}");
     }
 
     private static void WriteNexts(StringWriter writer, ScanView view)
