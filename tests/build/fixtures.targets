@@ -74,6 +74,38 @@
       <Staged>F22_closure_deep.dll</Staged>
       <Assembly>ClosureDeep</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\BepInEx\BepInEx.csproj">
+      <Staged>F25_bepinex.dll</Staged>
+      <Assembly>BepInEx</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\BepMeta\BepMeta.csproj">
+      <Staged>F26_bep_meta.dll</Staged>
+      <Assembly>BepMeta</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\BepMiss\BepMiss.csproj">
+      <Staged>F27_bep_miss.dll</Staged>
+      <Assembly>BepMiss</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\BepNeed\BepNeed.csproj">
+      <Staged>F28_bep_need.dll</Staged>
+      <Assembly>BepNeed</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\BepSoft\BepSoft.csproj">
+      <Staged>F29_bep_soft.dll</Staged>
+      <Assembly>BepSoft</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\BepMain\BepMain.csproj">
+      <Staged>F30_bep_main.dll</Staged>
+      <Assembly>BepMain</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\BepCase\BepCase.csproj">
+      <Staged>F31_bep_case.dll</Staged>
+      <Assembly>BepCase</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\BepFlag\BepFlag.csproj">
+      <Staged>F32_bep_flag.dll</Staged>
+      <Assembly>BepFlag</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>
@@ -136,7 +168,7 @@
 
   <Target Name="StagePeFixtures"
           AfterTargets="Build"
-          Inputs="%(PeFixSource.Identity)"
+          Inputs="%(PeFixSource.Identity);$(MSBuildThisFileDirectory)..\fixtures\sources\**\*.cs"
           Outputs="$(OutputPath)fixtures/%(PeFixSource.Staged)">
     <!-- Build is explicit: AssignProjectConfiguration defaults non-.sln projects to Debug
          when BuildingSolutionFile=true, ignoring SetConfiguration on ProjectReference. -->
