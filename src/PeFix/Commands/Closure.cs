@@ -12,10 +12,10 @@ internal static class Closure
         if (!Directory.Exists(fullPath))
             return CliErr.Usage($"Path must be a directory: {fullPath}");
 
-        ScanReport report;
+        DirInspect dir;
         try
         {
-            report = Scanner.Scan(fullPath);
+            dir = Scanner.InspectDir(fullPath);
         }
         catch (IOException ex)
         {
@@ -26,19 +26,12 @@ internal static class Closure
             return CliErr.Io(ex);
         }
 
-        ClosureReport closure = ClosureGraph.Build(report.Results, fullPath);
+        ClosureReport closure = ClosureGraph.Build(dir.Results, dir.Directory);
 
         if (json)
         {
-            var jsonObj = new ClosureJson(
-                closure.Directory,
-                closure.Entries,
-                closure.Unresolved.Select(MapChain).ToArray(),
-                closure.CycleChains.Select(MapChain).ToArray(),
-                closure.RefsWalked,
-                closure.HostLeaves);
             JsonOut.Write(System.Text.Json.JsonSerializer.Serialize(
-                jsonObj, JsonContext.Default.ClosureJson));
+                ClosureMap.Map(closure), JsonContext.Default.ClosureJson));
         }
         else
         {
@@ -50,22 +43,4 @@ internal static class Closure
 
         return CliExit.Success;
     }
-
-    private static ChainJson MapChain(ClosureChain chain)
-    {
-        return new ChainJson(
-            chain.Entry.AssemblyName,
-            chain.Segments
-                .Select(seg => new SegmentJson(seg.AssemblyName, seg.Version, KindLabel(seg.Kind)))
-                .ToArray());
-    }
-
-    private static string KindLabel(ChainKind kind) => kind switch
-    {
-        ChainKind.Entry => "entry",
-        ChainKind.Resolved => "resolved",
-        ChainKind.Unresolved => "unresolved",
-        ChainKind.Cycle => "cycle",
-        _ => throw new ArgumentOutOfRangeException(nameof(kind)),
-    };
 }
