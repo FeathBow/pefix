@@ -6,7 +6,7 @@ Static portability and load-failure diagnostics for .NET assemblies, with one sa
 [![NuGet](https://img.shields.io/nuget/vpre/pefix.svg)](https://www.nuget.org/packages/pefix)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-`pefix` is a single-binary CLI that inspects .NET assemblies for portability and load-failure causes: PE header layout, target framework, ReadyToRun, trimming, single-file bundles, platform restrictions, mixed-mode native code, reference assemblies, and more. Directory scans also surface missing managed references, duplicate providers, and version conflicts. The single rewrite contract is the byte-level PE header fix for pure-IL `PE32+ AMD64` assemblies; everything else is reported with a stable reason code and a remediation hint.
+`pefix` is a single-binary CLI that inspects .NET assemblies for portability and load-failure causes: PE header layout, target framework, ReadyToRun, trimming, single-file bundles, platform restrictions, mixed-mode native code, reference assemblies, BepInEx plugin metadata, and more. Directory scans also surface missing managed references, duplicate providers, version conflicts, and missing hard BepInEx plugin dependencies. `pefix closure` traces transitive `AssemblyRef` chains. The single rewrite contract is the byte-level PE header fix for pure-IL `PE32+ AMD64` assemblies; everything else is reported with stable reason and issue codes plus a remediation hint.
 
 ## Install
 
@@ -91,7 +91,46 @@ Output:
         - Reference.dll [unsafe] reason=ref_assembly action=blocked
           why: Reference assembly, not a runtime assembly.
 
+Trace transitive dependency closure:
+
+    pefix closure ./mods
+
+Output:
+
+    pefix mods closure
+
+      Status:  UNRESOLVED
+      Summary: 3 entry assemblies, 12 transitive references, 2 unresolved leaves, 0 cycles.
+      Action:  Add the missing dependencies to the scanned directory or restore their packages.
+
+      Unresolved chains:
+        PluginA.dll
+          -> ModLib.dll v1.0.0.0        [resolved]
+            -> CoreUtils.dll v1.0.0.0   [resolved]
+              -> UnityEngine.CoreModule.dll v0.0.0.0  [MISSING]
+
+Check a BepInEx plugin directory:
+
+    pefix scan ./BepInEx/plugins
+
+When `scan` sees `[BepInPlugin]` and `[BepInDependency]` metadata, it reports plugin GUIDs and hard dependencies. Missing hard dependencies appear as directory issues:
+
+    BepInEx deps (1):
+      - test.miss requires BepInEx plugin need.hard
+        Install the missing BepInEx plugin dependency into the scanned plugins directory.
+
+BepInEx support is static. `pefix` does not run the game, simulate the chainloader, download packages, or install DLLs.
+
 Add `--json` to any command for machine-readable output.
+
+## Machine output
+
+`inspect --json`, `scan --json`, and `closure --json` include `schema_version`. File results carry stable `reason_code` values. Directory scan issues carry stable codes such as `missing_ref`, `dup_provider`, `asm_conflict`, and `bep_missing`.
+
+- Process exit reports command execution success, or an explicit CLI gate.
+- JSON `gate` reports directory integrity through `gate.integrity`, `gate.issue_count`, and `gate.issue_codes`.
+
+By default, `scan --json` exits `0` after writing a report even when `gate.integrity` is `fail`. Use `--fail-on <status>` for file status thresholds, `--fail-on-conflict` for version conflicts, and `closure --fail-on-unresolved` for unresolved chains.
 
 ## Status legend
 
