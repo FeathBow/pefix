@@ -85,6 +85,25 @@ public sealed class ClosureE2E : IDisposable
     }
 
     [Fact]
+    public void FailOnFlag_JsonStillWritesReport()
+    {
+        _temp.CopyAll(
+            "F20_closure_entry.dll",
+            "F21_closure_mid.dll",
+            "F22_closure_deep.dll");
+
+        CliResult result = CliRunner.Run("closure", _temp.DirPath, "--json", "--fail-on-unresolved");
+
+        Assert.Equal(1, result.ExitCode);
+        JsonElement root = JsonAssert.ParseObject(result.Stdout);
+        Assert.Equal(1, root.GetProperty("schema_version").GetInt32());
+        JsonElement unresolved = root.GetProperty("unresolved_chains");
+        Assert.Contains(
+            unresolved.EnumerateArray(),
+            item => item.GetProperty("entry").GetString() == "ClosureEntry");
+    }
+
+    [Fact]
     public void FailOnFlag_AllResolved()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll");

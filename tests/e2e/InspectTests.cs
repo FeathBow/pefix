@@ -1,11 +1,12 @@
-
 using System.Text.Json;
 
 namespace PeFix.Tests;
 
 [Trait("Category", "E2E")]
-public sealed class InspectTests
+public sealed class InspectTests : IDisposable
 {
+    private readonly TempDir _temp = new();
+
     [Fact]
     public void Inspect_Ok()
     {
@@ -21,7 +22,10 @@ public sealed class InspectTests
         Assert.Equal(1, result.ExitCode);
         Assert.DoesNotContain("\r", result.Stdout);
         Assert.EndsWith("\n", result.Stdout);
-        Assert.Equal("fixable", JsonAssert.ParseObject(result.Stdout).GetProperty("status").GetString());
+        JsonElement root = JsonAssert.ParseObject(result.Stdout);
+        Assert.Equal(1, root.GetProperty("schema_version").GetInt32());
+        Assert.Equal("fixable", root.GetProperty("status").GetString());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("bepinex").ValueKind);
     }
 
     [Fact]
@@ -34,6 +38,21 @@ public sealed class InspectTests
         Assert.Equal("test.meta", plugin.GetProperty("guid").GetString());
         Assert.Equal("Meta Plugin", plugin.GetProperty("name").GetString());
         Assert.Equal("1.2.3", plugin.GetProperty("version").GetString());
+    }
+
+    [Fact]
+    public void Inspect_Json_ShowsBepInExDependencyMeta()
+    {
+        JsonElement dep = JsonAssert.ParseObject(RunJson("F27_bep_miss.dll").Stdout)
+            .GetProperty("bepinex")
+            .GetProperty("plugins")[0]
+            .GetProperty("deps")[0];
+
+        Assert.Equal("need.hard", dep.GetProperty("guid").GetString());
+        Assert.Equal(">=2.0.0", dep.GetProperty("range").GetString());
+        Assert.True(dep.GetProperty("hard").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, dep.GetProperty("present").ValueKind);
+        Assert.False(dep.GetProperty("case_mismatch").GetBoolean());
     }
 
     [Fact]
@@ -66,7 +85,15 @@ public sealed class InspectTests
     [Theory]
     [InlineData("F01_compatible_anycpu.dll", "portable")]
     [InlineData("F02_x64only_managed.dll", "non_portable")]
+    [InlineData("F07_native_pe.dll", "native_binary")]
+    [InlineData("F08_corrupt.dll", "corrupt_pe")]
+    [InlineData("F10_windows_only.dll", "platform_api")]
     [InlineData("F05_reference_assembly.dll", "ref_assembly")]
+    [InlineData("F11_r2r.dll", "r2r")]
+    [InlineData("F12_trimmable.dll", "trimmable")]
+    [InlineData("F13_bundle.dll", "bundle")]
+    [InlineData("F14_webcil.wasm", "webcil")]
+    [InlineData("F15_satellite.dll", "satellite")]
     [InlineData("F06_mixed_mode.dll", "mixed_mode")]
     [InlineData("F16_netfx_stub.dll", "tfm_mismatch")]
     public void Inspect_Code(string fixture, string reasonCode)
@@ -75,8 +102,37 @@ public sealed class InspectTests
         Assert.Equal(reasonCode, root.GetProperty("reason_code").GetString());
     }
 
+    [Theory]
+    [InlineData("module-nest.dll", "module_nest")]
+    [InlineData("multi-module.dll", "multi_module")]
+    public void Inspect_Code_FromGeneratedMetadata(string fileName, string reasonCode)
+    {
+        string path = Path.Combine(_temp.DirPath, fileName);
+        WriteFixture(path, fileName);
+
+        JsonElement root = JsonAssert.ParseObject(CliRunner.Run("inspect", path, "--json").Stdout);
+        Assert.Equal(reasonCode, root.GetProperty("reason_code").GetString());
+    }
+
+    private static void WriteFixture(string path, string fileName)
+    {
+        switch (fileName)
+        {
+            case "module-nest.dll":
+                RefPe.WriteNested(path);
+                break;
+            case "multi-module.dll":
+                RefPe.WriteMultiModule(path);
+                break;
+            default:
+                throw new InvalidOperationException($"Unknown generated metadata fixture '{fileName}'.");
+        }
+    }
+
     private static CliResult RunJson(string fixture)
     {
         return CliRunner.Run("inspect", Paths.Get(fixture), "--json");
     }
+
+    public void Dispose() => _temp.Dispose();
 }
