@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 
@@ -5,17 +6,65 @@ namespace PeFix.Tests;
 
 internal static class RefPe
 {
-    internal static void WriteVer(string outPath, string refName, Version refVer)
+    private const int FirstRow = 1;
+    private const int NoMethodBody = 0;
+    private const int NoMappedData = 0;
+    private static readonly Version DefaultVersion = new(1, 0, 0, 0);
+
+    private readonly record struct RefSpec(string Name, Version Version, byte[]? Token);
+
+    internal static void WriteVerRef(string outPath, string refName, Version refVersion)
     {
-        Write(outPath, refName, refVer, pkt: null);
+        Write(outPath, new RefSpec(refName, refVersion, Token: null));
     }
 
-    internal static void WriteTok(string outPath, string refName, byte[] pkt)
+    internal static void WriteTokenRef(string outPath, string refName, byte[] pubKeyToken)
     {
-        Write(outPath, refName, new Version(1, 0, 0, 0), pkt);
+        Write(outPath, new RefSpec(refName, DefaultVersion, pubKeyToken));
     }
 
-    private static void Write(string outPath, string refName, Version refVer, byte[]? pkt)
+    internal static void WriteNested(string outPath)
+    {
+        var meta = NewMetadata(outPath);
+        TypeDefinitionHandle module = AddModuleType(meta);
+        TypeDefinitionHandle nested = meta.AddTypeDefinition(
+            TypeAttributes.NestedPrivate,
+            default,
+            meta.GetOrAddString("Nested"),
+            default,
+            FieldStart(),
+            MethodStart());
+        meta.AddNestedType(nested, module);
+        Write(outPath, meta);
+    }
+
+    internal static void WriteMultiModule(string outPath)
+    {
+        var meta = NewMetadata(outPath);
+        AddModuleType(meta);
+        meta.AddAssemblyFile(
+            meta.GetOrAddString("part.netmodule"),
+            default,
+            containsMetadata: true);
+        Write(outPath, meta);
+    }
+
+    private static void Write(string outPath, RefSpec spec)
+    {
+        MetadataBuilder meta = NewMetadata(outPath);
+        AddModuleType(meta);
+        meta.AddAssemblyReference(
+            meta.GetOrAddString(spec.Name),
+            spec.Version,
+            default,
+            spec.Token is null ? default : meta.GetOrAddBlob(spec.Token),
+            default,
+            default);
+
+        Write(outPath, meta);
+    }
+
+    private static MetadataBuilder NewMetadata(string outPath)
     {
         var meta = new MetadataBuilder();
         meta.AddModule(
@@ -24,30 +73,41 @@ internal static class RefPe
             meta.GetOrAddGuid(Guid.NewGuid()),
             default,
             default);
-        meta.AddTypeDefinition(
+        meta.AddAssembly(
+            meta.GetOrAddString("test"),
+            DefaultVersion,
+            default,
+            default,
+            default,
+            default);
+        return meta;
+    }
+
+    private static TypeDefinitionHandle AddModuleType(MetadataBuilder meta)
+    {
+        return meta.AddTypeDefinition(
             0,
             default,
             meta.GetOrAddString("<Module>"),
             default,
-            MetadataTokens.FieldDefinitionHandle(1),
-            MetadataTokens.MethodDefinitionHandle(1));
-        meta.AddAssembly(
-            meta.GetOrAddString("test"),
-            new Version(1, 0, 0, 0),
-            default,
-            default,
-            default,
-            default);
-        meta.AddAssemblyReference(
-            meta.GetOrAddString(refName),
-            refVer,
-            default,
-            pkt is null ? default : meta.GetOrAddBlob(pkt),
-            default,
-            default);
+            FieldStart(),
+            MethodStart());
+    }
 
+    private static FieldDefinitionHandle FieldStart()
+    {
+        return MetadataTokens.FieldDefinitionHandle(FirstRow);
+    }
+
+    private static MethodDefinitionHandle MethodStart()
+    {
+        return MetadataTokens.MethodDefinitionHandle(FirstRow);
+    }
+
+    private static void Write(string outPath, MetadataBuilder meta)
+    {
         var blob = new BlobBuilder();
-        new MetadataRootBuilder(meta, suppressValidation: true).Serialize(blob, 0, 0);
+        new MetadataRootBuilder(meta, suppressValidation: true).Serialize(blob, NoMethodBody, NoMappedData);
         MiniPe.Write(outPath, blob.ToArray());
     }
 }

@@ -8,6 +8,7 @@ namespace PeFix.Tests;
 [Trait("Category", "Integration")]
 public sealed class SnStripTests : IDisposable
 {
+    private static readonly byte[] StrongNameToken = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11];
     private readonly TempDir _temp = new();
 
     public void Dispose() => _temp.Dispose();
@@ -98,17 +99,17 @@ public sealed class SnStripTests : IDisposable
     }
 
     [Fact]
-    public void TokZero()
+    public void TokenZeroed()
     {
         string target = CopyF03();
         string sibling = Path.Combine(_temp.DirPath, "sibling.dll");
-        RefPe.WriteTok(sibling, "X64StrongName", [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11]);
+        RefPe.WriteTokenRef(sibling, "X64StrongName", StrongNameToken);
 
         SnStripper.Strip(target, new SnStripOpts(Backup: false));
 
-        byte[] tok = ReadTok(sibling, "X64StrongName");
-        Assert.NotEmpty(tok);
-        Assert.All(tok, b => Assert.Equal((byte)0, b));
+        byte[] token = ReadToken(sibling, "X64StrongName");
+        Assert.NotEmpty(token);
+        Assert.All(token, b => Assert.Equal((byte)0, b));
     }
 
     [Fact]
@@ -176,18 +177,18 @@ public sealed class SnStripTests : IDisposable
     }
 
     [Fact]
-    public void DirTok1()
+    public void DirToken()
     {
         _temp.Copy("F03_x64_strongname.dll");
         string sibling = Path.Combine(_temp.DirPath, "sibling.dll");
-        RefPe.WriteTok(sibling, "X64StrongName", [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11]);
+        RefPe.WriteTokenRef(sibling, "X64StrongName", StrongNameToken);
 
         SnBatch batch = SnStripper.StripDir(_temp.DirPath, new SnStripOpts(Backup: false));
 
         Assert.Single(batch.Deps);
-        byte[] tok = ReadTok(sibling, "X64StrongName");
-        Assert.NotEmpty(tok);
-        Assert.All(tok, b => Assert.Equal((byte)0, b));
+        byte[] token = ReadToken(sibling, "X64StrongName");
+        Assert.NotEmpty(token);
+        Assert.All(token, b => Assert.Equal((byte)0, b));
     }
 
     [Fact]
@@ -214,7 +215,7 @@ public sealed class SnStripTests : IDisposable
             reader.GetBlobBytes(reader.GetAssemblyDefinition().PublicKey));
     }
 
-    private static byte[] ReadTok(string path, string name)
+    private static byte[] ReadToken(string path, string name)
     {
         return PeRead.Meta(path, reader =>
         {
@@ -224,7 +225,7 @@ public sealed class SnStripTests : IDisposable
                 if (reader.GetString(r.Name) == name)
                     return reader.GetBlobBytes(r.PublicKeyOrToken);
             }
-            return [];
+            throw new InvalidOperationException($"AssemblyRef '{name}' was not found in {path}.");
         });
     }
 

@@ -11,7 +11,7 @@ public sealed class RedCmdTests : IDisposable
     public void RedirVerb_NoApplyFlag_DryRunsOnly()
     {
         string path = Path.Combine(_temp.DirPath, "dry.dll");
-        RefPe.WriteVer(path, "Newtonsoft.Json", new Version(9, 0, 0, 0));
+        RefPe.WriteVerRef(path, "Newtonsoft.Json", new Version(9, 0, 0, 0));
         byte[] before = FileAssert.ReadBytes(path);
 
         CliResult result = CliRunner.Run(
@@ -29,7 +29,7 @@ public sealed class RedCmdTests : IDisposable
     [Fact]
     public void RedRefuse()
     {
-        RefPe.WriteVer(Path.Combine(_temp.DirPath, "a.dll"), "Newtonsoft.Json", new Version(9, 0, 0, 0));
+        RefPe.WriteVerRef(Path.Combine(_temp.DirPath, "a.dll"), "Newtonsoft.Json", new Version(9, 0, 0, 0));
         _temp.Copy("F07_native_pe.dll");
         CliResult result = CliRunner.Run(
             "redir",

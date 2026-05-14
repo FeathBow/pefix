@@ -11,10 +11,10 @@ public sealed class RedirTests : IDisposable
 
     public void Dispose() => _temp.Dispose();
 
-    private string MakeRef(string fileName, string refName, Version refVer)
+    private string MakeRef(string fileName, string refName, Version refVersion)
     {
         string path = Path.Combine(_temp.DirPath, fileName);
-        RefPe.WriteVer(path, refName, refVer);
+        RefPe.WriteVerRef(path, refName, refVersion);
         return path;
     }
 
@@ -36,7 +36,7 @@ public sealed class RedirTests : IDisposable
     }
 
     [Fact]
-    public void VerMiss()
+    public void VersionMiss()
     {
         string path = MakeRef("c.dll", "Newtonsoft.Json", new Version(9, 0, 0, 0));
         RedirResult r = RedirPatch.Redir(path, new RedirOptions("Newtonsoft.Json", new Version(8, 0, 0, 0), new Version(13, 0, 0, 0), Backup: false));
