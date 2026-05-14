@@ -28,8 +28,18 @@ public sealed class BepScanTests : IDisposable
         Assert.True(dep.GetProperty("hard").GetBoolean());
         Assert.Equal(">=2.0.0", dep.GetProperty("range").GetString());
         Assert.False(dep.GetProperty("present").GetBoolean());
-        Assert.Equal("fail", root.GetProperty("gate").GetProperty("integrity").GetString());
-        Assert.Equal("bep_missing", root.GetProperty("gate").GetProperty("issue_codes")[0].GetString());
+        JsonElement gate = root.GetProperty("gate");
+        JsonElement summary = root.GetProperty("summary");
+        JsonElement issue = Assert.Single(root.GetProperty("issues").EnumerateArray());
+        Assert.Equal("fail", gate.GetProperty("integrity").GetString());
+        Assert.Equal(["bep_missing"], JsonAssert.StringArray(gate.GetProperty("issue_codes")));
+        Assert.Equal("bep_missing", issue.GetProperty("code").GetString());
+        Assert.Equal("need.hard", issue.GetProperty("subject").GetString());
+        Assert.Equal(["F27_bep_miss.dll"], JsonAssert.StringArray(issue.GetProperty("files")));
+        Assert.Equal(
+            ["Install the missing BepInEx plugin dependency into the scanned plugins directory."],
+            JsonAssert.StringArray(issue.GetProperty("next_steps")));
+        Assert.Equal(1, summary.GetProperty("by_issue").GetProperty("bep_missing").GetInt32());
     }
 
     [Fact]
@@ -37,10 +47,15 @@ public sealed class BepScanTests : IDisposable
     {
         Copy("F27_bep_miss.dll");
         Copy("F28_bep_need.dll");
-        JsonElement dep = OneDep(Scan(), "need.hard");
+        JsonElement root = Scan();
+        JsonElement dep = OneDep(root, "need.hard");
 
         Assert.True(dep.GetProperty("hard").GetBoolean());
         Assert.True(dep.GetProperty("present").GetBoolean());
+        Assert.Equal("pass", root.GetProperty("gate").GetProperty("integrity").GetString());
+        Assert.Equal([], JsonAssert.StringArray(root.GetProperty("gate").GetProperty("issue_codes")));
+        Assert.Empty(root.GetProperty("issues").EnumerateArray());
+        Assert.False(root.GetProperty("summary").GetProperty("by_issue").TryGetProperty("bep_missing", out _));
     }
 
     [Fact]
@@ -53,7 +68,7 @@ public sealed class BepScanTests : IDisposable
         Assert.False(dep.GetProperty("present").GetBoolean());
         Assert.True(dep.GetProperty("case_mismatch").GetBoolean());
         Assert.Equal("fail", root.GetProperty("gate").GetProperty("integrity").GetString());
-        Assert.Contains("bep_missing", root.GetProperty("gate").GetProperty("issue_codes").EnumerateArray().Select(code => code.GetString()));
+        Assert.Equal(["bep_missing"], JsonAssert.StringArray(root.GetProperty("gate").GetProperty("issue_codes")));
     }
 
     [Fact]
@@ -134,23 +149,34 @@ public sealed class BepScanTests : IDisposable
 
     private static JsonElement OneDep(JsonElement root, string guid)
     {
+        foreach (JsonElement dep in AllDeps(root))
+        {
+            if (string.Equals(dep.GetProperty("guid").GetString(), guid, StringComparison.Ordinal))
+                return dep;
+        }
+
+        throw new InvalidOperationException($"BepInEx dependency '{guid}' was not found.");
+    }
+
+    private static IEnumerable<JsonElement> AllDeps(JsonElement root)
+    {
+        foreach (JsonElement plugin in AllPlugins(root))
+        {
+            foreach (JsonElement dep in plugin.GetProperty("deps").EnumerateArray())
+                yield return dep;
+        }
+    }
+
+    private static IEnumerable<JsonElement> AllPlugins(JsonElement root)
+    {
         foreach (JsonElement result in root.GetProperty("results").EnumerateArray())
         {
             if (!result.TryGetProperty("bepinex", out JsonElement bep))
                 continue;
 
             foreach (JsonElement plugin in bep.GetProperty("plugins").EnumerateArray())
-            {
-                JsonElement deps = plugin.GetProperty("deps");
-                foreach (JsonElement dep in deps.EnumerateArray())
-                {
-                    if (string.Equals(dep.GetProperty("guid").GetString(), guid, StringComparison.Ordinal))
-                        return dep;
-                }
-            }
+                yield return plugin;
         }
-
-        throw new InvalidOperationException($"BepInEx dependency '{guid}' was not found.");
     }
 
     public void Dispose()
