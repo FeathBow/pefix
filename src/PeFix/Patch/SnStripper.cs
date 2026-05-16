@@ -9,7 +9,7 @@ namespace PeFix.Patch;
 
 public static class SnStripper
 {
-    private const int CorFlagOfs = 16;
+    private const int CorFlagsOffset = 16;
 
     public static SnStripRes Strip(string path, SnStripOpts options)
     {
@@ -24,13 +24,17 @@ public static class SnStripper
             return new SnStripRes(fullPath, null, null, false, false, self.HadIvt, 0, [], []);
 
         string? backupPath = options.Backup ? PeUtils.Backup(fullPath) : null;
-        PeUtils.WriteAtomic(fullPath, self.Patched);
+        PeUtils.WriteVerifiedAtomic(fullPath, self.Patched, tmpPath =>
+        {
+            SnVerify.SelfStripped(tmpPath);
+            Validator.Validate(tmpPath);
+        });
         PlanEmit.Write(fullPath,
             PlanFileInfo.Describe(fullPath, origBytes, PeUtils.ReadMvid(origBytes)),
             PlanFileInfo.Describe(fullPath, self.Patched, PeUtils.ReadMvid(self.Patched)),
             self.Ops, backupPath);
         string planPath = PlanEmit.SidecarPath(fullPath);
-        DepScan depScan = ScanSiblings(Path.GetDirectoryName(fullPath)!, [self.AsmName], fullPath, options.Backup);
+        DepScan depScan = ScanSiblings(Path.GetDirectoryName(fullPath)!, [self.AssemblyName], fullPath, options.Backup);
         return new SnStripRes(fullPath, backupPath, planPath, true, false, self.HadIvt, depScan.Deps.Length, depScan.Deps, depScan.Refusals);
     }
 
@@ -56,22 +60,17 @@ public static class SnStripper
                 }
 
                 string? backupPath = options.Backup ? PeUtils.Backup(dll) : null;
-                PeUtils.WriteAtomic(dll, self.Patched);
+                PeUtils.WriteVerifiedAtomic(dll, self.Patched, tmpPath =>
+                {
+                    SnVerify.SelfStripped(tmpPath);
+                    Validator.Validate(tmpPath);
+                });
                 PlanEmit.Write(dll,
                     PlanFileInfo.Describe(dll, origBytes, PeUtils.ReadMvid(origBytes)),
                     PlanFileInfo.Describe(dll, self.Patched, PeUtils.ReadMvid(self.Patched)),
                     self.Ops, backupPath);
-                stripNames.Add(self.AsmName);
-                results.Add(new SnStripRes(
-                    dll,
-                    backupPath,
-                    PlanEmit.SidecarPath(dll),
-                    true,
-                    false,
-                    self.HadIvt,
-                    0,
-                    [],
-                    []));
+                stripNames.Add(self.AssemblyName);
+                results.Add(new SnStripRes(dll, backupPath, PlanEmit.SidecarPath(dll), true, false, self.HadIvt, 0, [], []));
             }
             catch (UnsafeException ex) { refusals.Add(new Refusal(dll, ex.Message, PeAnalyzer.Inspect(dll))); }
             catch (InvalidOperationException ex) { refusals.Add(Refusal.Create(dll, ex.Message)); }
@@ -89,9 +88,9 @@ public static class SnStripper
         return new SnBatch(fullDir, [.. results], [.. refusals], deps);
     }
 
-    private readonly record struct SelfResult(byte[] Patched, bool HadIvt, string AsmName, bool WasSigned, IReadOnlyList<MutationOp> Ops);
+    private readonly record struct SelfResult(byte[] Patched, bool HadIvt, string AssemblyName, bool WasSigned, IReadOnlyList<MutationOp> Ops);
+    private readonly record struct SelfPatch(byte[] Before, byte[] After, PEHeaders Headers, CorHeader CorHeader, MetadataReader Reader, int BlobOffset, List<MutationOp> Ops);
     private readonly record struct DepScan(SnDep[] Deps, Refusal[] Refusals);
-
     private static SelfResult StripSelf(byte[] bytes, SnStripOpts options)
     {
         using var readStream = new MemoryStream(bytes, writable: false);
@@ -119,40 +118,50 @@ public static class SnStripper
 
         int metaRva = corHeader.MetadataDirectory.RelativeVirtualAddress;
         int metaOffset = PeUtils.RvaToOffset(peReader.PEHeaders, metaRva);
-        int blobOfs = PeUtils.FindHeap(bytes, metaOffset, "#Blob");
+        int blobHeapOffset = PeUtils.FindHeap(bytes, metaOffset, "#Blob");
 
-        int flagOfs = peReader.PEHeaders.CorHeaderStartOffset + CorFlagOfs;
-        uint flagsBefore = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(flagOfs, 4));
+        var patch = new SelfPatch(bytes, patched, peReader.PEHeaders, corHeader, reader, blobHeapOffset, ops);
+        ClearStrongNameFlag(patch);
+        ClearSignature(patch);
+        ClearPublicKey(patch);
+        return new SelfResult(patched, hadIvt, asmName, isSigned, ops);
+    }
+
+    private static void ClearStrongNameFlag(SelfPatch patch)
+    {
+        int flagsOffset = patch.Headers.CorHeaderStartOffset + CorFlagsOffset;
+        uint flagsBefore = BinaryPrimitives.ReadUInt32LittleEndian(patch.Before.AsSpan(flagsOffset, 4));
         uint flagsAfter = flagsBefore & ~(uint)CorFlags.StrongNameSigned;
-        BinaryPrimitives.WriteUInt32LittleEndian(patched.AsSpan(flagOfs, 4), flagsAfter);
-        ops.Add(MakeOp("corflags", flagOfs,
+        BinaryPrimitives.WriteUInt32LittleEndian(patch.After.AsSpan(flagsOffset, 4), flagsAfter);
+        patch.Ops.Add(MakeOp("corflags", flagsOffset,
             HexUtils.Hex(BitConverter.GetBytes(flagsBefore)),
             HexUtils.Hex(BitConverter.GetBytes(flagsAfter))));
+    }
 
-        DirectoryEntry snDir = corHeader.StrongNameSignatureDirectory;
-        if (snDir.Size > 0)
+    private static void ClearSignature(SelfPatch patch)
+    {
+        DirectoryEntry strongNameDirectory = patch.CorHeader.StrongNameSignatureDirectory;
+        if (strongNameDirectory.Size == 0) return;
+
+        int strongNameOffset = PeUtils.RvaToOffset(patch.Headers, strongNameDirectory.RelativeVirtualAddress);
+        byte[] strongNameBefore = patch.Before.AsSpan(strongNameOffset, strongNameDirectory.Size).ToArray();
+        patch.After.AsSpan(strongNameOffset, strongNameDirectory.Size).Clear();
+        patch.Ops.Add(MakeOp("snsig", strongNameOffset, HexUtils.Hex(strongNameBefore), Zeros(strongNameDirectory.Size)));
+    }
+
+    private static void ClearPublicKey(SelfPatch patch)
+    {
+        BlobHandle publicKeyHandle = patch.Reader.GetAssemblyDefinition().PublicKey;
+        if (publicKeyHandle.IsNil) return;
+        byte[] publicKey = patch.Reader.GetBlobBytes(publicKeyHandle);
+        if (publicKey.Length > 0)
         {
-            int snOffset = PeUtils.RvaToOffset(peReader.PEHeaders, snDir.RelativeVirtualAddress);
-            byte[] snBefore = bytes.AsSpan(snOffset, snDir.Size).ToArray();
-            patched.AsSpan(snOffset, snDir.Size).Clear();
-            ops.Add(MakeOp("snsig", snOffset, HexUtils.Hex(snBefore), Zeros(snDir.Size)));
+            int heapOffset = MetadataTokens.GetHeapOffset(publicKeyHandle);
+            int writeOffset = patch.BlobOffset + heapOffset + PeUtils.BlobPrefixLen(publicKey.Length);
+            byte[] publicKeyBefore = patch.Before.AsSpan(writeOffset, publicKey.Length).ToArray();
+            patch.After.AsSpan(writeOffset, publicKey.Length).Clear();
+            patch.Ops.Add(MakeOp("asm.publickey", writeOffset, HexUtils.Hex(publicKeyBefore), Zeros(publicKey.Length)));
         }
-
-        BlobHandle pkHandle = reader.GetAssemblyDefinition().PublicKey;
-        if (!pkHandle.IsNil)
-        {
-            byte[] pkContent = reader.GetBlobBytes(pkHandle);
-            if (pkContent.Length > 0)
-            {
-                int heapOffset = MetadataTokens.GetHeapOffset(pkHandle);
-                int writeOfs = blobOfs + heapOffset + PeUtils.BlobPrefixLen(pkContent.Length);
-                byte[] pkBefore = bytes.AsSpan(writeOfs, pkContent.Length).ToArray();
-                patched.AsSpan(writeOfs, pkContent.Length).Clear();
-                ops.Add(MakeOp("asm.publickey", writeOfs, HexUtils.Hex(pkBefore), Zeros(pkContent.Length)));
-            }
-        }
-
-        return new SelfResult(patched, hadIvt, asmName, isSigned, ops);
     }
 
     private static MutationOp MakeOp(string targetKind, int offset, string before, string after) =>
@@ -191,33 +200,39 @@ public static class SnStripper
 
         MetadataReader reader = peReader.GetMetadataReader();
         int metaOffset = PeUtils.RvaToOffset(peReader.PEHeaders, corHeader.MetadataDirectory.RelativeVirtualAddress);
-        int blobOfs = PeUtils.FindHeap(origBytes, metaOffset, "#Blob");
+        int blobHeapOffset = PeUtils.FindHeap(origBytes, metaOffset, "#Blob");
 
         List<MutationOp> ops = [];
         foreach (AssemblyReferenceHandle handle in reader.AssemblyReferences)
         {
-            AssemblyReference asmRef = reader.GetAssemblyReference(handle);
-            string refName = reader.GetString(asmRef.Name);
-            if (!targetNames.Any(n => string.Equals(n, refName, StringComparison.OrdinalIgnoreCase)))
+            AssemblyReference assemblyRef = reader.GetAssemblyReference(handle);
+            string refName = reader.GetString(assemblyRef.Name);
+            if (!targetNames.Any(name => string.Equals(name, refName, StringComparison.OrdinalIgnoreCase)))
                 continue;
-            BlobHandle pkt = asmRef.PublicKeyOrToken;
-            byte[] token = reader.GetBlobBytes(pkt);
-            if (pkt.IsNil || token.Length == 0) continue;
+            BlobHandle publicKeyTokenHandle = assemblyRef.PublicKeyOrToken;
+            if (publicKeyTokenHandle.IsNil) continue;
 
-            int rowIdx = MetadataTokens.GetRowNumber(handle);
-            int heapOffset = MetadataTokens.GetHeapOffset(pkt);
-            int writeOfs = blobOfs + heapOffset + PeUtils.BlobPrefixLen(token.Length);
-            patched.AsSpan(writeOfs, token.Length).Clear();
+            byte[] publicKeyToken = reader.GetBlobBytes(publicKeyTokenHandle);
+            if (publicKeyToken.Length == 0) continue;
+
+            int rowIndex = MetadataTokens.GetRowNumber(handle);
+            int heapOffset = MetadataTokens.GetHeapOffset(publicKeyTokenHandle);
+            int writeOffset = blobHeapOffset + heapOffset + PeUtils.BlobPrefixLen(publicKeyToken.Length);
+            patched.AsSpan(writeOffset, publicKeyToken.Length).Clear();
             ops.Add(new MutationOp(
                 "snstrip.dep",
-                new PlanTarget("asmref.token", Table: "AssemblyRef", Row: rowIdx, Offset: writeOfs),
-                HexUtils.Hex(token),
-                Zeros(token.Length)));
+                new PlanTarget("asmref.token", Table: "AssemblyRef", Row: rowIndex, Offset: writeOffset),
+                HexUtils.Hex(publicKeyToken),
+                Zeros(publicKeyToken.Length)));
         }
 
         if (ops.Count == 0) return null;
         string? backupPath = backup ? PeUtils.Backup(fullPath) : null;
-        PeUtils.WriteAtomic(fullPath, patched);
+        PeUtils.WriteVerifiedAtomic(fullPath, patched, tmpPath =>
+        {
+            SnVerify.DepTokensCleared(tmpPath, targetNames);
+            Validator.Validate(tmpPath);
+        });
         PlanEmit.Write(fullPath,
             PlanFileInfo.Describe(fullPath, origBytes, PeUtils.ReadMvid(origBytes)),
             PlanFileInfo.Describe(fullPath, patched, PeUtils.ReadMvid(patched)),
@@ -234,8 +249,7 @@ public static class SnStripper
                 continue;
 
             string? name = AttrReader.ReadFixedString(attr, 0);
-            if (name is not null
-                && name.Contains(", PublicKey=", StringComparison.OrdinalIgnoreCase))
+            if (name is not null && name.Contains(", PublicKey=", StringComparison.OrdinalIgnoreCase))
                 return true;
         }
         return false;

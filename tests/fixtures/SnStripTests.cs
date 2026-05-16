@@ -192,6 +192,22 @@ public sealed class SnStripTests : IDisposable
     }
 
     [Fact]
+    public void DirSkipsUnsignedSiblingRef()
+    {
+        _temp.Copy("F03_x64_strongname.dll");
+        string sibling = Path.Combine(_temp.DirPath, "sibling.dll");
+        RefPe.WriteVersionRef(sibling, "X64StrongName", new Version(1, 0, 0, 0));
+        byte[] before = File.ReadAllBytes(sibling);
+
+        SnBatch batch = SnStripper.StripDir(_temp.DirPath, new SnStripOpts(Backup: false));
+
+        Assert.Single(batch.Results);
+        Assert.Empty(batch.Refusals);
+        Assert.Empty(batch.Deps);
+        Assert.Equal(before, File.ReadAllBytes(sibling));
+    }
+
+    [Fact]
     public void DirRefs()
     {
         _temp.Copy("F03_x64_strongname.dll");

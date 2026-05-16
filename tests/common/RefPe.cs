@@ -18,9 +18,9 @@ internal static class RefPe
         Write(outPath, new RefSpec(refName, refVersion, Token: null));
     }
 
-    internal static void WriteTokenRef(string outPath, string refName, byte[] pubKeyToken)
+    internal static void WriteTokenRef(string outPath, string refName, byte[] publicKeyToken)
     {
-        Write(outPath, new RefSpec(refName, DefaultVersion, pubKeyToken));
+        Write(outPath, new RefSpec(refName, DefaultVersion, publicKeyToken));
     }
 
     internal static void WriteNested(string outPath)
