@@ -64,10 +64,24 @@ internal static class PeUtils
         return backupPath;
     }
 
-    internal static void WriteAtomic(string path, byte[] bytes)
+    internal static void WriteVerifiedAtomic(string path, byte[] bytes, Action<string> verify)
     {
         string tmp = $"{path}.tmp.{Environment.ProcessId}";
-        File.WriteAllBytes(tmp, bytes);
-        File.Move(tmp, path, overwrite: true);
+        try
+        {
+            File.WriteAllBytes(tmp, bytes);
+            verify(tmp);
+            File.Move(tmp, path, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(tmp))
+                File.Delete(tmp);
+        }
+    }
+
+    internal static void WriteAtomic(string path, byte[] bytes)
+    {
+        WriteVerifiedAtomic(path, bytes, _ => { });
     }
 }
