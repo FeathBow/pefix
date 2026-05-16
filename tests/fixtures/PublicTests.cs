@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using PeFix.Patch;
 using PeFix.Plan;
 
@@ -55,10 +56,13 @@ public sealed class PublicTests : IDisposable
     {
         string path = CopyFix();
         byte[] before = File.ReadAllBytes(path);
-        PublicResult r = PublicPatch.Publicize(path, new PubOptions(Backup: false, DryRun: true));
+        PublicResult r = PublicPatch.Publicize(path, new PubOptions(Backup: true, DryRun: true));
         Assert.True(r.WasDryRun);
         Assert.True(r.OpsCount > 0);
+        Assert.Null(r.BackupPath);
+        Assert.Null(r.PlanPath);
         Assert.Equal(before, File.ReadAllBytes(path));
+        Assert.False(File.Exists(path + ".bak"));
         Assert.False(File.Exists(path + ".pefix-plan.json"));
     }
 
@@ -82,6 +86,60 @@ public sealed class PublicTests : IDisposable
         PefixPlan plan = PlanJson.Read(File.ReadAllText(sidecarPath));
         Assert.NotEmpty(plan.Ops);
         Assert.All(plan.Ops, o => Assert.Equal("publicize.flag", o.Kind));
+    }
+
+    [Fact]
+    public void PlanTargetsArePublicAfterApply()
+    {
+        string path = CopyFix();
+        PublicResult result = PublicPatch.Publicize(path, new PubOptions(Backup: false, DryRun: false));
+        PefixPlan plan = PlanJson.Read(File.ReadAllText(result.PlanPath!));
+
+        PeRead.Meta(path, reader =>
+        {
+            Assert.All(plan.Ops, op => AssertPublicTarget(reader, op.Target));
+            return 0;
+        });
+    }
+
+    private static void AssertPublicTarget(MetadataReader reader, PlanTarget target)
+    {
+        Assert.True(target.Row is > 0);
+        int row = target.Row.Value;
+
+        switch (target.Kind)
+        {
+            case "typedef.flags":
+                AssertPublicType(reader, row);
+                break;
+            case "methoddef.flags":
+                Assert.Equal(MethodAttributes.Public, ReadMethodAccess(reader, row));
+                break;
+            case "field.flags":
+                Assert.Equal(FieldAttributes.Public, ReadFieldAccess(reader, row));
+                break;
+            default:
+                throw new InvalidOperationException($"Unknown publicize target '{target.Kind}'.");
+        }
+    }
+
+    private static void AssertPublicType(MetadataReader reader, int row)
+    {
+        TypeDefinition type = reader.GetTypeDefinition(MetadataTokens.TypeDefinitionHandle(row));
+        TypeAttributes visibility = type.Attributes & TypeAttributes.VisibilityMask;
+        Assert.True(visibility is TypeAttributes.Public or TypeAttributes.NestedPublic);
+    }
+
+    private static MethodAttributes ReadMethodAccess(MetadataReader reader, int row)
+    {
+        MethodDefinition method = reader.GetMethodDefinition(MetadataTokens.MethodDefinitionHandle(row));
+        return method.Attributes & MethodAttributes.MemberAccessMask;
+    }
+
+    private static FieldAttributes ReadFieldAccess(MetadataReader reader, int row)
+    {
+        FieldDefinition field = reader.GetFieldDefinition(MetadataTokens.FieldDefinitionHandle(row));
+        return field.Attributes & FieldAttributes.FieldAccessMask;
     }
 
     private static TypeAttributes ReadType(string path, string typeName)
