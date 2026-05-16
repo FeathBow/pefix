@@ -80,8 +80,4 @@ internal static class PeUtils
         }
     }
 
-    internal static void WriteAtomic(string path, byte[] bytes)
-    {
-        WriteVerifiedAtomic(path, bytes, _ => { });
-    }
 }
