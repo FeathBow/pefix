@@ -13,7 +13,7 @@ internal static class RefPe
 
     private readonly record struct RefSpec(string Name, Version Version, byte[]? Token);
 
-    internal static void WriteVerRef(string outPath, string refName, Version refVersion)
+    internal static void WriteVersionRef(string outPath, string refName, Version refVersion)
     {
         Write(outPath, new RefSpec(refName, refVersion, Token: null));
     }

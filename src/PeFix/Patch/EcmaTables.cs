@@ -4,10 +4,10 @@ namespace PeFix.Patch;
 
 internal static class EcmaTables
 {
-    internal static int RowOffset(TableId tableId, byte[] bytes, int tildeOfs, int rowIdx)
+    internal static int RowOffset(TableId tableId, byte[] bytes, int tableHeapOffset, int rowIndex)
     {
         int table = (int)tableId;
-        int pos = tildeOfs + 6;
+        int pos = tableHeapOffset + 6;
         byte heapSizes = bytes[pos++];
         pos++;
         ulong valid = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(pos));
@@ -26,8 +26,8 @@ internal static class EcmaTables
 
         if ((valid & (1UL << table)) == 0)
             throw new InvalidOperationException($"Metadata table 0x{table:X2} not present.");
-        if (rowIdx < 1 || rowIdx > rowCounts[table])
-            throw new ArgumentOutOfRangeException(nameof(rowIdx), $"Table 0x{table:X2} row {rowIdx} out of range [1..{rowCounts[table]}].");
+        if (rowIndex < 1 || rowIndex > rowCounts[table])
+            throw new ArgumentOutOfRangeException(nameof(rowIndex), $"Table 0x{table:X2} row {rowIndex} out of range [1..{rowCounts[table]}].");
 
         IdxWidths w = ComputeWidths(heapSizes, rowCounts);
 
@@ -38,7 +38,7 @@ internal static class EcmaTables
                 tableStart += RowSize(t, w) * rowCounts[t];
         }
 
-        return tableStart + (rowIdx - 1) * RowSize(table, w);
+        return tableStart + (rowIndex - 1) * RowSize(table, w);
     }
 
     private static int RowSize(int table, IdxWidths w) => table switch
