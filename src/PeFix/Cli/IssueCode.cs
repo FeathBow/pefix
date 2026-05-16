@@ -6,4 +6,5 @@ internal static class IssueCode
     public const string MissingRef = "missing_ref";
     public const string DupProvider = "dup_provider";
     public const string BepMissing = "bep_missing";
+    public const string BepCasing = "bep_casing";
 }

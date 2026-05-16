@@ -5,4 +5,8 @@ internal sealed record DirIssue(
     string Subject,
     string Summary,
     string[] Files,
-    string[] NextSteps);
+    string[] NextSteps,
+    string RepairClass,
+    string RepairHint,
+    string VerifyCommand,
+    string[] UnverifiedRisks);

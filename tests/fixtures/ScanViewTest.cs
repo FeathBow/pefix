@@ -45,7 +45,7 @@ public sealed class ScanViewTest
 
         string text = ScanOut.Render(view);
         Assert.Contains("mods/Fix.dll [fixable] reason=non_portable action=fix", text);
-        Assert.Contains("Align the directory to a single version for this assembly name", text);
+        Assert.Contains("Remove the mismatched copy or install the version required by the referencing assembly", text);
     }
 
     private static Inspection Compatible(string path)

@@ -101,7 +101,11 @@ internal static class JsonWriter
             issue.Subject,
             issue.Summary,
             issue.Files,
-            issue.NextSteps);
+            issue.NextSteps,
+            issue.RepairClass,
+            issue.RepairHint,
+            issue.VerifyCommand,
+            issue.UnverifiedRisks);
     }
 
     private static BatchFixJson CreateBatch(BatchResult result)

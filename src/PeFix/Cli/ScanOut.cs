@@ -90,7 +90,7 @@ internal static class ScanOut
     private static void WriteBep(StringWriter writer, ScanView view)
     {
         DirIssue[] issues = [.. view.Issues.Where(issue =>
-            string.Equals(issue.Code, IssueCode.BepMissing, StringComparison.Ordinal))];
+            issue.Code is IssueCode.BepMissing or IssueCode.BepCasing)];
         if (issues.Length == 0)
             return;
 
@@ -136,12 +136,12 @@ internal static class ScanOut
         if (view.HasIssues)
         {
             return view.Stats.HasFixable
-                ? "Resolve directory issues below, then run pefix fix <path> --apply for entries marked fixable or cautioned."
+                ? "Resolve directory issues below, then run pefix fix <path> --apply for entries marked fixable."
                 : "Resolve directory issues below before attempting runtime validation.";
         }
 
         return view.Stats.HasFixable
-            ? "Run pefix fix <path> --apply for entries marked fixable or cautioned."
+            ? "Run pefix fix <path> --apply for entries marked fixable."
             : "No fixable assemblies were found.";
     }
 }

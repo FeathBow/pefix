@@ -6,9 +6,13 @@ internal static class ScanBuild
 {
     private const string Pass = "pass";
     private const string Fail = "fail";
-    private const string ConflictHint = "Align the directory to a single version for this assembly name. Remove the mismatched copy or install the version required by the referencing assembly.";
-    private const string MissingHint = "Install the missing managed dependency into the scanned directory or restore the package that should provide it.";
-    private const string DupHint = "Keep only one provider copy for this assembly name in the scanned directory. Remove or relocate duplicate copies.";
+    private const string ConflictHint = "Align the directory to one assembly version for this name.";
+    private const string ConflictStep = "Remove the mismatched copy or install the version required by the referencing assembly.";
+    private const string MissingHint = "Install or restore the missing managed dependency.";
+    private const string MissingStep = "Install the missing managed dependency into the scanned directory or restore the package that should provide it.";
+    private const string DupHint = "Keep one provider copy for this assembly name.";
+    private const string DupStep = "Remove or relocate duplicate provider copies in the scanned directory.";
+    private const string VerifyScan = "pefix scan <path> --json";
 
     public static ScanView Build(ScanReport report, bool withJson)
     {
@@ -107,7 +111,11 @@ internal static class ScanBuild
                 conflict.Assembly,
                 $"{conflict.ReferencedBy} expects v{conflict.Expected}, but v{conflict.Actual} is provided by {conflict.ProvidedBy}.",
                 [conflict.ReferencedBy, conflict.ProvidedBy],
-                [ConflictHint]));
+                [ConflictStep],
+                RepairClass.AssistedFix,
+                ConflictHint,
+                VerifyScan,
+                ["API compatibility between aligned assembly versions is not proven."]));
         }
     }
 
@@ -120,7 +128,11 @@ internal static class ScanBuild
                 missingRef.Assembly,
                 $"{missingRef.RequiredBy} expects v{missingRef.Version}, but no provider was found.",
                 [missingRef.RequiredBy],
-                [MissingHint]));
+                [MissingStep],
+                RepairClass.AssistedFix,
+                MissingHint,
+                VerifyScan,
+                ["API compatibility and runtime load success are not proven."]));
         }
     }
 
@@ -133,7 +145,11 @@ internal static class ScanBuild
                 dupProvider.Assembly,
                 $"Multiple providers were found: {string.Join(", ", dupProvider.Files)}.",
                 dupProvider.Files,
-                [DupHint]));
+                [DupStep],
+                RepairClass.AssistedFix,
+                DupHint,
+                VerifyScan,
+                ["Package ownership and intended provider selection are not proven."]));
         }
     }
 

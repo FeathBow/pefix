@@ -47,6 +47,10 @@ public sealed class IssueTests : IDisposable
         Assert.Equal(2, summary.GetProperty("by_issue").GetProperty("missing_ref").GetInt32());
         Assert.All(issues.EnumerateArray(), issue => Assert.Equal("missing_ref", issue.GetProperty("code").GetString()));
         Assert.All(issues.EnumerateArray(), issue => Assert.False(issue.TryGetProperty("level", out _)));
+        Assert.All(issues.EnumerateArray(), issue => Assert.Equal("assisted_fix", issue.GetProperty("repair_class").GetString()));
+        Assert.All(issues.EnumerateArray(), issue => Assert.Contains("Install or restore the missing managed dependency", issue.GetProperty("repair_hint").GetString()));
+        Assert.All(issues.EnumerateArray(), issue => Assert.Equal("pefix scan <path> --json", issue.GetProperty("verify_command").GetString()));
+        Assert.All(issues.EnumerateArray(), issue => Assert.Contains("API compatibility", JsonAssert.StringArray(issue.GetProperty("unverified_risks"))[0]));
         JsonElement dep = JsonAssert.SingleBy(missing, "assembly", "Dependency");
         Assert.Equal("F18_missing_refs.dll", dep.GetProperty("required_by").GetString());
     }
@@ -59,7 +63,7 @@ public sealed class IssueTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Dup providers (1):", result.Stdout);
         Assert.Contains("CompatibleAnyCpu: PluginA.dll, PluginB.dll", result.Stdout);
-        Assert.Contains("Keep only one provider copy for this assembly name", result.Stdout);
+        Assert.Contains("Remove or relocate duplicate provider copies", result.Stdout);
         Assert.DoesNotContain("All assemblies use compatible headers", result.Stdout);
     }
 
@@ -82,6 +86,10 @@ public sealed class IssueTests : IDisposable
         Assert.Equal(1, dupProviders.GetArrayLength());
         Assert.Equal(1, issues.GetArrayLength());
         Assert.Equal("dup_provider", issues[0].GetProperty("code").GetString());
+        Assert.Equal("assisted_fix", issues[0].GetProperty("repair_class").GetString());
+        Assert.Contains("Keep one provider copy", issues[0].GetProperty("repair_hint").GetString());
+        Assert.Equal("pefix scan <path> --json", issues[0].GetProperty("verify_command").GetString());
+        Assert.Contains("provider selection", JsonAssert.StringArray(issues[0].GetProperty("unverified_risks"))[0]);
         Assert.Equal(["dup_provider"], JsonAssert.StringArray(gate.GetProperty("issue_codes")));
         Assert.Equal("fail", gate.GetProperty("integrity").GetString());
         Assert.Equal("pass", gate.GetProperty("version_conflict").GetString());
@@ -166,6 +174,10 @@ public sealed class IssueTests : IDisposable
         Assert.Equal("fail", gate.GetProperty("version_conflict").GetString());
         Assert.Equal(["asm_conflict"], JsonAssert.StringArray(gate.GetProperty("issue_codes")));
         Assert.Equal("asm_conflict", root.GetProperty("issues")[0].GetProperty("code").GetString());
+        Assert.Equal("assisted_fix", root.GetProperty("issues")[0].GetProperty("repair_class").GetString());
+        Assert.Contains("Align the directory", root.GetProperty("issues")[0].GetProperty("repair_hint").GetString());
+        Assert.Equal("pefix scan <path> --json", root.GetProperty("issues")[0].GetProperty("verify_command").GetString());
+        Assert.Contains("API compatibility", JsonAssert.StringArray(root.GetProperty("issues")[0].GetProperty("unverified_risks"))[0]);
     }
 
     [Fact]
@@ -208,7 +220,7 @@ public sealed class IssueTests : IDisposable
     }
 
     [Fact]
-    public void Scan_Json_SortsDistinctIssueCodes()
+    public void Scan_SortsDistinctIssueCodes()
     {
         CopyDup();
         _temp.CopyAll("F17_conflict.dll", "F18_missing_refs.dll");

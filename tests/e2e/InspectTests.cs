@@ -73,13 +73,24 @@ public sealed class InspectTests : IDisposable
     [Theory]
     [InlineData("F01_compatible_anycpu.dll", "none")]
     [InlineData("F02_x64only_managed.dll", "fix")]
-    [InlineData("F03_x64_strongname.dll", "fix")]
+    [InlineData("F03_x64_strongname.dll", "acknowledge")]
     [InlineData("F11_r2r.dll", "acknowledge")]
     [InlineData("F06_mixed_mode.dll", "blocked")]
     public void Action(string fixture, string action)
     {
         JsonElement root = JsonAssert.ParseObject(RunJson(fixture).Stdout);
         Assert.Equal(action, root.GetProperty("action").GetString());
+    }
+
+    [Theory]
+    [InlineData("F02_x64only_managed.dll", "auto_fix", "pefix fix")]
+    [InlineData("F03_x64_strongname.dll", "guided_fix", "--force")]
+    [InlineData("F11_r2r.dll", "diagnostic_only", "runtime version")]
+    public void RepairContract(string fixture, string repairClass, string hintPart)
+    {
+        JsonElement root = JsonAssert.ParseObject(RunJson(fixture).Stdout);
+        Assert.Equal(repairClass, root.GetProperty("repair_class").GetString());
+        Assert.Contains(hintPart, root.GetProperty("repair_hint").GetString());
     }
 
     [Theory]

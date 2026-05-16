@@ -4,7 +4,9 @@ namespace PeFix.Cli;
 
 internal static class BepIssues
 {
-    private const string Hint = "Install the missing BepInEx plugin dependency into the scanned plugins directory.";
+    private const string MissingHint = "Install or restore the missing BepInEx plugin dependency.";
+    private const string MissingStep = "Install the missing BepInEx plugin dependency into the scanned plugins directory.";
+    private const string CaseHint = "Fix the plugin GUID casing or install the matching dependency version into the scanned plugins directory.";
 
     public static DirIssue[] Build(Inspection[] results, ScanRel rel, BepIndex index)
     {
@@ -32,14 +34,27 @@ internal static class BepIssues
                 if (state is BepDepState.Present)
                     continue;
 
+                string hint = state is BepDepState.CaseMismatch ? CaseHint : MissingHint;
+                string step = state is BepDepState.CaseMismatch ? CaseHint : MissingStep;
                 build.Issues.Add(new DirIssue(
-                    IssueCode.BepMissing,
+                    IssueCodeFor(state),
                     dep.Guid,
                     Summary(plugin.Guid, dep.Guid, state),
                     [build.Rel.One(result.Path)],
-                    [Hint]));
+                    [step],
+                    RepairClass.AssistedFix,
+                    hint,
+                    "pefix scan <path> --json",
+                    ["Plugin ABI compatibility and runtime chainloader success are not proven."]));
             }
         }
+    }
+
+    private static string IssueCodeFor(BepDepState state)
+    {
+        return state is BepDepState.CaseMismatch
+            ? IssueCode.BepCasing
+            : IssueCode.BepMissing;
     }
 
     private static string Summary(string plugin, string dep, BepDepState state)

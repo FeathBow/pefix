@@ -9,7 +9,7 @@ public sealed class BepScanTests : IDisposable
     private readonly TempDir _temp = new();
 
     [Fact]
-    public void Scan_Json_ShowsPluginMeta()
+    public void Scan_ShowsPluginMeta()
     {
         Copy("F26_bep_meta.dll");
         JsonElement plugin = OnePlugin(Scan(), "test.meta");
@@ -20,7 +20,7 @@ public sealed class BepScanTests : IDisposable
     }
 
     [Fact]
-    public void Scan_Json_MarksHardMissingDependency()
+    public void Scan_MarksHardMissingDependency()
     {
         JsonElement root = Scan("F27_bep_miss.dll");
         JsonElement dep = OneDep(root, "need.hard");
@@ -36,6 +36,10 @@ public sealed class BepScanTests : IDisposable
         Assert.Equal("bep_missing", issue.GetProperty("code").GetString());
         Assert.Equal("need.hard", issue.GetProperty("subject").GetString());
         Assert.Equal(["F27_bep_miss.dll"], JsonAssert.StringArray(issue.GetProperty("files")));
+        Assert.Equal("assisted_fix", issue.GetProperty("repair_class").GetString());
+        Assert.Contains("Install or restore the missing BepInEx plugin dependency", issue.GetProperty("repair_hint").GetString());
+        Assert.Equal("pefix scan <path> --json", issue.GetProperty("verify_command").GetString());
+        Assert.Contains("chainloader success", JsonAssert.StringArray(issue.GetProperty("unverified_risks"))[0]);
         Assert.Equal(
             ["Install the missing BepInEx plugin dependency into the scanned plugins directory."],
             JsonAssert.StringArray(issue.GetProperty("next_steps")));
@@ -43,7 +47,7 @@ public sealed class BepScanTests : IDisposable
     }
 
     [Fact]
-    public void Scan_Json_MarksHardDependencyPresent()
+    public void Scan_MarksHardDependencyPresent()
     {
         Copy("F27_bep_miss.dll");
         Copy("F28_bep_need.dll");
@@ -59,7 +63,7 @@ public sealed class BepScanTests : IDisposable
     }
 
     [Fact]
-    public void Scan_Json_MarksCaseMismatchDependency()
+    public void Scan_MarksCaseMismatchDependency()
     {
         Copy("F27_bep_miss.dll");
         JsonElement root = Scan("F31_bep_case.dll");
@@ -67,12 +71,20 @@ public sealed class BepScanTests : IDisposable
 
         Assert.False(dep.GetProperty("present").GetBoolean());
         Assert.True(dep.GetProperty("case_mismatch").GetBoolean());
+        JsonElement issue = Assert.Single(root.GetProperty("issues").EnumerateArray());
+        Assert.Contains("Fix the plugin GUID casing", issue.GetProperty("repair_hint").GetString());
+        Assert.Contains("Fix the plugin GUID casing", JsonAssert.StringArray(issue.GetProperty("next_steps"))[0]);
+        Assert.Equal("assisted_fix", issue.GetProperty("repair_class").GetString());
+        Assert.Equal("pefix scan <path> --json", issue.GetProperty("verify_command").GetString());
+        Assert.Contains("chainloader success", JsonAssert.StringArray(issue.GetProperty("unverified_risks"))[0]);
         Assert.Equal("fail", root.GetProperty("gate").GetProperty("integrity").GetString());
-        Assert.Equal(["bep_missing"], JsonAssert.StringArray(root.GetProperty("gate").GetProperty("issue_codes")));
+        Assert.Equal(["bep_casing"], JsonAssert.StringArray(root.GetProperty("gate").GetProperty("issue_codes")));
+        Assert.Equal("bep_casing", issue.GetProperty("code").GetString());
+        Assert.Equal(1, root.GetProperty("summary").GetProperty("by_issue").GetProperty("bep_casing").GetInt32());
     }
 
     [Fact]
-    public void Scan_Json_MarksSoftDependencyMissingWithoutFailingGate()
+    public void Scan_MarksSoftDependencyMissingWithoutFailingGate()
     {
         Copy("F29_bep_soft.dll");
         JsonElement root = Scan();
@@ -85,7 +97,7 @@ public sealed class BepScanTests : IDisposable
     }
 
     [Fact]
-    public void Scan_Json_MarksSoftDependencyFromFixedEnumFlags()
+    public void Scan_MarksSoftDependencyFromFixedEnumFlags()
     {
         Copy("F32_bep_flag.dll");
         JsonElement root = Scan();
@@ -98,7 +110,7 @@ public sealed class BepScanTests : IDisposable
     }
 
     [Fact]
-    public void Scan_Json_SupportsAttributeSuffixForm()
+    public void Scan_SupportsAttributeSuffixForm()
     {
         JsonElement plugin = OnePlugin(Scan("F30_bep_main.dll"), "com.pefix.main");
 
@@ -107,7 +119,7 @@ public sealed class BepScanTests : IDisposable
     }
 
     [Fact]
-    public void Scan_Text_ShowsBepInExTriageBlock()
+    public void Scan_ShowsBepInExTriageBlock()
     {
         Copy("F27_bep_miss.dll");
 
