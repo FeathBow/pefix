@@ -5,13 +5,13 @@ namespace PeFix.Commands;
 
 internal static class Scan
 {
-    internal static CliExit Run(string path, bool json, string? failOn, bool onConflict)
+    internal static CliExit Run(ScanArgs args)
     {
         Status? threshold = null;
-        if (failOn is not null)
+        if (args.FailOn is not null)
         {
-            if (!SevArg.TryParse(failOn, out Status value))
-                return SevArg.WriteBad(failOn);
+            if (!SevArg.TryParse(args.FailOn, out Status value))
+                return SevArg.WriteBad(args.FailOn);
 
             threshold = value;
         }
@@ -19,7 +19,7 @@ internal static class Scan
         ScanReport report;
         try
         {
-            report = Scanner.Scan(path);
+            report = Scanner.Scan(args.Path);
         }
         catch (IOException ex)
         {
@@ -30,9 +30,9 @@ internal static class Scan
             return CliErr.Io(ex);
         }
 
-        ScanView view = ScanBuild.Build(report, json);
+        ScanView view = ScanBuild.Build(report, args.Json);
 
-        if (json)
+        if (args.Json)
         {
             JsonOut.Write(JsonWriter.Render(view));
         }
@@ -41,11 +41,19 @@ internal static class Scan
             Console.WriteLine(ScanOut.Render(view));
         }
 
-        if (onConflict && view.Stats.HasConflict)
+        if (args.FailOnConflict && view.Stats.HasConflict)
             return CliExit.Issue;
 
         return threshold is { } t && view.Files.Any(file => GateEval.Meets(file.Status, t))
             ? CliExit.Issue
             : CliExit.Success;
+    }
+
+    internal sealed class ScanArgs
+    {
+        public required string Path { get; init; }
+        public required bool Json { get; init; }
+        public required string? FailOn { get; init; }
+        public required bool FailOnConflict { get; init; }
     }
 }

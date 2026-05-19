@@ -20,17 +20,18 @@ public static class Patcher
             return new PatchResult(fullPath, null, before, before, false, true);
         }
 
-        string? backupPath = options.Backup ? PeUtils.Backup(fullPath) : null;
-        HdrPatcher.Patch(fullPath);
+        byte[] original = File.ReadAllBytes(fullPath);
+        byte[] patched = HdrPatcher.Patch(original);
+        string? backupPath = VerifiedWrite.ApplyNoPlan(new VerifiedWrite.NoPlan
+        {
+            Path = fullPath,
+            Patched = patched,
+            Backup = options.Backup,
+            Verify = VerifyPatch
+        });
         Inspection after = PeAnalyzer.Inspect(fullPath);
         CheckPatch(after, fullPath);
-        Validator.Validate(fullPath);
         return new PatchResult(fullPath, backupPath, before, after, true, false);
-    }
-
-    public static PatchResult Fix(string path, bool backup = true, bool dryRun = false, bool force = false)
-    {
-        return Fix(path, new PatchOptions(backup, dryRun, force));
     }
 
     private static void CheckSafe(Inspection before, bool force)
@@ -40,7 +41,7 @@ public static class Patcher
             return;
         }
 
-        if (before.Status == Status.Cautioned && force)
+        if (CanForcePatch(before, force))
         {
             return;
         }
@@ -53,6 +54,13 @@ public static class Patcher
         throw new UnsafeException($"This assembly cannot be patched safely ({Labels.CatText(before.Category)}).");
     }
 
+    private static bool CanForcePatch(Inspection before, bool force)
+    {
+        return force
+            && before.Status == Status.Cautioned
+            && string.Equals(before.ReasonCode, ReasonCode.NonPortable, StringComparison.Ordinal);
+    }
+
     private static void CheckPatch(Inspection after, string path)
     {
         if (after.Status == Status.Compatible)
@@ -61,5 +69,11 @@ public static class Patcher
         }
 
         throw new InvalidOperationException($"Patching {path} did not produce a compatible assembly.");
+    }
+
+    private static void VerifyPatch(string path)
+    {
+        Inspection after = PeAnalyzer.Inspect(path);
+        CheckPatch(after, path);
     }
 }

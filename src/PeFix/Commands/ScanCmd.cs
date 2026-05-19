@@ -9,11 +9,13 @@ internal static class ScanCmd
         var opts = new OptSet();
         var cmd = new Command("scan", "Scans a directory of managed assemblies for portability and integrity issues.");
         opts.AddTo(cmd);
-        cmd.SetAction(r => (int)Scan.Run(
-            r.GetValue(opts.PathArg)!,
-            r.GetValue(RootCmd.JsonOpt),
-            r.GetValue(opts.FailOnOpt),
-            r.GetValue(opts.ConflictOpt)));
+        cmd.SetAction(r => (int)Scan.Run(new Scan.ScanArgs
+        {
+            Path = r.GetValue(opts.PathArg)!,
+            Json = r.GetValue(RootCmd.JsonOpt),
+            FailOn = r.GetValue(opts.FailOnOpt),
+            FailOnConflict = r.GetValue(opts.ConflictOpt)
+        }));
         return cmd;
     }
 

@@ -92,10 +92,30 @@ public sealed class FixTests : IDisposable
         Assert.EndsWith("\n", result.Stdout);
 
         var root = JsonAssert.ParseObject(result.Stdout);
+        Assert.Equal(1, root.GetProperty("schema_version").GetInt32());
         Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("reason").GetString()));
         var before = root.GetProperty("before");
         Assert.Equal("mixed_mode", before.GetProperty("reason_code").GetString());
         Assert.Equal("unsafe", before.GetProperty("status").GetString());
+    }
+
+    [Theory]
+    [InlineData("F11_r2r.dll", "r2r")]
+    [InlineData("F12_trimmable.dll", "trimmable")]
+    [InlineData("F13_bundle.dll", "bundle")]
+    public void ForceRejectsDiagnosticOnly(string fixture, string reasonCode)
+    {
+        var path = _temp.Copy(fixture);
+        byte[] before = File.ReadAllBytes(path);
+
+        var result = CliRunner.Run("fix", path, "--apply", "--force", "--json");
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Equal(before, File.ReadAllBytes(path));
+        var root = JsonAssert.ParseObject(result.Stdout);
+        Assert.Equal(1, root.GetProperty("schema_version").GetInt32());
+        Assert.Equal(reasonCode, root.GetProperty("before").GetProperty("reason_code").GetString());
+        Assert.Equal("diagnostic_only", root.GetProperty("before").GetProperty("repair_class").GetString());
     }
 
     public void Dispose()

@@ -17,7 +17,7 @@ public sealed class ClosureTests
         Assert.Equal(3, report.Entries.Length);
         Assert.Empty(report.Unresolved);
         Assert.Empty(report.CycleChains);
-        Assert.Equal(0, report.HostLeaves);
+        Assert.Equal(0, report.FrameworkLeaves);
     }
 
     [Fact]
@@ -81,7 +81,33 @@ public sealed class ClosureTests
 
         Assert.Empty(report.Unresolved);
         Assert.Equal(1, report.RefsWalked);
-        Assert.Equal(1, report.HostLeaves);
+        Assert.Equal(1, report.FrameworkLeaves);
+    }
+
+    [Fact]
+    public void Host_NotCountedAsFramework()
+    {
+        Inspection a = Make("A", "1.0", [Asm("UnityEngine.CoreModule", "0.0.0.0")]);
+
+        ClosureReport report = ClosureGraph.Build([a], "/test");
+
+        Assert.Empty(report.Unresolved);
+        Assert.Equal(1, report.RefsWalked);
+        Assert.Equal(0, report.FrameworkLeaves);
+    }
+
+    [Fact]
+    public void DiamondMissingDedupKeepsRepresentative()
+    {
+        Inspection a = Make("A", "1.0", [Asm("B", "1.0"), Asm("C", "1.0")]);
+        Inspection b = Make("B", "1.0", [Asm("Missing", "1.0")]);
+        Inspection c = Make("C", "1.0", [Asm("Missing", "1.0")]);
+
+        ClosureReport report = ClosureGraph.Build([a, b, c], "/test");
+
+        ClosureChain chain = Assert.Single(report.Unresolved, item => item.Entry.AssemblyName == "A");
+        Assert.Equal("B", chain.Segments[0].AssemblyName);
+        Assert.Equal("Missing", chain.Segments[^1].AssemblyName);
     }
 
     private static Inspection Make(string name, string ver, AsmRef[] refs)
