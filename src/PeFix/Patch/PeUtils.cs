@@ -66,18 +66,44 @@ internal static class PeUtils
 
     internal static void WriteVerifiedAtomic(string path, byte[] bytes, Action<string> verify)
     {
-        string tmp = $"{path}.tmp.{Environment.ProcessId}";
+        string? temporaryPath = null;
         try
         {
-            File.WriteAllBytes(tmp, bytes);
-            verify(tmp);
-            File.Move(tmp, path, overwrite: true);
+            temporaryPath = StageVerified(path, bytes, verify);
+            Commit(temporaryPath, path);
+            temporaryPath = null;
         }
         finally
         {
-            if (File.Exists(tmp))
-                File.Delete(tmp);
+            DeleteTemporaryFile(temporaryPath);
         }
+    }
+
+    internal static string StageVerified(string path, byte[] bytes, Action<string> verify)
+    {
+        string temporaryPath = $"{path}.tmp.{Environment.ProcessId}";
+        try
+        {
+            File.WriteAllBytes(temporaryPath, bytes);
+            verify(temporaryPath);
+            return temporaryPath;
+        }
+        catch
+        {
+            DeleteTemporaryFile(temporaryPath);
+            throw;
+        }
+    }
+
+    internal static void Commit(string temporaryPath, string path)
+    {
+        File.Move(temporaryPath, path, overwrite: true);
+    }
+
+    internal static void DeleteTemporaryFile(string? temporaryPath)
+    {
+        if (temporaryPath is not null && File.Exists(temporaryPath))
+            File.Delete(temporaryPath);
     }
 
 }

@@ -1,5 +1,4 @@
 using PeFix.Cli;
-using PeFix.Meta;
 using PeFix.Patch;
 
 namespace PeFix.Commands;
@@ -32,8 +31,7 @@ internal static class Fix
         {
             if (json)
             {
-                Inspection before = PeAnalyzer.Inspect(path);
-                JsonOut.Write(JsonWriter.Render(new Refusal(path, ex.Message, before)));
+                JsonOut.Write(JsonWriter.Render(Refusal.Create(path, ex.Message)));
             }
             else
             {

@@ -9,13 +9,15 @@ internal static class RedirCmd
         var opts = new OptSet();
         var cmd = new Command("redir", "Rewrite AssemblyRef version fields. Defaults to dry-run; pass --apply to write.");
         opts.AddTo(cmd);
-        cmd.SetAction(r => (int)Redir.Run(
-            r.GetValue(opts.PathArg)!,
-            r.GetValue(opts.FromOpt),
-            r.GetValue(opts.ToOpt),
-            !r.GetValue(opts.NoBackupOpt),
-            !r.GetValue(opts.ApplyOpt),
-            r.GetValue(RootCmd.JsonOpt)));
+        cmd.SetAction(r => (int)Redir.Run(new Redir.RedirArgs
+        {
+            Path = r.GetValue(opts.PathArg)!,
+            FromArg = r.GetValue(opts.FromOpt),
+            ToArg = r.GetValue(opts.ToOpt),
+            Backup = !r.GetValue(opts.NoBackupOpt),
+            DryRun = !r.GetValue(opts.ApplyOpt),
+            Json = r.GetValue(RootCmd.JsonOpt)
+        }));
         return cmd;
     }
 

@@ -6,30 +6,29 @@ internal static class ScanBuild
 {
     private const string Pass = "pass";
     private const string Fail = "fail";
-    private const string ConflictHint = "Align the directory to one assembly version for this name.";
-    private const string ConflictStep = "Remove the mismatched copy or install the version required by the referencing assembly.";
-    private const string MissingHint = "Install or restore the missing managed dependency.";
-    private const string MissingStep = "Install the missing managed dependency into the scanned directory or restore the package that should provide it.";
-    private const string DupHint = "Keep one provider copy for this assembly name.";
-    private const string DupStep = "Remove or relocate duplicate provider copies in the scanned directory.";
-    private const string VerifyScan = "pefix scan <path> --json";
 
     public static ScanView Build(ScanReport report, bool withJson)
     {
         ScanRel rel = new(report.Directory);
         var bepIndex = BepIndex.From(report.Results);
-        ScanBuildCtx ctx = new(rel, withJson, bepIndex);
-        ScanFile[] files = BuildFiles(report, ctx);
-        DirConf[] conflicts = BuildConfs(report, rel);
+        var context = new ScanBuildContext(rel, withJson, bepIndex);
+        ScanFile[] files = BuildFiles(report, context);
+        DirConf[] conflicts = BuildConflicts(report, rel);
         DirMiss[] missingRefs = BuildMisses(report, rel);
-        DirDup[] dupProviders = BuildDups(report, rel);
+        DirDup[] duplicateProviders = BuildDuplicates(report, rel);
         DirIssue[] issues = [
-            .. BuildIssues(conflicts, missingRefs, dupProviders),
+            .. BuildIssues(conflicts, missingRefs, duplicateProviders),
             .. BepIssues.Build(report.Results, rel, bepIndex)
         ];
         ScanStats stats = BuildStats(files, conflicts.Length > 0, issues);
         ScanJsonMeta? json = withJson
-            ? BuildJson(new ScanJsonBuild(files, stats, dupProviders.Length, issues))
+            ? BuildJson(new ScanJsonBuild
+            {
+                Files = files,
+                Stats = stats,
+                DuplicateCount = duplicateProviders.Length,
+                Issues = issues
+            })
             : null;
         return new ScanView(
             report.Directory,
@@ -37,30 +36,30 @@ internal static class ScanBuild
             files,
             conflicts,
             missingRefs,
-            dupProviders,
+            duplicateProviders,
             issues,
             json);
     }
 
-    private static ScanFile[] BuildFiles(ScanReport report, ScanBuildCtx ctx)
+    private static ScanFile[] BuildFiles(ScanReport report, ScanBuildContext context)
     {
-        return [.. report.Results.Select(result => BuildFile(result, ctx))];
+        return [.. report.Results.Select(result => BuildFile(result, context))];
     }
 
-    private static ScanFile BuildFile(Inspection result, ScanBuildCtx ctx)
+    private static ScanFile BuildFile(Inspection result, ScanBuildContext context)
     {
         return new ScanFile(
-            ctx.Rel.One(result.Path),
+            context.Rel.One(result.Path),
             Labels.CatText(result.Category),
             result.Status,
             InspectMap.CanPatch(result),
             InspectText.Summary(result),
             InspectMap.ActionCode(result),
             result.ReasonCode,
-            ctx.WithJson ? InspectMap.Map(result, dep => ctx.BepIndex.Status(dep.Guid)) : null);
+            context.WithJson ? InspectMap.Map(result, dep => context.BepIndex.Status(dep.Guid)) : null);
     }
 
-    private static DirConf[] BuildConfs(ScanReport report, ScanRel rel)
+    private static DirConf[] BuildConflicts(ScanReport report, ScanRel rel)
     {
         return [.. report.Conflicts
             .OrderBy(item => item.AssemblyName, StringComparer.Ordinal)
@@ -82,7 +81,7 @@ internal static class ScanBuild
                 rel.One(missingRef.NeedBy)))];
     }
 
-    private static DirDup[] BuildDups(ScanReport report, ScanRel rel)
+    private static DirDup[] BuildDuplicates(ScanReport report, ScanRel rel)
     {
         return [.. report.DupProviders
             .Select(dupProvider => new DirDup(
@@ -93,29 +92,26 @@ internal static class ScanBuild
     private static DirIssue[] BuildIssues(
         DirConf[] conflicts,
         DirMiss[] missingRefs,
-        DirDup[] dupProviders)
+        DirDup[] duplicateProviders)
     {
-        var issues = new List<DirIssue>(conflicts.Length + missingRefs.Length + dupProviders.Length);
-        AddConfs(issues, conflicts);
+        var issues = new List<DirIssue>(conflicts.Length + missingRefs.Length + duplicateProviders.Length);
+        AddConflicts(issues, conflicts);
         AddMisses(issues, missingRefs);
-        AddDups(issues, dupProviders);
+        AddDuplicates(issues, duplicateProviders);
         return [.. issues];
     }
 
-    private static void AddConfs(List<DirIssue> issues, DirConf[] conflicts)
+    private static void AddConflicts(List<DirIssue> issues, DirConf[] conflicts)
     {
         foreach (DirConf conflict in conflicts)
         {
-            issues.Add(new DirIssue(
-                IssueCode.AsmConflict,
-                conflict.Assembly,
-                $"{conflict.ReferencedBy} expects v{conflict.Expected}, but v{conflict.Actual} is provided by {conflict.ProvidedBy}.",
-                [conflict.ReferencedBy, conflict.ProvidedBy],
-                [ConflictStep],
-                RepairClass.AssistedFix,
-                ConflictHint,
-                VerifyScan,
-                ["API compatibility between aligned assembly versions is not proven."]));
+            issues.Add(RepairGuide.ForIssue(new RepairGuide.IssueFacts
+            {
+                Code = IssueCode.AsmConflict,
+                Subject = conflict.Assembly,
+                Summary = $"{conflict.ReferencedBy} expects v{conflict.Expected}, but v{conflict.Actual} is provided by {conflict.ProvidedBy}.",
+                Files = [conflict.ReferencedBy, conflict.ProvidedBy]
+            }));
         }
     }
 
@@ -123,33 +119,27 @@ internal static class ScanBuild
     {
         foreach (DirMiss missingRef in missingRefs)
         {
-            issues.Add(new DirIssue(
-                IssueCode.MissingRef,
-                missingRef.Assembly,
-                $"{missingRef.RequiredBy} expects v{missingRef.Version}, but no provider was found.",
-                [missingRef.RequiredBy],
-                [MissingStep],
-                RepairClass.AssistedFix,
-                MissingHint,
-                VerifyScan,
-                ["API compatibility and runtime load success are not proven."]));
+            issues.Add(RepairGuide.ForIssue(new RepairGuide.IssueFacts
+            {
+                Code = IssueCode.MissingRef,
+                Subject = missingRef.Assembly,
+                Summary = $"{missingRef.RequiredBy} expects v{missingRef.Version}, but no provider was found.",
+                Files = [missingRef.RequiredBy]
+            }));
         }
     }
 
-    private static void AddDups(List<DirIssue> issues, DirDup[] dupProviders)
+    private static void AddDuplicates(List<DirIssue> issues, DirDup[] duplicateProviders)
     {
-        foreach (DirDup dupProvider in dupProviders)
+        foreach (DirDup duplicateProvider in duplicateProviders)
         {
-            issues.Add(new DirIssue(
-                IssueCode.DupProvider,
-                dupProvider.Assembly,
-                $"Multiple providers were found: {string.Join(", ", dupProvider.Files)}.",
-                dupProvider.Files,
-                [DupStep],
-                RepairClass.AssistedFix,
-                DupHint,
-                VerifyScan,
-                ["Package ownership and intended provider selection are not proven."]));
+            issues.Add(RepairGuide.ForIssue(new RepairGuide.IssueFacts
+            {
+                Code = IssueCode.DupProvider,
+                Subject = duplicateProvider.Assembly,
+                Summary = $"Multiple providers were found: {string.Join(", ", duplicateProvider.Files)}.",
+                Files = duplicateProvider.Files
+            }));
         }
     }
 
@@ -182,33 +172,33 @@ internal static class ScanBuild
             hasConflict);
     }
 
-    private static ScanJsonMeta BuildJson(ScanJsonBuild ctx)
+    private static ScanJsonMeta BuildJson(ScanJsonBuild context)
     {
         ScanSummary summary = new(
-            ctx.Files.Length,
-            ctx.Stats.Counts.Compatible,
-            ctx.Stats.Counts.Fixable,
-            ctx.Stats.Counts.Cautioned,
-            ctx.Stats.Counts.Unsafe,
-            ctx.Stats.Counts.Corrupt,
-            CountByCat(ctx.Files),
-            CountByAct(ctx.Files),
-            ctx.DupCount,
-            ctx.Issues.Length,
-            CountByIssue(ctx.Issues));
-        string conflict = ctx.Stats.HasConflict ? Fail : Pass;
+            context.Files.Length,
+            context.Stats.Counts.Compatible,
+            context.Stats.Counts.Fixable,
+            context.Stats.Counts.Cautioned,
+            context.Stats.Counts.Unsafe,
+            context.Stats.Counts.Corrupt,
+            CountByCategory(context.Files),
+            CountByAction(context.Files),
+            context.DuplicateCount,
+            context.Issues.Length,
+            CountByIssue(context.Issues));
+        string conflict = context.Stats.HasConflict ? Fail : Pass;
         ScanGate gate = new(
-            ctx.Issues.Length == 0 ? Pass : Fail,
+            context.Issues.Length == 0 ? Pass : Fail,
             conflict,
-            ctx.Issues.Length,
-            [.. ctx.Issues
+            context.Issues.Length,
+            [.. context.Issues
                 .Select(issue => issue.Code)
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(code => code, StringComparer.Ordinal)]);
         return new ScanJsonMeta(summary, gate);
     }
 
-    private static Dictionary<string, int> CountByCat(ScanFile[] files)
+    private static Dictionary<string, int> CountByCategory(ScanFile[] files)
     {
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (ScanFile file in files)
@@ -216,7 +206,7 @@ internal static class ScanBuild
         return counts;
     }
 
-    private static Dictionary<string, int> CountByAct(ScanFile[] files)
+    private static Dictionary<string, int> CountByAction(ScanFile[] files)
     {
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (ScanFile file in files)
@@ -250,7 +240,13 @@ internal static class ScanBuild
         counts[key] = counts.TryGetValue(key, out int count) ? count + 1 : 1;
     }
 
-    private readonly record struct ScanBuildCtx(ScanRel Rel, bool WithJson, BepIndex BepIndex);
+    private readonly record struct ScanBuildContext(ScanRel Rel, bool WithJson, BepIndex BepIndex);
 
-    private readonly record struct ScanJsonBuild(ScanFile[] Files, ScanStats Stats, int DupCount, DirIssue[] Issues);
+    private sealed record ScanJsonBuild
+    {
+        public required ScanFile[] Files { get; init; }
+        public required ScanStats Stats { get; init; }
+        public required int DuplicateCount { get; init; }
+        public required DirIssue[] Issues { get; init; }
+    }
 }

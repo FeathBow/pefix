@@ -13,7 +13,10 @@ internal static class PublicOut
 
         List<(string, string)> details = new()
         {
-            ("Ops:", r.OpsCount.ToString(CultureInfo.InvariantCulture))
+            ("Ops:", r.OpsCount.ToString(CultureInfo.InvariantCulture)),
+            ("Targets:", TargetText.Format(r.Ops)),
+            ("Repair Class:", PublicJson.RepairClassValue),
+            ("Not Proven:", PublicJson.UnverifiedRiskText)
         };
 
         if (r.WasDryRun)
@@ -63,7 +66,7 @@ internal static class PublicOut
     private static string BackupAction(PublicResult r)
     {
         return r.BackupPath is not null
-            ? $"Backup written to {Path.GetFileName(r.BackupPath)}."
-            : "Backup skipped (--no-backup).";
+            ? $"Backup written to {Path.GetFileName(r.BackupPath)}. Run pefix scan <dir> --json to re-check the folder."
+            : "Backup skipped (--no-backup). Run pefix scan <dir> --json to re-check the folder.";
     }
 }

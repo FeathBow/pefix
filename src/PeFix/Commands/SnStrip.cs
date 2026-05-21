@@ -1,4 +1,3 @@
-using System.Text.Json;
 using PeFix.Cli;
 using PeFix.Meta;
 using PeFix.Patch;
@@ -11,7 +10,7 @@ internal static class SnStrip
     {
         return PathRun.FileOrDir(
             path,
-            file => PathRun.Try(() => RunFile(file, options, json)),
+            file => PathRun.TryFile(file, json, () => RunFile(file, options, json)),
             dir => PathRun.Try(() => RunDir(dir, options, json)));
     }
 
@@ -19,9 +18,9 @@ internal static class SnStrip
     {
         try
         {
-            SnStripRes result = SnStripper.Strip(path, options);
+            SnStripResult result = SnStripper.Strip(path, options);
             if (json)
-                JsonOut.Write(ToJson(result));
+                JsonOut.Write(JsonWriter.Render(result));
             else
                 WriteText(result);
             return result.DepFails.Length > 0 ? CliExit.Issue : CliExit.Success;
@@ -29,9 +28,7 @@ internal static class SnStrip
         catch (UnsafeException ex)
         {
             if (json)
-                JsonOut.Write(JsonSerializer.Serialize(
-                    MapRefusal(new Refusal(Path.GetFullPath(path), ex.Message, PeAnalyzer.Inspect(path))),
-                    JsonContext.Default.RefusalJson));
+                JsonOut.Write(JsonWriter.Render(new Refusal(Path.GetFullPath(path), ex.Message, PeAnalyzer.Inspect(path))));
             else Console.Error.WriteLine(ex.Message);
             return CliExit.Issue;
         }
@@ -41,13 +38,7 @@ internal static class SnStrip
     {
         SnBatch batch = SnStripper.StripDir(dir, options);
         if (json)
-            JsonOut.Write(JsonSerializer.Serialize(
-                new SnBatchJson(
-                    batch.Directory,
-                    batch.Results.Select(ToJsonRecord).ToArray(),
-                    batch.Refusals.Select(MapRefusal).ToArray(),
-                    batch.Deps.Select(ToDepJson).ToArray()),
-                JsonContext.Default.SnBatchJson));
+            JsonOut.Write(JsonWriter.Render(batch));
         else
         {
             string dirName = Path.GetFileName(dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
@@ -56,9 +47,9 @@ internal static class SnStrip
             Console.WriteLine();
             Console.WriteLine($"  Summary: Scanned {batch.Results.Length + batch.Refusals.Length} candidate files.");
             Console.WriteLine();
-            foreach (SnStripRes r in batch.Results) WriteText(r);
+            foreach (SnStripResult r in batch.Results) WriteText(r);
             foreach (Refusal r in batch.Refusals) Console.Error.WriteLine($"refused: {r.Path}: {r.Reason}");
-            foreach (SnDep d in batch.Deps) Console.WriteLine($"dep: {d.Path}");
+            foreach (SnDependency dependency in batch.Deps) Console.WriteLine($"dep: {dependency.Path}");
         }
 
         return batch.Refusals.Length > 0
@@ -66,7 +57,7 @@ internal static class SnStrip
             : CliExit.Success;
     }
 
-    private static void WriteText(SnStripRes r)
+    private static void WriteText(SnStripResult r)
     {
         Console.WriteLine(SnStripOut.Render(r));
         if (r.HadSignedIvt)
@@ -75,24 +66,4 @@ internal static class SnStrip
             Console.Error.WriteLine($"refused: {fail.Path}: {fail.Reason}");
     }
 
-    private static string ToJson(SnStripRes r) =>
-        JsonSerializer.Serialize(ToJsonRecord(r), JsonContext.Default.SnStripJson);
-
-    private static SnStripJson ToJsonRecord(SnStripRes r) =>
-        new(
-            r.Path,
-            r.BackupPath,
-            r.PlanPath,
-            r.WasPatched,
-            r.WasDryRun,
-            r.HadSignedIvt,
-            r.DepsPatched,
-            r.Deps.Select(ToDepJson).ToArray(),
-            r.DepFails.Select(MapRefusal).ToArray());
-
-    private static SnDepJson ToDepJson(SnDep dep) =>
-        new(dep.Path, dep.BackupPath, dep.PlanPath);
-
-    private static RefusalJson MapRefusal(Refusal refusal) =>
-        InspectMap.MapRefusal(refusal);
 }

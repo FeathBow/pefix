@@ -5,4 +5,5 @@ namespace PeFix.Cli;
 internal sealed record RefusalJson(
     [property: JsonPropertyName("path")] string Path,
     [property: JsonPropertyName("reason")] string Reason,
-    [property: JsonPropertyName("before")] InspectJson Before);
+    [property: JsonPropertyName("before")] InspectJson Before,
+    [property: JsonPropertyName("schema_version"), JsonPropertyOrder(-1)] int SchemaVersion = 1);

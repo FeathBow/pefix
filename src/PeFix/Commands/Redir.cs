@@ -1,4 +1,3 @@
-using System.Text.Json;
 using PeFix.Cli;
 using PeFix.Patch;
 
@@ -6,8 +5,10 @@ namespace PeFix.Commands;
 
 internal static class Redir
 {
-    internal static CliExit Run(string path, string? fromArg, string? toArg, bool backup, bool dryRun, bool json)
+    internal static CliExit Run(RedirArgs args)
     {
+        string? fromArg = args.FromArg;
+        string? toArg = args.ToArg;
         if (string.IsNullOrEmpty(fromArg)) return CliErr.Usage("--from is required.");
         if (string.IsNullOrEmpty(toArg)) return CliErr.Usage("--to is required.");
 
@@ -30,18 +31,18 @@ internal static class Redir
         if (toVer.Major > ushort.MaxValue || toVer.Minor > ushort.MaxValue || toVer.Build > ushort.MaxValue || toVer.Revision > ushort.MaxValue)
             return CliErr.Usage("--to version fields must each be in [0..65535].");
 
-        RedirOptions options = new(name, fromVer, toVer, backup, dryRun);
+        RedirOptions options = new(name, fromVer, toVer, args.Backup, args.DryRun);
 
         return PathRun.FileOrDir(
-            path,
-            file => PathRun.Try(() => RunFile(file, options, json)),
-            dir => PathRun.Try(() => RunDir(dir, options, json)));
+            args.Path,
+            file => PathRun.TryFile(file, args.Json, () => RunFile(file, options, args.Json)),
+            dir => PathRun.Try(() => RunDir(dir, options, args.Json)));
     }
 
     private static CliExit RunFile(string path, RedirOptions options, bool json)
     {
         RedirResult result = RedirPatch.Redir(path, options);
-        if (json) JsonOut.Write(ToJson(result));
+        if (json) JsonOut.Write(JsonWriter.Render(result));
         else WriteText(result);
         return CliExit.Success;
     }
@@ -50,7 +51,7 @@ internal static class Redir
     {
         RedBatch batch = RedirPatch.RedirDir(dir, options);
         if (json)
-            JsonOut.Write(ToJson(batch));
+            JsonOut.Write(JsonWriter.Render(batch));
         else
         {
             string dirName = Path.GetFileName(dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
@@ -69,27 +70,20 @@ internal static class Redir
         Console.WriteLine(RedirOut.Render(r));
     }
 
-    private static string ToJson(RedirResult r) =>
-        JsonSerializer.Serialize(ToJsonRecord(r), JsonContext.Default.RedirJson);
-
-    private static string ToJson(RedBatch batch) =>
-        JsonSerializer.Serialize(
-            new RedBatchJson(
-                batch.Directory,
-                batch.Results.Select(ToJsonRecord).ToArray(),
-                batch.Refusals.Select(MapRefusal).ToArray()),
-            JsonContext.Default.RedBatchJson);
-
-    private static RedirJson ToJsonRecord(RedirResult r) =>
-        new(r.Path, r.BackupPath, r.PlanPath, r.WasDryRun, r.RowsPatched);
-
-    private static RefusalJson MapRefusal(Refusal refusal) =>
-        InspectMap.MapRefusal(refusal);
-
     private static void WriteBatch(RedBatch batch)
     {
         foreach (RedirResult r in batch.Results) WriteText(r);
         foreach (Refusal r in batch.Refusals)
             Console.Error.WriteLine($"refused: {r.Path}: {r.Reason}");
+    }
+
+    internal sealed class RedirArgs
+    {
+        public required string Path { get; init; }
+        public required string? FromArg { get; init; }
+        public required string? ToArg { get; init; }
+        public required bool Backup { get; init; }
+        public required bool DryRun { get; init; }
+        public required bool Json { get; init; }
     }
 }

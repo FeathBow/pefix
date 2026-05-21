@@ -7,7 +7,7 @@ internal static class ClosureCmd
     internal static Command Create()
     {
         var opts = new OptSet();
-        var cmd = new Command("closure", "Walks the transitive AssemblyRef graph and reports every unresolved dependency with its full chain.");
+        var cmd = new Command("closure", "Walks the transitive AssemblyRef graph and reports unresolved dependency chains.");
         opts.AddTo(cmd);
         cmd.SetAction(r => (int)Closure.Run(
             r.GetValue(opts.PathArg)!,

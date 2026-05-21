@@ -5,7 +5,7 @@ namespace PeFix.Cli;
 
 internal static class SnStripOut
 {
-    public static string Render(SnStripRes r)
+    public static string Render(SnStripResult r)
     {
         string status = Status(r);
         string summary = SummaryOf(r);
@@ -14,7 +14,10 @@ internal static class SnStripOut
         List<(string, string)> details = new()
         {
             ("Strong Name:", StrongNameLabel(r)),
-            ("Signed IVT:", InspectOut.FormatBool(r.HadSignedIvt))
+            ("Signed IVT:", InspectOut.FormatBool(r.HadSignedIvt)),
+            ("Targets:", TargetText.Format(r.Ops)),
+            ("Repair Class:", RepairClassLabel(r)),
+            ("Not Proven:", SnStripJson.UnverifiedRiskText)
         };
 
         if (r.WasDryRun)
@@ -33,7 +36,9 @@ internal static class SnStripOut
 
         if (r.DepsPatched > 0)
         {
-            details.Add(("Deps Patched:", r.DepsPatched.ToString(CultureInfo.InvariantCulture)));
+            string depLabel = r.WasDryRun ? "Dependencies:" : "Dependencies Patched:";
+            details.Add((depLabel, r.DepsPatched.ToString(CultureInfo.InvariantCulture)));
+            details.Add(("Dependency Targets:", FormatDependencyTargets(r)));
         }
 
         return new MutBlock(
@@ -45,38 +50,55 @@ internal static class SnStripOut
             details.ToArray()).Render();
     }
 
-    private static string Status(SnStripRes r) => (r.WasDryRun, r.WasPatched) switch
+    private static string Status(SnStripResult r) => r.Outcome switch
     {
-        (true, _) => "DRY-RUN",
-        (false, true) => "PATCHED",
+        SnStripOutcome.DryRun => "DRY-RUN",
+        SnStripOutcome.Patched => "PATCHED",
         _ => "UNCHANGED",
     };
 
-    private static string SummaryOf(SnStripRes r) => (r.WasDryRun, r.WasPatched) switch
+    private static string SummaryOf(SnStripResult r) => r.Outcome switch
     {
-        (true, _) => "Would strip strong-name signing from this assembly.",
-        (false, true) => "Strong-name signing stripped.",
+        SnStripOutcome.DryRun => "Would strip strong-name signing from this assembly.",
+        SnStripOutcome.Patched => "Strong-name signing stripped.",
+        SnStripOutcome.DepRefused => "Dependency rewrite was refused; assembly was left unchanged.",
         _ => "Assembly is not strong-name signed; nothing to strip.",
     };
 
-    private static string ActionOf(SnStripRes r) => (r.WasDryRun, r.WasPatched) switch
+    private static string ActionOf(SnStripResult r) => r.Outcome switch
     {
-        (true, _) => $"Run: pefix snstrip {Path.GetFileName(r.Path)} --apply",
-        (false, true) => BackupAction(r),
+        SnStripOutcome.DryRun => $"Run: pefix snstrip {Path.GetFileName(r.Path)} --apply",
+        SnStripOutcome.Patched => BackupAction(r),
+        SnStripOutcome.DepRefused => "Resolve dependency refusal and rerun snstrip.",
         _ => "No action needed.",
     };
 
-    private static string StrongNameLabel(SnStripRes r) => (r.WasPatched, r.WasDryRun) switch
+    private static string StrongNameLabel(SnStripResult r) => r.Outcome switch
     {
-        (true, _) => "No (was Yes)",
-        (false, true) => "Yes",
+        SnStripOutcome.Patched => "No (was Yes)",
+        SnStripOutcome.DryRun => r.WasSigned ? "Yes" : "No",
+        SnStripOutcome.DepRefused => "Yes",
         _ => "No",
     };
 
-    private static string BackupAction(SnStripRes r)
+    private static string RepairClassLabel(SnStripResult r) => r.Outcome == SnStripOutcome.Unsigned
+        ? RepairClass.DiagnosticOnly
+        : SnStripJson.RepairClassValue;
+
+    private static string BackupAction(SnStripResult r)
     {
         return r.BackupPath is not null
-            ? $"Backup written to {Path.GetFileName(r.BackupPath)}."
-            : "Backup skipped (--no-backup).";
+            ? $"Backup written to {Path.GetFileName(r.BackupPath)}. Run pefix scan <dir> --json to re-check the folder."
+            : "Backup skipped (--no-backup). Run pefix scan <dir> --json to re-check the folder.";
+    }
+
+    private static string FormatDependencyTargets(SnStripResult result)
+    {
+        return string.Join("; ", result.Deps.Select(FormatDependency));
+    }
+
+    private static string FormatDependency(SnDependency dependency)
+    {
+        return $"{Path.GetFileName(dependency.Path)}: {TargetText.Format(dependency.Ops)}";
     }
 }

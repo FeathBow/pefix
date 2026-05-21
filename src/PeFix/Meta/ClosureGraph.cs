@@ -36,7 +36,7 @@ public static class ClosureGraph
             ctx.Unresolved(),
             ctx.Cycles(),
             ctx.RefsWalked,
-            ctx.HostLeaves);
+            ctx.FrameworkLeaves);
     }
 
     private static void WalkRef(ClosureNode entryNode, AsmRef directRef, WalkCtx ctx)
@@ -50,9 +50,11 @@ public static class ClosureGraph
             WalkFrm frm = stack.Pop();
             ctx.CountRef();
 
-            if (DepIndex.ClassifyProvided(frm.Ref.Name) != ProvidedKind.None)
+            ProvidedKind provided = DepIndex.ClassifyProvided(frm.Ref.Name);
+            if (provided != ProvidedKind.None)
             {
-                ctx.CountHost();
+                if (provided is ProvidedKind.Framework)
+                    ctx.CountFramework();
                 continue;
             }
 
@@ -137,11 +139,11 @@ public static class ClosureGraph
 
         public DepIndex Deps { get; }
         public int RefsWalked { get; private set; }
-        public int HostLeaves { get; private set; }
+        public int FrameworkLeaves { get; private set; }
 
         public void CountRef() => RefsWalked++;
 
-        public void CountHost() => HostLeaves++;
+        public void CountFramework() => FrameworkLeaves++;
 
         public ClosureChain[] Unresolved()
         {

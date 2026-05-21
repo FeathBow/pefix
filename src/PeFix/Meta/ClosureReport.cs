@@ -6,4 +6,4 @@ public readonly record struct ClosureReport(
     ClosureChain[] Unresolved,
     ClosureChain[] CycleChains,
     int RefsWalked,
-    int HostLeaves);
+    int FrameworkLeaves);

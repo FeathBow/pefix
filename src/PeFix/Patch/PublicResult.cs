@@ -1,3 +1,5 @@
+using PeFix.Plan;
+
 namespace PeFix.Patch;
 
 public readonly record struct PublicResult(
@@ -5,4 +7,7 @@ public readonly record struct PublicResult(
     string? BackupPath,
     string? PlanPath,
     bool WasDryRun,
-    int OpsCount);
+    MutationOp[] Ops)
+{
+    public int OpsCount => Ops.Length;
+}

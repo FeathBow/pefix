@@ -5,37 +5,35 @@ namespace PeFix.Patch;
 
 internal static class HdrPatcher
 {
-    private const int CoffHdrSize = 20;
-    private const int MachOff = 0;
-    private const int OptSizeOff = 16;
-    private const int CharsOff = 18;
-    private const int SectHdrSize = 40;
-    private const int SectVaOff = 12;
-    private const int SectCharsOff = 36;
-    private const int SectSzOff = 8;
-    private const int Pe32OptSize = 224;
+    private const int CoffHeaderSize = 20;
+    private const int MachineOffset = 0;
+    private const int OptionalHeaderSizeOffset = 16;
+    private const int CharacteristicsOffset = 18;
+    private const int SectionHeaderSize = 40;
+    private const int SectionVirtualAddressOffset = 12;
+    private const int SectionCharacteristicsOffset = 36;
+    private const int SectionSizeOffset = 8;
+    private const int Pe32OptionalHeaderSize = 224;
     private const ushort Pe32Magic = 0x10B;
     private const ushort I386Machine = 0x14C;
-    private const ushort Img32BitMach = 0x0100;
+    private const ushort Image32BitMachine = 0x0100;
     private const ushort BigAddrAware = 0x0020;
-    private const ushort HighEntVa = 0x0020;
-    private const uint DefImageBase = 0x00400000;
-    private const uint CodeSectFlag = 0x00000020;
-    private const uint InitDataFlag = 0x00000040;
+    private const ushort HighEntropyVa = 0x0020;
+    private const uint DefaultImageBase = 0x00400000;
+    private const uint CodeSectionFlag = 0x00000020;
+    private const uint InitializedDataFlag = 0x00000040;
 
-    public static void Patch(string path)
+    public static byte[] Patch(byte[] original)
     {
-        byte[] bytes = File.ReadAllBytes(path);
-        using var stream = new MemoryStream(bytes, writable: true);
+        byte[] patched = (byte[])original.Clone();
+        using var stream = new MemoryStream(patched, writable: true);
         using var reader = new PEReader(stream, PEStreamOptions.LeaveOpen);
         PEHeaders headers = reader.PEHeaders;
         PEHeader peHeader = headers.PEHeader ?? throw new InvalidOperationException("The PE header is missing.");
         CheckSupport(headers, peHeader);
-        RewriteHdr(bytes, headers, FindBod(bytes, headers, peHeader.BaseOfCode));
-        NormCorFlags(bytes, headers);
-        string tmpPath = $"{path}.tmp.{Environment.ProcessId}";
-        File.WriteAllBytes(tmpPath, bytes);
-        File.Move(tmpPath, path, overwrite: true);
+        RewriteHeader(patched, headers, FindBaseOfData(patched, headers, peHeader.BaseOfCode));
+        NormalizeCorFlags(patched, headers);
+        return patched;
     }
 
     private static void CheckSupport(PEHeaders headers, PEHeader peHeader)
@@ -51,39 +49,39 @@ internal static class HdrPatcher
         }
     }
 
-    private static void RewriteHdr(byte[] bytes, PEHeaders headers, uint baseOfData)
+    private static void RewriteHeader(byte[] bytes, PEHeaders headers, uint baseOfData)
     {
-        int optStart = headers.PEHeaderStartOffset;
-        int coffStart = optStart - CoffHdrSize;
-        WriteUInt16(bytes, coffStart + MachOff, I386Machine);
-        WriteUInt16(bytes, coffStart + OptSizeOff, Pe32OptSize);
-        PatchChars(bytes, coffStart + CharsOff);
-        WriteOptHdr(bytes, optStart, baseOfData);
-        ShiftSects(bytes, headers, optStart);
+        int optionalHeaderStart = headers.PEHeaderStartOffset;
+        int coffStart = optionalHeaderStart - CoffHeaderSize;
+        WriteUInt16(bytes, coffStart + MachineOffset, I386Machine);
+        WriteUInt16(bytes, coffStart + OptionalHeaderSizeOffset, Pe32OptionalHeaderSize);
+        PatchCharacteristics(bytes, coffStart + CharacteristicsOffset);
+        WriteOptionalHeader(bytes, optionalHeaderStart, baseOfData);
+        ShiftSections(bytes, headers, optionalHeaderStart);
     }
 
-    private static void PatchChars(byte[] bytes, int offset)
+    private static void PatchCharacteristics(byte[] bytes, int offset)
     {
         ushort characteristics = ReadUInt16(bytes, offset);
-        characteristics = (ushort)((characteristics | Img32BitMach) & ~BigAddrAware);
+        characteristics = (ushort)((characteristics | Image32BitMachine) & ~BigAddrAware);
         WriteUInt16(bytes, offset, characteristics);
     }
 
-    private static void WriteOptHdr(byte[] bytes, int offset, uint baseOfData)
+    private static void WriteOptionalHeader(byte[] bytes, int offset, uint baseOfData)
     {
-        byte[] header = BuildPe32Opt(bytes, offset, baseOfData);
+        byte[] header = BuildPe32OptionalHeader(bytes, offset, baseOfData);
         header.CopyTo(bytes.AsSpan(offset, header.Length));
     }
 
-    private static byte[] BuildPe32Opt(byte[] bytes, int offset, uint baseOfData)
+    private static byte[] BuildPe32OptionalHeader(byte[] bytes, int offset, uint baseOfData)
     {
-        byte[] header = new byte[Pe32OptSize];
+        byte[] header = new byte[Pe32OptionalHeaderSize];
         bytes.AsSpan(offset, 24).CopyTo(header);
         WriteUInt16(header, 0, Pe32Magic);
         WriteUInt32(header, 24, baseOfData);
-        WriteUInt32(header, 28, DefImageBase);
+        WriteUInt32(header, 28, DefaultImageBase);
         bytes.AsSpan(offset + 32, 40).CopyTo(header.AsSpan(32, 40));
-        WriteUInt16(header, 70, (ushort)(ReadUInt16(header, 70) & ~HighEntVa));
+        WriteUInt16(header, 70, (ushort)(ReadUInt16(header, 70) & ~HighEntropyVa));
         WriteUInt32(header, 72, checked((uint)ReadUInt64(bytes, offset + 72)));
         WriteUInt32(header, 76, checked((uint)ReadUInt64(bytes, offset + 80)));
         WriteUInt32(header, 80, checked((uint)ReadUInt64(bytes, offset + 88)));
@@ -93,22 +91,22 @@ internal static class HdrPatcher
         return header;
     }
 
-    private static void ShiftSects(byte[] bytes, PEHeaders headers, int optStart)
+    private static void ShiftSections(byte[] bytes, PEHeaders headers, int optionalHeaderStart)
     {
-        short oldOptSize = headers.CoffHeader.SizeOfOptionalHeader;
-        if (oldOptSize == Pe32OptSize)
+        short oldOptionalHeaderSize = headers.CoffHeader.SizeOfOptionalHeader;
+        if (oldOptionalHeaderSize == Pe32OptionalHeaderSize)
         {
             return;
         }
 
-        int oldStart = optStart + oldOptSize;
-        int newStart = optStart + Pe32OptSize;
-        int tableLen = headers.CoffHeader.NumberOfSections * SectHdrSize;
+        int oldStart = optionalHeaderStart + oldOptionalHeaderSize;
+        int newStart = optionalHeaderStart + Pe32OptionalHeaderSize;
+        int tableLen = headers.CoffHeader.NumberOfSections * SectionHeaderSize;
         Array.Copy(bytes, oldStart, bytes, newStart, tableLen);
         bytes.AsSpan(newStart + tableLen, oldStart - newStart).Clear();
     }
 
-    private static void NormCorFlags(byte[] bytes, PEHeaders headers)
+    private static void NormalizeCorFlags(byte[] bytes, PEHeaders headers)
     {
         int flagsOffset = headers.CorHeaderStartOffset + 16;
         int flags = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(flagsOffset, sizeof(int)));
@@ -116,22 +114,22 @@ internal static class HdrPatcher
         BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(flagsOffset, sizeof(int)), flags);
     }
 
-    private static uint FindBod(byte[] bytes, PEHeaders headers, int baseOfCode)
+    private static uint FindBaseOfData(byte[] bytes, PEHeaders headers, int baseOfCode)
     {
         int tableStart = headers.PEHeaderStartOffset + headers.CoffHeader.SizeOfOptionalHeader;
         short sectionCount = headers.CoffHeader.NumberOfSections;
         for (int index = 0; index < sectionCount; index++)
         {
-            int offset = tableStart + (index * SectHdrSize);
-            uint virtualAddress = ReadUInt32(bytes, offset + SectVaOff);
-            uint size = ReadUInt32(bytes, offset + SectSzOff);
-            uint characteristics = ReadUInt32(bytes, offset + SectCharsOff);
-            if (size == 0 || virtualAddress == baseOfCode || (characteristics & CodeSectFlag) != 0)
+            int offset = tableStart + (index * SectionHeaderSize);
+            uint virtualAddress = ReadUInt32(bytes, offset + SectionVirtualAddressOffset);
+            uint size = ReadUInt32(bytes, offset + SectionSizeOffset);
+            uint characteristics = ReadUInt32(bytes, offset + SectionCharacteristicsOffset);
+            if (size == 0 || virtualAddress == baseOfCode || (characteristics & CodeSectionFlag) != 0)
             {
                 continue;
             }
 
-            if ((characteristics & InitDataFlag) != 0)
+            if ((characteristics & InitializedDataFlag) != 0)
             {
                 return virtualAddress;
             }

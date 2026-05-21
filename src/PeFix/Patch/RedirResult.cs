@@ -1,3 +1,5 @@
+using PeFix.Plan;
+
 namespace PeFix.Patch;
 
 public readonly record struct RedirResult(
@@ -5,4 +7,7 @@ public readonly record struct RedirResult(
     string? BackupPath,
     string? PlanPath,
     bool WasDryRun,
-    int RowsPatched);
+    MutationOp[] Ops)
+{
+    public int RowsPatched => Ops.Length;
+}

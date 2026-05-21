@@ -1,4 +1,3 @@
-using System.Text.Json;
 using PeFix.Cli;
 using PeFix.Patch;
 
@@ -8,13 +7,13 @@ internal static class Public
 {
     internal static CliExit Run(string path, PubOptions options, bool json)
     {
-        return PathRun.FileOnly(path, file => PathRun.Try(() => RunFile(file, options, json)));
+        return PathRun.FileOnly(path, file => PathRun.TryFile(file, json, () => RunFile(file, options, json)));
     }
 
     private static CliExit RunFile(string path, PubOptions options, bool json)
     {
         PublicResult result = PublicPatch.Publicize(path, options);
-        if (json) JsonOut.Write(ToJson(result));
+        if (json) JsonOut.Write(JsonWriter.Render(result));
         else WriteText(result);
         return CliExit.Success;
     }
@@ -24,8 +23,4 @@ internal static class Public
         Console.WriteLine(PublicOut.Render(r));
     }
 
-    private static string ToJson(PublicResult r) =>
-        JsonSerializer.Serialize(
-            new PublicJson(r.Path, r.BackupPath, r.PlanPath, r.WasDryRun, r.OpsCount),
-            JsonContext.Default.PublicJson);
 }

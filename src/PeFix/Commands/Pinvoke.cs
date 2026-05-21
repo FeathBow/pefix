@@ -1,4 +1,3 @@
-using System.Text.Json;
 using PeFix.Cli;
 using PeFix.Patch;
 
@@ -10,14 +9,14 @@ internal static class Pinvoke
     {
         return PathRun.FileOrDir(
             path,
-            file => PathRun.Try(() => RunFile(file, json)),
+            file => PathRun.TryFile(file, json, () => RunFile(file, json)),
             dir => PathRun.Try(() => RunDir(dir, json)));
     }
 
     private static CliExit RunFile(string path, bool json)
     {
-        PinvokeRes result = PinvokeScan.Inspect(path);
-        if (json) JsonOut.Write(ToJson(result));
+        PinvokeResult result = PinvokeScan.Inspect(path);
+        if (json) JsonOut.Write(JsonWriter.Render(result));
         else WriteText(result);
         return CliExit.Success;
     }
@@ -26,7 +25,7 @@ internal static class Pinvoke
     {
         PinBatch batch = PinvokeScan.InspectDir(dir);
         if (json)
-            JsonOut.Write(ToJson(batch));
+            JsonOut.Write(JsonWriter.Render(batch));
         else
         {
             string dirName = Path.GetFileName(dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
@@ -39,7 +38,7 @@ internal static class Pinvoke
         return batch.Refusals.Length > 0 ? CliExit.Issue : CliExit.Success;
     }
 
-    private static void WriteText(PinvokeRes r)
+    private static void WriteText(PinvokeResult r)
     {
         Console.WriteLine(r.Path);
         if (r.Calls.Length == 0)
@@ -57,26 +56,9 @@ internal static class Pinvoke
         }
     }
 
-    private static string ToJson(PinvokeRes r) =>
-        JsonSerializer.Serialize(ToJsonRecord(r), JsonContext.Default.PinvokeJson);
-
-    private static string ToJson(PinBatch batch) =>
-        JsonSerializer.Serialize(
-            new PinBatchJson(
-                batch.Directory,
-                batch.Results.Select(ToJsonRecord).ToArray(),
-                batch.Refusals.Select(MapRefusal).ToArray()),
-            JsonContext.Default.PinBatchJson);
-
-    private static PinvokeJson ToJsonRecord(PinvokeRes r) =>
-        new(r.Path, [.. r.Calls.Select(c => new PinCallJson(c.Module, c.DeclType, c.MethodName, c.EntryName))]);
-
-    private static RefusalJson MapRefusal(Refusal refusal) =>
-        InspectMap.MapRefusal(refusal);
-
     private static void WriteBatch(PinBatch batch)
     {
-        foreach (PinvokeRes r in batch.Results) WriteText(r);
+        foreach (PinvokeResult r in batch.Results) WriteText(r);
         foreach (Refusal r in batch.Refusals)
             Console.Error.WriteLine($"refused: {r.Path}: {r.Reason}");
     }

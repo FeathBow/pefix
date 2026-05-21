@@ -30,8 +30,7 @@ internal static class Closure
 
         if (json)
         {
-            JsonOut.Write(System.Text.Json.JsonSerializer.Serialize(
-                ClosureMap.Map(closure), JsonContext.Default.ClosureJson));
+            JsonOut.Write(JsonWriter.Render(closure));
         }
         else
         {

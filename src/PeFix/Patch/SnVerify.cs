@@ -21,10 +21,16 @@ internal static class SnVerify
         if (!publicKeyHandle.IsNil && reader.GetBlobBytes(publicKeyHandle).AsSpan().IndexOfAnyExcept((byte)0) >= 0)
             throw Fail(path, "Assembly public key blob is not zeroed.");
 
-        VerifySignature(path, bytes, peReader.PEHeaders, corHeader);
+        VerifySignature(new SignatureVerifyRequest
+        {
+            Path = path,
+            Bytes = bytes,
+            Headers = peReader.PEHeaders,
+            CorHeader = corHeader
+        });
     }
 
-    public static void DepTokensCleared(string path, List<string> targetNames)
+    public static void DepTokensCleared(string path, IReadOnlyList<string> targetNames)
     {
         bool sawTargetToken = false;
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -53,16 +59,24 @@ internal static class SnVerify
             throw Fail(path, "No rewritten AssemblyRef public key token was found.");
     }
 
-    private static void VerifySignature(string path, byte[] bytes, PEHeaders headers, CorHeader corHeader)
+    private static void VerifySignature(SignatureVerifyRequest request)
     {
-        DirectoryEntry strongNameDirectory = corHeader.StrongNameSignatureDirectory;
+        DirectoryEntry strongNameDirectory = request.CorHeader.StrongNameSignatureDirectory;
         if (strongNameDirectory.Size == 0) return;
 
-        int strongNameOffset = PeUtils.RvaToOffset(headers, strongNameDirectory.RelativeVirtualAddress);
-        if (bytes.AsSpan(strongNameOffset, strongNameDirectory.Size).IndexOfAnyExcept((byte)0) >= 0)
-            throw Fail(path, "Strong-name signature blob is not zeroed.");
+        int strongNameOffset = PeUtils.RvaToOffset(request.Headers, strongNameDirectory.RelativeVirtualAddress);
+        if (request.Bytes.AsSpan(strongNameOffset, strongNameDirectory.Size).IndexOfAnyExcept((byte)0) >= 0)
+            throw Fail(request.Path, "Strong-name signature blob is not zeroed.");
     }
 
     private static InvalidOperationException Fail(string path, string reason) =>
         new($"snstrip verification failed for {path}: {reason}");
+
+    private sealed record SignatureVerifyRequest
+    {
+        public required string Path { get; init; }
+        public required byte[] Bytes { get; init; }
+        public required PEHeaders Headers { get; init; }
+        public required CorHeader CorHeader { get; init; }
+    }
 }

@@ -14,7 +14,7 @@ internal static class InspectMap
 
     public static InspectJson Map(Inspection result, Func<BepDep, BepDepState> depState)
     {
-        RepairInfo repair = MapRepairInfo(result);
+        RepairInfo repair = RepairGuide.ForInspect(result);
         return new InspectJson(
             result.Path,
             result.ValidPe,
@@ -104,40 +104,4 @@ internal static class InspectMap
         _ => throw new ArgumentOutOfRangeException(nameof(result), result.Status, "Unsupported inspection status.")
     };
 
-    public static RepairInfo MapRepairInfo(Inspection result)
-    {
-        if (string.Equals(result.ReasonCode, ReasonCode.NonPortable, StringComparison.Ordinal))
-        {
-            string repairClass = result.Status == Status.Fixable
-                ? RepairClass.AutoFix
-                : RepairClass.GuidedFix;
-            return new RepairInfo(
-                repairClass,
-                NextStepOr(result, "Run pefix fix <path> --apply to rewrite the PE header."));
-        }
-
-        return result.ReasonCode switch
-        {
-            ReasonCode.R2R => new RepairInfo(
-                RepairClass.DiagnosticOnly,
-                "Verify the .NET runtime version matches the R2R compilation target before changing the artifact."),
-            ReasonCode.Trimmable => new RepairInfo(
-                RepairClass.DiagnosticOnly,
-                "Verify required types are preserved before trimming."),
-            ReasonCode.Bundle => new RepairInfo(
-                RepairClass.DiagnosticOnly,
-                "Use a non-bundled assembly or inspect the embedded assembly separately."),
-            ReasonCode.PlatformApi => new RepairInfo(
-                RepairClass.DiagnosticOnly,
-                "Find a cross-platform alternative or target matching operating systems."),
-            _ => new RepairInfo(
-                RepairClass.DiagnosticOnly,
-                "No repair action is available for this diagnosis.")
-        };
-    }
-
-    private static string NextStepOr(Inspection result, string fallback)
-    {
-        return result.NextSteps.Length > 0 ? result.NextSteps[0] : fallback;
-    }
 }

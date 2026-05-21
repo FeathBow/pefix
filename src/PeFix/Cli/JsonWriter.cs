@@ -18,9 +18,9 @@ internal static class JsonWriter
             view.Directory,
             json.Summary,
             [.. view.Files.Select(file => file.Json!)],
-            [.. view.Conflicts.Select(MapConf)],
-            [.. view.MissingRefs.Select(MapMiss)],
-            [.. view.DupProviders.Select(MapDup)],
+            [.. view.Conflicts.Select(MapConflict)],
+            [.. view.MissingRefs.Select(MapMissing)],
+            [.. view.DupProviders.Select(MapDuplicate)],
             [.. view.Issues.Select(MapIssue)],
             json.Gate);
         return JsonSerializer.Serialize(scanJson, JsonContext.Default.ScanJson);
@@ -33,12 +33,68 @@ internal static class JsonWriter
 
     public static string Render(Refusal refusal)
     {
-        return JsonSerializer.Serialize(MapRefusal(refusal), JsonContext.Default.RefusalJson);
+        return JsonSerializer.Serialize(InspectMap.MapRefusal(refusal), JsonContext.Default.RefusalJson);
     }
 
     public static string Render(BatchResult result)
     {
         return JsonSerializer.Serialize(CreateBatch(result), JsonContext.Default.BatchFixJson);
+    }
+
+    public static string Render(ClosureReport result)
+    {
+        return JsonSerializer.Serialize(ClosureMap.Map(result), JsonContext.Default.ClosureJson);
+    }
+
+    public static string Render(RedirResult result)
+    {
+        return JsonSerializer.Serialize(MutationJsonMap.Map(result), JsonContext.Default.RedirJson);
+    }
+
+    public static string Render(RedBatch batch)
+    {
+        var batchJson = new RedBatchJson(
+            batch.Directory,
+            [.. batch.Results.Select(MutationJsonMap.Map)],
+            [.. batch.Refusals.Select(InspectMap.MapRefusal)]);
+        return JsonSerializer.Serialize(batchJson, JsonContext.Default.RedBatchJson);
+    }
+
+    public static string Render(SnStripResult result)
+    {
+        return JsonSerializer.Serialize(MutationJsonMap.Map(result), JsonContext.Default.SnStripJson);
+    }
+
+    public static string Render(SnBatch batch)
+    {
+        var batchJson = new SnBatchJson(
+            batch.Directory,
+            batch.Outcome,
+            batch.DryRun,
+            [.. batch.Results.Select(MutationJsonMap.MapBatchResult)],
+            [.. batch.Refusals.Select(InspectMap.MapRefusal)],
+            batch.Deps.Length,
+            [.. batch.Deps.Select(MutationJsonMap.Map)]);
+        return JsonSerializer.Serialize(batchJson, JsonContext.Default.SnBatchJson);
+    }
+
+    public static string Render(PublicResult result)
+    {
+        return JsonSerializer.Serialize(MutationJsonMap.Map(result), JsonContext.Default.PublicJson);
+    }
+
+    public static string Render(PinvokeResult result)
+    {
+        return JsonSerializer.Serialize(MutationJsonMap.Map(result), JsonContext.Default.PinvokeJson);
+    }
+
+    public static string Render(PinBatch batch)
+    {
+        var batchJson = new PinBatchJson(
+            batch.Directory,
+            [.. batch.Results.Select(MutationJsonMap.Map)],
+            [.. batch.Refusals.Select(InspectMap.MapRefusal)]);
+        return JsonSerializer.Serialize(batchJson, JsonContext.Default.PinBatchJson);
     }
 
     private static FixJson CreateFix(PatchResult result)
@@ -66,12 +122,7 @@ internal static class JsonWriter
             InspectMap.Map(result.After));
     }
 
-    private static RefusalJson MapRefusal(Refusal refusal)
-    {
-        return InspectMap.MapRefusal(refusal);
-    }
-
-    private static ScanConflict MapConf(DirConf conflict)
+    private static ScanConflict MapConflict(DirConf conflict)
     {
         return new ScanConflict(
             conflict.Assembly,
@@ -81,7 +132,7 @@ internal static class JsonWriter
             conflict.ProvidedBy);
     }
 
-    private static ScanMissing MapMiss(DirMiss missingRef)
+    private static ScanMissing MapMissing(DirMiss missingRef)
     {
         return new ScanMissing(
             missingRef.Assembly,
@@ -89,7 +140,7 @@ internal static class JsonWriter
             missingRef.RequiredBy);
     }
 
-    private static ScanDup MapDup(DirDup dupProvider)
+    private static ScanDup MapDuplicate(DirDup dupProvider)
     {
         return new ScanDup(dupProvider.Assembly, dupProvider.Files);
     }
@@ -120,6 +171,6 @@ internal static class JsonWriter
             result.Directory,
             summary,
             result.Results.Select(CreateFix).ToArray(),
-            result.Refusals.Select(MapRefusal).ToArray());
+            result.Refusals.Select(InspectMap.MapRefusal).ToArray());
     }
 }

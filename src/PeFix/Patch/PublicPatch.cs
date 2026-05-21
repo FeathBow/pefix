@@ -13,13 +13,21 @@ public static class PublicPatch
 
     public static PublicResult Publicize(string path, PubOptions options)
     {
+        return Publicize(path, options, VerifyPublicized);
+    }
+
+    internal static PublicResult Publicize(
+        string path,
+        PubOptions options,
+        Action<string, IReadOnlyList<MutationOp>> verify)
+    {
         string fullPath = Path.GetFullPath(path);
         byte[] origBytes = File.ReadAllBytes(fullPath);
 
         using var readStream = new MemoryStream(origBytes, writable: false);
         using var peReader = new PEReader(readStream);
         CorHeader corHeader = peReader.PEHeaders.CorHeader
-            ?? throw new InvalidOperationException("Not a managed assembly.");
+            ?? throw new RefusalException("Not a managed assembly.");
         MetadataReader reader = peReader.GetMetadataReader();
 
         int metaRva = corHeader.MetadataDirectory.RelativeVirtualAddress;
@@ -27,113 +35,154 @@ public static class PublicPatch
         int tableHeapOffset = PeUtils.FindHeap(origBytes, metaOffset, "#~");
 
         byte[] patched = (byte[])origBytes.Clone();
-        List<MutationOp> ops = [];
-        HashSet<int> skipTypes = [];
-
-        FlipTypes(reader, origBytes, patched, tableHeapOffset, ops, skipTypes);
-        FlipMethods(reader, origBytes, patched, tableHeapOffset, ops, skipTypes);
-        FlipFields(reader, origBytes, patched, tableHeapOffset, ops, skipTypes);
+        var context = new PublicizeContext
+        {
+            Reader = reader,
+            Before = origBytes,
+            After = patched,
+            TableHeapOffset = tableHeapOffset
+        };
+        FlipTypes(context);
+        FlipMethods(context);
+        FlipFields(context);
 
         if (options.DryRun)
-            return new PublicResult(fullPath, null, null, true, ops.Count);
+            return new PublicResult(fullPath, null, null, true, context.Ops.ToArray());
 
-        if (ops.Count == 0)
-            return new PublicResult(fullPath, null, null, false, 0);
+        if (context.Ops.Count == 0)
+            return new PublicResult(fullPath, null, null, false, []);
 
-        string? backupPath = options.Backup ? PeUtils.Backup(fullPath) : null;
-        PeUtils.WriteVerifiedAtomic(fullPath, patched, tmpPath =>
+        VerifiedWriteResult write = VerifiedWrite.Apply(new VerifiedWrite.Request
         {
-            VerifyPublicized(tmpPath, ops);
-            Validator.Validate(tmpPath);
+            Path = fullPath,
+            Original = origBytes,
+            Patched = patched,
+            Ops = context.Ops,
+            Backup = options.Backup,
+            Verify = tmpPath => verify(tmpPath, context.Ops)
         });
-        PlanEmit.Write(fullPath,
-            PlanFileInfo.Describe(fullPath, origBytes, PeUtils.ReadMvid(origBytes)),
-            PlanFileInfo.Describe(fullPath, patched, PeUtils.ReadMvid(patched)),
-            ops, backupPath);
-        string planPath = PlanEmit.SidecarPath(fullPath);
 
-        return new PublicResult(fullPath, backupPath, planPath, false, ops.Count);
+        return new PublicResult(fullPath, write.BackupPath, write.PlanPath, false, context.Ops.ToArray());
     }
 
-    private static void FlipTypes(MetadataReader reader, byte[] before, byte[] after, int tableHeapOffset, List<MutationOp> ops, HashSet<int> skipTypes)
+    private static void FlipTypes(PublicizeContext context)
     {
-        foreach (TypeDefinitionHandle handle in reader.TypeDefinitions)
+        foreach (TypeDefinitionHandle handle in context.Reader.TypeDefinitions)
         {
-            TypeDefinition type = reader.GetTypeDefinition(handle);
-            string name = reader.GetString(type.Name);
+            TypeDefinition type = context.Reader.GetTypeDefinition(handle);
+            string name = context.Reader.GetString(type.Name);
             int rowIndex = MetadataTokens.GetRowNumber(handle);
 
             if (IsAngleName(name) || string.Equals(name, "<Module>", StringComparison.Ordinal))
             {
-                skipTypes.Add(rowIndex);
+                context.SkipTypes.Add(rowIndex);
                 continue;
             }
 
-            int rowOffset = EcmaTables.RowOffset(TableId.TypeDef, before, tableHeapOffset, rowIndex);
-            uint flagsBefore = BinaryPrimitives.ReadUInt32LittleEndian(before.AsSpan(rowOffset, 4));
+            int rowOffset = EcmaTables.RowOffset(new EcmaTables.RowOffsetRequest
+            {
+                TableId = TableId.TypeDef,
+                Bytes = context.Before,
+                TableHeapOffset = context.TableHeapOffset,
+                RowIndex = rowIndex
+            });
+            uint flagsBefore = BinaryPrimitives.ReadUInt32LittleEndian(context.Before.AsSpan(rowOffset, 4));
             TypeAttributes vis = (TypeAttributes)flagsBefore & TypeAttributes.VisibilityMask;
             TypeAttributes target = IsNested(vis) ? TypeAttributes.NestedPublic : TypeAttributes.Public;
             uint flagsAfter = (flagsBefore & ~(uint)TypeAttributes.VisibilityMask) | (uint)target;
             if (flagsBefore == flagsAfter) continue;
 
-            BinaryPrimitives.WriteUInt32LittleEndian(after.AsSpan(rowOffset, 4), flagsAfter);
-            ops.Add(MakeOp("typedef.flags", "TypeDef", rowIndex, rowOffset,
-                before.AsSpan(rowOffset, 4), after.AsSpan(rowOffset, 4)));
+            BinaryPrimitives.WriteUInt32LittleEndian(context.After.AsSpan(rowOffset, 4), flagsAfter);
+            context.Ops.Add(MakeOp(new PublicTarget
+            {
+                Kind = "typedef.flags",
+                Table = "TypeDef",
+                Row = rowIndex,
+                Offset = rowOffset,
+                Before = context.Before.AsSpan(rowOffset, 4).ToArray(),
+                After = context.After.AsSpan(rowOffset, 4).ToArray()
+            }));
         }
     }
 
-    private static void FlipMethods(MetadataReader reader, byte[] before, byte[] after, int tableHeapOffset, List<MutationOp> ops, HashSet<int> skipTypes)
+    private static void FlipMethods(PublicizeContext context)
     {
-        foreach (MethodDefinitionHandle handle in reader.MethodDefinitions)
+        foreach (MethodDefinitionHandle handle in context.Reader.MethodDefinitions)
         {
-            MethodDefinition method = reader.GetMethodDefinition(handle);
+            MethodDefinition method = context.Reader.GetMethodDefinition(handle);
             int declaringRow = MetadataTokens.GetRowNumber(method.GetDeclaringType());
-            if (skipTypes.Contains(declaringRow)) continue;
+            if (context.SkipTypes.Contains(declaringRow)) continue;
 
-            string name = reader.GetString(method.Name);
+            string name = context.Reader.GetString(method.Name);
             if (IsAngleName(name)) continue;
 
             int rowIndex = MetadataTokens.GetRowNumber(handle);
-            int rowOffset = EcmaTables.RowOffset(TableId.MethodDef, before, tableHeapOffset, rowIndex);
+            int rowOffset = EcmaTables.RowOffset(new EcmaTables.RowOffsetRequest
+            {
+                TableId = TableId.MethodDef,
+                Bytes = context.Before,
+                TableHeapOffset = context.TableHeapOffset,
+                RowIndex = rowIndex
+            });
             int flagsOffset = rowOffset + MethodFlagsOffset;
-            ushort flagsBefore = BinaryPrimitives.ReadUInt16LittleEndian(before.AsSpan(flagsOffset, 2));
+            ushort flagsBefore = BinaryPrimitives.ReadUInt16LittleEndian(context.Before.AsSpan(flagsOffset, 2));
             ushort flagsAfter = (ushort)((flagsBefore & ~(uint)MethodAttributes.MemberAccessMask) | (uint)MethodAttributes.Public);
             if (flagsBefore == flagsAfter) continue;
 
-            BinaryPrimitives.WriteUInt16LittleEndian(after.AsSpan(flagsOffset, 2), flagsAfter);
-            ops.Add(MakeOp("methoddef.flags", "MethodDef", rowIndex, flagsOffset,
-                before.AsSpan(flagsOffset, 2), after.AsSpan(flagsOffset, 2)));
+            BinaryPrimitives.WriteUInt16LittleEndian(context.After.AsSpan(flagsOffset, 2), flagsAfter);
+            context.Ops.Add(MakeOp(new PublicTarget
+            {
+                Kind = "methoddef.flags",
+                Table = "MethodDef",
+                Row = rowIndex,
+                Offset = flagsOffset,
+                Before = context.Before.AsSpan(flagsOffset, 2).ToArray(),
+                After = context.After.AsSpan(flagsOffset, 2).ToArray()
+            }));
         }
     }
 
-    private static void FlipFields(MetadataReader reader, byte[] before, byte[] after, int tableHeapOffset, List<MutationOp> ops, HashSet<int> skipTypes)
+    private static void FlipFields(PublicizeContext context)
     {
-        foreach (FieldDefinitionHandle handle in reader.FieldDefinitions)
+        foreach (FieldDefinitionHandle handle in context.Reader.FieldDefinitions)
         {
-            FieldDefinition field = reader.GetFieldDefinition(handle);
+            FieldDefinition field = context.Reader.GetFieldDefinition(handle);
             int declaringRow = MetadataTokens.GetRowNumber(field.GetDeclaringType());
-            if (skipTypes.Contains(declaringRow)) continue;
+            if (context.SkipTypes.Contains(declaringRow)) continue;
 
-            string name = reader.GetString(field.Name);
+            string name = context.Reader.GetString(field.Name);
             if (IsAngleName(name)) continue;
 
             int rowIndex = MetadataTokens.GetRowNumber(handle);
-            int rowOffset = EcmaTables.RowOffset(TableId.Field, before, tableHeapOffset, rowIndex);
-            ushort flagsBefore = BinaryPrimitives.ReadUInt16LittleEndian(before.AsSpan(rowOffset, 2));
+            int rowOffset = EcmaTables.RowOffset(new EcmaTables.RowOffsetRequest
+            {
+                TableId = TableId.Field,
+                Bytes = context.Before,
+                TableHeapOffset = context.TableHeapOffset,
+                RowIndex = rowIndex
+            });
+            ushort flagsBefore = BinaryPrimitives.ReadUInt16LittleEndian(context.Before.AsSpan(rowOffset, 2));
             ushort flagsAfter = (ushort)((flagsBefore & ~(uint)FieldAttributes.FieldAccessMask) | (uint)FieldAttributes.Public);
             if (flagsBefore == flagsAfter) continue;
 
-            BinaryPrimitives.WriteUInt16LittleEndian(after.AsSpan(rowOffset, 2), flagsAfter);
-            ops.Add(MakeOp("field.flags", "Field", rowIndex, rowOffset,
-                before.AsSpan(rowOffset, 2), after.AsSpan(rowOffset, 2)));
+            BinaryPrimitives.WriteUInt16LittleEndian(context.After.AsSpan(rowOffset, 2), flagsAfter);
+            context.Ops.Add(MakeOp(new PublicTarget
+            {
+                Kind = "field.flags",
+                Table = "Field",
+                Row = rowIndex,
+                Offset = rowOffset,
+                Before = context.Before.AsSpan(rowOffset, 2).ToArray(),
+                After = context.After.AsSpan(rowOffset, 2).ToArray()
+            }));
         }
     }
 
-    private static MutationOp MakeOp(string targetKind, string tableName, int rowIndex, int offset, ReadOnlySpan<byte> before, ReadOnlySpan<byte> after) =>
+    private static MutationOp MakeOp(PublicTarget target) =>
         new("publicize.flag",
-            new PlanTarget(targetKind, Table: tableName, Row: rowIndex, Offset: offset),
-            HexUtils.Hex(before),
-            HexUtils.Hex(after));
+            new PlanTarget(target.Kind, Table: target.Table, Row: target.Row, Offset: target.Offset),
+            HexUtils.Hex(target.Before),
+            HexUtils.Hex(target.After));
 
     private static void VerifyPublicized(string path, IReadOnlyList<MutationOp> ops)
     {
@@ -219,4 +268,24 @@ public static class PublicPatch
             or TypeAttributes.NestedAssembly
             or TypeAttributes.NestedFamANDAssem
             or TypeAttributes.NestedFamORAssem;
+
+    private sealed class PublicizeContext
+    {
+        public required MetadataReader Reader { get; init; }
+        public required byte[] Before { get; init; }
+        public required byte[] After { get; init; }
+        public required int TableHeapOffset { get; init; }
+        public List<MutationOp> Ops { get; } = [];
+        public HashSet<int> SkipTypes { get; } = [];
+    }
+
+    private sealed class PublicTarget
+    {
+        public required string Kind { get; init; }
+        public required string Table { get; init; }
+        public required int Row { get; init; }
+        public required int Offset { get; init; }
+        public required byte[] Before { get; init; }
+        public required byte[] After { get; init; }
+    }
 }

@@ -1,5 +1,5 @@
 namespace PeFix.Patch;
 
-public readonly record struct PinvokeRes(
+public readonly record struct PinvokeResult(
     string Path,
     PinvokeCall[] Calls);

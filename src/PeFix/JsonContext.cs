@@ -5,8 +5,12 @@ using PeFix.Plan;
 namespace PeFix;
 
 [JsonSerializable(typeof(PefixPlan))]
+[JsonSerializable(typeof(MutationTargetJson))]
+[JsonSerializable(typeof(MutationTargetJson[]))]
 [JsonSerializable(typeof(SnStripJson))]
 [JsonSerializable(typeof(SnStripJson[]))]
+[JsonSerializable(typeof(SnBatchResultJson))]
+[JsonSerializable(typeof(SnBatchResultJson[]))]
 [JsonSerializable(typeof(SnBatchJson))]
 [JsonSerializable(typeof(SnDepJson))]
 [JsonSerializable(typeof(SnDepJson[]))]

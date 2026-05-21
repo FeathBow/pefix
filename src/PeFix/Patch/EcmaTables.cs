@@ -4,13 +4,13 @@ namespace PeFix.Patch;
 
 internal static class EcmaTables
 {
-    internal static int RowOffset(TableId tableId, byte[] bytes, int tableHeapOffset, int rowIndex)
+    internal static int RowOffset(RowOffsetRequest request)
     {
-        int table = (int)tableId;
-        int pos = tableHeapOffset + 6;
-        byte heapSizes = bytes[pos++];
+        int table = (int)request.TableId;
+        int pos = request.TableHeapOffset + 6;
+        byte heapSizes = request.Bytes[pos++];
         pos++;
-        ulong valid = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(pos));
+        ulong valid = BinaryPrimitives.ReadUInt64LittleEndian(request.Bytes.AsSpan(pos));
         pos += 8;
         pos += 8;
 
@@ -19,15 +19,15 @@ internal static class EcmaTables
         {
             if ((valid & (1UL << i)) != 0)
             {
-                rowCounts[i] = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(pos));
+                rowCounts[i] = BinaryPrimitives.ReadInt32LittleEndian(request.Bytes.AsSpan(pos));
                 pos += 4;
             }
         }
 
         if ((valid & (1UL << table)) == 0)
             throw new InvalidOperationException($"Metadata table 0x{table:X2} not present.");
-        if (rowIndex < 1 || rowIndex > rowCounts[table])
-            throw new ArgumentOutOfRangeException(nameof(rowIndex), $"Table 0x{table:X2} row {rowIndex} out of range [1..{rowCounts[table]}].");
+        if (request.RowIndex < 1 || request.RowIndex > rowCounts[table])
+            throw new ArgumentOutOfRangeException(nameof(request), $"Table 0x{table:X2} row {request.RowIndex} out of range [1..{rowCounts[table]}].");
 
         IdxWidths w = ComputeWidths(heapSizes, rowCounts);
 
@@ -38,7 +38,7 @@ internal static class EcmaTables
                 tableStart += RowSize(t, w) * rowCounts[t];
         }
 
-        return tableStart + (rowIndex - 1) * RowSize(table, w);
+        return tableStart + (request.RowIndex - 1) * RowSize(table, w);
     }
 
     private static int RowSize(int table, IdxWidths w) => table switch
@@ -122,4 +122,12 @@ internal static class EcmaTables
         int HasFieldMarshal, int HasDeclSecurity, int MemberRefParent, int HasSemantics,
         int MethodDefOrRef, int MemberForwarded, int CustomAttributeType,
         int TField, int TMethod, int TParam, int TEvent, int TProperty, int TTypeDef, int TModuleRef);
+
+    internal sealed record RowOffsetRequest
+    {
+        public required TableId TableId { get; init; }
+        public required byte[] Bytes { get; init; }
+        public required int TableHeapOffset { get; init; }
+        public required int RowIndex { get; init; }
+    }
 }

@@ -6,13 +6,13 @@ namespace PeFix.Patch;
 
 public static class PinvokeScan
 {
-    public static PinvokeRes Inspect(string path)
+    public static PinvokeResult Inspect(string path)
     {
         string fullPath = Path.GetFullPath(path);
         using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var pe = new PEReader(stream);
         if (pe.PEHeaders.CorHeader is null)
-            throw new InvalidOperationException("Not a managed assembly.");
+            throw new RefusalException("Not a managed assembly.");
 
         MetadataReader reader = pe.GetMetadataReader();
         List<PinvokeCall> calls = [];
@@ -29,22 +29,22 @@ public static class PinvokeScan
             string methodName = reader.GetString(md.Name);
             calls.Add(new PinvokeCall(moduleName, declType, methodName, entryName));
         }
-        return new PinvokeRes(fullPath, [.. calls]);
+        return new PinvokeResult(fullPath, [.. calls]);
     }
 
     public static PinBatch InspectDir(string dir)
     {
         string fullDir = Path.GetFullPath(dir);
-        List<PinvokeRes> results = [];
+        List<PinvokeResult> results = [];
         List<Refusal> refusals = [];
         foreach (string dll in Directory.EnumerateFiles(fullDir, "*.dll"))
         {
             try
             {
-                PinvokeRes r = Inspect(dll);
+                PinvokeResult r = Inspect(dll);
                 if (r.Calls.Length > 0) results.Add(r);
             }
-            catch (InvalidOperationException ex) { refusals.Add(Refusal.Create(dll, ex.Message)); }
+            catch (RefusalException ex) { refusals.Add(Refusal.Create(dll, ex.Message)); }
             catch (BadImageFormatException ex) { refusals.Add(Refusal.Create(dll, ex.Message)); }
         }
         return new PinBatch(fullDir, [.. results], [.. refusals]);
