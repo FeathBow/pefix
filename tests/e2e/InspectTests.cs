@@ -8,7 +8,7 @@ public sealed class InspectTests : IDisposable
     private readonly TempDir _temp = new();
 
     [Fact]
-    public void Inspect_Ok()
+    public void InspectOk()
     {
         var result = CliRunner.Run("inspect", Paths.Get("F01_compatible_anycpu.dll"));
         Assert.Equal(0, result.ExitCode);
@@ -16,7 +16,7 @@ public sealed class InspectTests : IDisposable
     }
 
     [Fact]
-    public void Inspect_Json()
+    public void InspectJson()
     {
         var result = RunJson("F02_x64only_managed.dll");
         Assert.Equal(1, result.ExitCode);
@@ -29,7 +29,7 @@ public sealed class InspectTests : IDisposable
     }
 
     [Fact]
-    public void Inspect_Json_ShowsBepInExPluginMeta()
+    public void InspectJsonBepInExPluginMeta()
     {
         JsonElement plugin = JsonAssert.ParseObject(RunJson("F26_bep_meta.dll").Stdout)
             .GetProperty("bepinex")
@@ -41,7 +41,7 @@ public sealed class InspectTests : IDisposable
     }
 
     [Fact]
-    public void Inspect_Json_ShowsBepInExDependencyMeta()
+    public void InspectJsonBepInExDependencyMeta()
     {
         JsonElement dep = JsonAssert.ParseObject(RunJson("F27_bep_miss.dll").Stdout)
             .GetProperty("bepinex")
@@ -107,7 +107,7 @@ public sealed class InspectTests : IDisposable
     [InlineData("F15_satellite.dll", "satellite")]
     [InlineData("F06_mixed_mode.dll", "mixed_mode")]
     [InlineData("F16_netfx_stub.dll", "tfm_mismatch")]
-    public void Inspect_Code(string fixture, string reasonCode)
+    public void InspectCode(string fixture, string reasonCode)
     {
         JsonElement root = JsonAssert.ParseObject(RunJson(fixture).Stdout);
         Assert.Equal(reasonCode, root.GetProperty("reason_code").GetString());
@@ -116,7 +116,7 @@ public sealed class InspectTests : IDisposable
     [Theory]
     [InlineData("module-nest.dll", "module_nest")]
     [InlineData("multi-module.dll", "multi_module")]
-    public void Inspect_Code_FromGeneratedMetadata(string fileName, string reasonCode)
+    public void InspectCodeGeneratedMetadata(string fileName, string reasonCode)
     {
         string path = Path.Combine(_temp.DirPath, fileName);
         WriteFixture(path, fileName);

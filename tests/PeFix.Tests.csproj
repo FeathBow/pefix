@@ -4,6 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <OutputType>Exe</OutputType>
+    <UseAppHost>true</UseAppHost>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <ResultsDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../artifacts/TestResults/PeFix.Tests/$(Configuration)'))</ResultsDir>

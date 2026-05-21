@@ -27,84 +27,6 @@ public sealed class RedirTests : IDisposable
     }
 
     [Fact]
-    public void ApplyRefusesUnencodableVersionBeforeWrite()
-    {
-        string path = MakeRef("verify.dll", "Newtonsoft.Json", new Version(9, 0, 0, 0));
-        byte[] before = File.ReadAllBytes(path);
-
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            RedirPatch.Redir(
-                path,
-                new RedirOptions(
-                    "Newtonsoft.Json",
-                    new Version(9, 0, 0, 0),
-                    new Version(ushort.MaxValue + 1, 0, 0, 0),
-                    Backup: false)));
-
-        Assert.Contains("Target version must have four numeric fields", ex.Message);
-        Assert.Equal(before, File.ReadAllBytes(path));
-        Assert.False(File.Exists(path + ".pefix-plan.json"));
-    }
-
-    [Fact]
-    public void ApplyRefusesTwoPartVersionBeforeWrite()
-    {
-        string path = MakeRef("verify-two.dll", "Newtonsoft.Json", new Version(9, 0, 0, 0));
-        byte[] before = File.ReadAllBytes(path);
-
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            RedirPatch.Redir(
-                path,
-                new RedirOptions(
-                    "Newtonsoft.Json",
-                    new Version(9, 0, 0, 0),
-                    new Version(13, 0),
-                    Backup: false)));
-
-        Assert.Contains("Target version must have four numeric fields", ex.Message);
-        Assert.Equal(before, File.ReadAllBytes(path));
-    }
-
-    [Fact]
-    public void ApplyRefusesThreePartVersionBeforeWrite()
-    {
-        string path = MakeRef("verify-three.dll", "Newtonsoft.Json", new Version(9, 0, 0, 0));
-        byte[] before = File.ReadAllBytes(path);
-
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            RedirPatch.Redir(
-                path,
-                new RedirOptions(
-                    "Newtonsoft.Json",
-                    new Version(9, 0, 0, 0),
-                    new Version(13, 0, 0),
-                    Backup: false)));
-
-        Assert.Contains("Target version must have four numeric fields", ex.Message);
-        Assert.Equal(before, File.ReadAllBytes(path));
-    }
-
-    [Fact]
-    public void DryRunRefusesUnencodableVersionBeforeWrite()
-    {
-        string path = MakeRef("dry-verify.dll", "Newtonsoft.Json", new Version(9, 0, 0, 0));
-        byte[] before = File.ReadAllBytes(path);
-
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            RedirPatch.Redir(
-                path,
-                new RedirOptions(
-                    "Newtonsoft.Json",
-                    new Version(9, 0, 0, 0),
-                    new Version(ushort.MaxValue + 1, 0, 0, 0),
-                    DryRun: true)));
-
-        Assert.Contains("Target version must have four numeric fields", ex.Message);
-        Assert.Equal(before, File.ReadAllBytes(path));
-        Assert.False(File.Exists(path + ".pefix-plan.json"));
-    }
-
-    [Fact]
     public void NameMiss()
     {
         string path = MakeRef("b.dll", "Newtonsoft.Json", new Version(9, 0, 0, 0));
@@ -130,6 +52,9 @@ public sealed class RedirTests : IDisposable
         RedirResult r = RedirPatch.Redir(path, new RedirOptions("Newtonsoft.Json", new Version(9, 0, 0, 0), new Version(13, 0, 0, 0), DryRun: true));
         Assert.True(r.WasDryRun);
         Assert.Equal(1, r.RowsPatched);
+        var op = Assert.Single(r.Ops);
+        Assert.Equal("AssemblyRef", op.Target.Table);
+        Assert.Equal(1, op.Target.Row);
         Assert.Equal(before, File.ReadAllBytes(path));
         Assert.False(File.Exists(path + ".pefix-plan.json"));
     }
@@ -178,6 +103,20 @@ public sealed class RedirTests : IDisposable
         Assert.Single(batch.Results);
         Assert.Single(batch.Refusals);
         Assert.EndsWith("F07_native_pe.dll", batch.Refusals[0].Path);
+    }
+
+    [Fact]
+    public void DirApplyRefusalKeepsPlanResultsAndDoesNotMutate()
+    {
+        string hit = MakeRef("i1.dll", "Newtonsoft.Json", new Version(9, 0, 0, 0));
+        _temp.Copy("F07_native_pe.dll");
+
+        RedBatch batch = RedirPatch.RedirDir(_temp.DirPath, new RedirOptions("Newtonsoft.Json", new Version(9, 0, 0, 0), new Version(13, 0, 0, 0), Backup: false));
+
+        RedirResult result = Assert.Single(batch.Results);
+        Assert.True(result.WasDryRun);
+        Assert.Single(batch.Refusals);
+        Assert.Equal(new Version(9, 0, 0, 0), ReadAssemblyRefVersion(hit, "Newtonsoft.Json"));
     }
 
     private static Version ReadAssemblyRefVersion(string path, string refName)

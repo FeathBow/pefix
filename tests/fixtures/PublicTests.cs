@@ -59,6 +59,7 @@ public sealed class PublicTests : IDisposable
         PublicResult r = PublicPatch.Publicize(path, new PubOptions(Backup: true, DryRun: true));
         Assert.True(r.WasDryRun);
         Assert.True(r.OpsCount > 0);
+        Assert.All(r.Ops, op => Assert.True(op.Target.Row is > 0));
         Assert.Null(r.BackupPath);
         Assert.Null(r.PlanPath);
         Assert.Equal(before, File.ReadAllBytes(path));
@@ -100,6 +101,24 @@ public sealed class PublicTests : IDisposable
             Assert.All(plan.Ops, op => AssertPublicTarget(reader, op.Target));
             return 0;
         });
+    }
+
+    [Fact]
+    public void VerifyFailRollsBack()
+    {
+        string path = CopyFix();
+        byte[] before = File.ReadAllBytes(path);
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            PublicPatch.Publicize(
+                path,
+                new PubOptions(Backup: true, DryRun: false),
+                (_, _) => throw new InvalidOperationException("verify failed")));
+
+        Assert.Contains("verify failed", ex.Message);
+        Assert.Equal(before, File.ReadAllBytes(path));
+        Assert.False(File.Exists(path + ".pefix-plan.json"));
+        Assert.False(File.Exists(path + ".bak"));
     }
 
     private static void AssertPublicTarget(MetadataReader reader, PlanTarget target)

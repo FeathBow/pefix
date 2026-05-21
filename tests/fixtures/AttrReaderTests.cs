@@ -7,18 +7,18 @@ namespace PeFix.Tests;
 public sealed class AttrReaderTests
 {
     [Fact]
-    public void Inspect_TrimmableAttribute_RemainsParsed()
+    public void InspectTrimmableAttributeRemainsParsed()
     {
         var result = PeAnalyzer.Inspect(Paths.Get("F12_trimmable.dll"));
         Assert.True(result.IsTrimmable);
     }
 
     [Fact]
-    public void Strip_StrongNameWithoutSignedIvt_RemainsClear()
+    public void StripStrongNameWithoutSignedIvtRemainsClear()
     {
         using var temp = new TempDir();
         string path = temp.Copy("F03_x64_strongname.dll");
-        SnStripRes result = SnStripper.Strip(path, new SnStripOpts(DryRun: true));
+        SnStripResult result = SnStripper.Strip(path, new SnStripOpts(DryRun: true));
         Assert.False(result.HadSignedIvt);
     }
 }

@@ -6,7 +6,7 @@ namespace PeFix.Tests;
 public sealed class DepIndexTests
 {
     [Fact]
-    public void Lookup_FirstProviderWins_CaseInsensitive()
+    public void LookupFirstProviderWinsCaseInsensitive()
     {
         Inspection first = Make("Lib", "1.0.0.0", [], "/A.dll");
         Inspection second = Make("LIB", "2.0.0.0", [], "/B.dll");

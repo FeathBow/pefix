@@ -13,7 +13,7 @@ public sealed class PinvokeTests : IDisposable
     public void HasCalls()
     {
         string path = _temp.Copy("F04_x64_pinvoke.dll");
-        PinvokeRes r = PinvokeScan.Inspect(path);
+        PinvokeResult r = PinvokeScan.Inspect(path);
         Assert.NotEmpty(r.Calls);
         Assert.Contains(r.Calls, c => c.MethodName == "Invoke");
     }
@@ -22,7 +22,7 @@ public sealed class PinvokeTests : IDisposable
     public void ByModule()
     {
         string path = _temp.Copy("F04_x64_pinvoke.dll");
-        PinvokeRes r = PinvokeScan.Inspect(path);
+        PinvokeResult r = PinvokeScan.Inspect(path);
         Assert.Contains(r.Calls, c => string.Equals(c.Module, "native", StringComparison.Ordinal));
     }
 
@@ -30,7 +30,7 @@ public sealed class PinvokeTests : IDisposable
     public void NoCalls()
     {
         string path = _temp.Copy("F01_compatible_anycpu.dll");
-        PinvokeRes r = PinvokeScan.Inspect(path);
+        PinvokeResult r = PinvokeScan.Inspect(path);
         Assert.Empty(r.Calls);
     }
 
@@ -60,6 +60,6 @@ public sealed class PinvokeTests : IDisposable
     public void NoCli()
     {
         string path = _temp.Copy("F07_native_pe.dll");
-        Assert.Throws<InvalidOperationException>(() => PinvokeScan.Inspect(path));
+        Assert.Throws<RefusalException>(() => PinvokeScan.Inspect(path));
     }
 }

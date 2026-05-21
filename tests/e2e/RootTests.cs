@@ -8,7 +8,7 @@ public sealed class RootTests : IDisposable
     private readonly TempDir _temp = new();
 
     [Fact]
-    public void Root_Start()
+    public void RootStart()
     {
         var result = CliRunner.Run();
         Assert.Contains("Commands:", result.Stdout);
@@ -18,7 +18,7 @@ public sealed class RootTests : IDisposable
     }
 
     [Fact]
-    public void Scan_Dir()
+    public void ScanDir()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F02_x64only_managed.dll");
         var result = CliRunner.Run("scan", _temp.DirPath);
@@ -28,7 +28,7 @@ public sealed class RootTests : IDisposable
     }
 
     [Fact]
-    public void FixVerb_DryRun()
+    public void FixVerbDryRun()
     {
         var path = _temp.Copy("F02_x64only_managed.dll");
         var result = CliRunner.Run("fix", path);
@@ -37,7 +37,7 @@ public sealed class RootTests : IDisposable
     }
 
     [Fact]
-    public void Root_Help()
+    public void RootHelp()
     {
         var result = CliRunner.Run("--help");
         Assert.Equal(0, result.ExitCode);
@@ -47,7 +47,7 @@ public sealed class RootTests : IDisposable
     }
 
     [Fact]
-    public void FixVerb_NoApplyFlag_DryRunsOnly()
+    public void FixVerbNoApplyFlagDryRunsOnly()
     {
         var path = _temp.Copy("F02_x64only_managed.dll");
         byte[] before = FileAssert.ReadBytes(path);
@@ -58,7 +58,7 @@ public sealed class RootTests : IDisposable
     }
 
     [Fact]
-    public void FixVerb_WithApplyFlag_WritesFile()
+    public void FixVerbWithApplyFlagWritesFile()
     {
         var path = _temp.Copy("F02_x64only_managed.dll");
         byte[] before = FileAssert.ReadBytes(path);

@@ -194,6 +194,23 @@ public sealed class SnCmdTests : IDisposable
     }
 
     [Fact]
+    public void SnStripDirApplyRefusalKeepsPlanResults()
+    {
+        _temp.Copy("F03_x64_strongname.dll");
+        _temp.Copy("F07_native_pe.dll");
+
+        CliResult result = CliRunner.Run("snstrip", _temp.DirPath, "--apply", "--no-backup", "--json");
+
+        Assert.Equal(1, result.ExitCode);
+        var root = JsonAssert.ParseObject(result.Stdout);
+        Assert.Equal("refused", root.GetProperty("outcome").GetString());
+        Assert.False(root.GetProperty("dry_run").GetBoolean());
+        var item = Assert.Single(root.GetProperty("results").EnumerateArray());
+        Assert.Equal("dry_run", item.GetProperty("outcome").GetString());
+        Assert.Single(root.GetProperty("refusals").EnumerateArray());
+    }
+
+    [Fact]
     public void SnStripDirJsonUnchangedOutcome()
     {
         _temp.Copy("F01_compatible_anycpu.dll");

@@ -62,15 +62,16 @@ public sealed class SnStripTests : IDisposable
     public void DryFlag()
     {
         string path = CopyF03();
-        SnStripRes r = SnStripper.Strip(path, new SnStripOpts(DryRun: true));
+        SnStripResult r = SnStripper.Strip(path, new SnStripOpts(DryRun: true));
         Assert.True(r.WasDryRun);
+        Assert.Contains(r.Ops, op => op.Target.Kind == "corflags");
     }
 
     [Fact]
     public void FullPath()
     {
         string path = CopyF03();
-        SnStripRes r = SnStripper.Strip(path, new SnStripOpts(Backup: false));
+        SnStripResult r = SnStripper.Strip(path, new SnStripOpts(Backup: false));
         Assert.Equal(Path.GetFullPath(path), r.Path);
     }
 
@@ -78,7 +79,7 @@ public sealed class SnStripTests : IDisposable
     public void BakPath()
     {
         string path = CopyF03();
-        SnStripRes r = SnStripper.Strip(path, new SnStripOpts(Backup: true));
+        SnStripResult r = SnStripper.Strip(path, new SnStripOpts(Backup: true));
         Assert.Equal(path + ".bak", r.BackupPath);
     }
 
@@ -86,7 +87,7 @@ public sealed class SnStripTests : IDisposable
     public void NoBakPath()
     {
         string path = CopyF03();
-        SnStripRes r = SnStripper.Strip(path, new SnStripOpts(Backup: false));
+        SnStripResult r = SnStripper.Strip(path, new SnStripOpts(Backup: false));
         Assert.Null(r.BackupPath);
     }
 
@@ -94,7 +95,7 @@ public sealed class SnStripTests : IDisposable
     public void NoCli()
     {
         string path = _temp.Copy("F07_native_pe.dll");
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<RefusalException>(() =>
             SnStripper.Strip(path, new SnStripOpts(Backup: false)));
     }
 
@@ -141,7 +142,7 @@ public sealed class SnStripTests : IDisposable
     public void PlanMade()
     {
         string path = CopyF03();
-        SnStripRes result = SnStripper.Strip(path, new SnStripOpts(Backup: false));
+        SnStripResult result = SnStripper.Strip(path, new SnStripOpts(Backup: false));
         Assert.Equal(path + ".pefix-plan.json", result.PlanPath);
         Assert.True(File.Exists(path + ".pefix-plan.json"));
     }
@@ -192,6 +193,22 @@ public sealed class SnStripTests : IDisposable
     }
 
     [Fact]
+    public void DirDrySeesDep()
+    {
+        _temp.Copy("F03_x64_strongname.dll");
+        string sibling = Path.Combine(_temp.DirPath, "sibling.dll");
+        RefPe.WriteTokenRef(sibling, "X64StrongName", StrongNameToken);
+        byte[] beforeSibling = File.ReadAllBytes(sibling);
+
+        SnBatch batch = SnStripper.StripDir(_temp.DirPath, new SnStripOpts(DryRun: true));
+
+        Assert.Single(batch.Results);
+        Assert.Single(batch.Deps);
+        Assert.Equal(beforeSibling, File.ReadAllBytes(sibling));
+        Assert.False(File.Exists(sibling + ".pefix-plan.json"));
+    }
+
+    [Fact]
     public void DirSkipsUnsignedSiblingRef()
     {
         _temp.Copy("F03_x64_strongname.dll");
@@ -218,6 +235,39 @@ public sealed class SnStripTests : IDisposable
         Assert.Single(batch.Results);
         Assert.Single(batch.Refusals);
         Assert.EndsWith("F07_native_pe.dll", batch.Refusals[0].Path);
+    }
+
+    [Fact]
+    public void DirPreflightFailureKeepsCandidatesUnchanged()
+    {
+        string candidate = _temp.Copy("F03_x64_strongname.dll");
+        string blocked = Path.Combine(_temp.DirPath, "blocked.dll");
+        File.Copy(candidate, blocked);
+        byte[] before = File.ReadAllBytes(candidate);
+        Directory.CreateDirectory(blocked + ".pefix-plan.json");
+
+        Assert.ThrowsAny<IOException>(() =>
+            SnStripper.StripDir(_temp.DirPath, new SnStripOpts(Backup: false)));
+
+        Assert.Equal(before, File.ReadAllBytes(candidate));
+        Assert.True(ReadCorFlags(candidate).HasFlag(CorFlags.StrongNameSigned));
+    }
+
+    [Fact]
+    public void DirDepPreflightFailureKeepsSelfUnchanged()
+    {
+        string target = _temp.Copy("F03_x64_strongname.dll");
+        string sibling = Path.Combine(_temp.DirPath, "sibling.dll");
+        RefPe.WriteTokenRef(sibling, "X64StrongName", StrongNameToken);
+        Directory.CreateDirectory(sibling + ".pefix-plan.json");
+        byte[] before = File.ReadAllBytes(target);
+
+        Assert.ThrowsAny<IOException>(() =>
+            SnStripper.StripDir(_temp.DirPath, new SnStripOpts(Backup: false)));
+
+        Assert.Equal(before, File.ReadAllBytes(target));
+        Assert.True(ReadCorFlags(target).HasFlag(CorFlags.StrongNameSigned));
+        Assert.Equal(StrongNameToken, ReadToken(sibling, "X64StrongName"));
     }
 
     private static CorFlags ReadCorFlags(string path)
