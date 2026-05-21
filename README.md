@@ -1,12 +1,14 @@
 # pefix
 
-Static portability and load-failure diagnostics for .NET assemblies, with one safe header fix.
+Static portability and load-failure diagnostics for .NET assemblies, with one safe automatic header fix.
 
 [![CI](https://github.com/FeathBow/pefix/actions/workflows/ci.yml/badge.svg)](https://github.com/FeathBow/pefix/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/vpre/pefix.svg)](https://www.nuget.org/packages/pefix)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-`pefix` is a single-binary CLI that inspects .NET assemblies for portability and load-failure causes: PE header layout, target framework, ReadyToRun, trimming, single-file bundles, platform restrictions, mixed-mode native code, reference assemblies, BepInEx plugin metadata, and more. Directory scans also surface missing managed references, duplicate providers, version conflicts, and missing hard BepInEx plugin dependencies. `pefix closure` traces transitive `AssemblyRef` chains. The single rewrite contract is the byte-level PE header fix for pure-IL `PE32+ AMD64` assemblies; everything else is reported with stable reason and issue codes plus a remediation hint.
+`pefix` is a single-binary CLI that inspects .NET assemblies for portability and load-failure causes: PE header layout, target framework, ReadyToRun, trimming, single-file bundles, platform restrictions, mixed-mode native code, reference assemblies, BepInEx plugin metadata, and more. Directory scans also surface missing managed references, duplicate providers, version conflicts, and missing hard BepInEx plugin dependencies. `pefix closure` traces transitive `AssemblyRef` chains. The automatic rewrite contract is the byte-level PE header fix for pure-IL `PE32+` assemblies; other write commands require explicit user intent. File inspection uses stable `reason_code` values; directory issues use stable issue codes plus remediation hints.
+
+The stable integration surface is the CLI, JSON output, reason codes, issue codes, and exit codes.
 
 ## Install
 
@@ -16,7 +18,7 @@ As a .NET global tool:
 
 Run once with .NET 10 SDK, using the same arguments as `pefix`:
 
-    dotnet tool exec pefix --yes -- MyMod.dll
+    dotnet tool exec pefix -- inspect MyMod.dll
 
 Or build from source:
 
@@ -25,7 +27,7 @@ Or build from source:
     dotnet publish src/PeFix/PeFix.csproj -c Release -r osx-arm64 \
       --self-contained -p:PublishAot=true -o ./out
 
-The resulting `./out/PeFix` is a self-contained native binary with no .NET runtime dependency. Replace `osx-arm64` with `linux-x64` or `win-x64` as needed.
+The resulting `./out/pefix` is a self-contained native binary with no .NET runtime dependency. Replace `osx-arm64` with `linux-x64` or `win-x64` as needed.
 
 ## Quick start
 
@@ -79,7 +81,7 @@ Output:
     pefix mods
 
       Summary: Scanned 3 candidate files. 2 require attention.
-      Action:  Run pefix fix <path> --apply for entries marked fixable or cautioned.
+      Action:  Run pefix fix <path> --apply for entries marked fixable.
       Counts:  compatible: 1  fixable: 1  cautioned: 0  unsafe: 1  corrupt: 0  issues: 0
 
       Group: portability
@@ -100,14 +102,16 @@ Output:
     pefix mods closure
 
       Status:  UNRESOLVED
-      Summary: 3 entry assemblies, 12 transitive references, 2 unresolved leaves, 0 cycles.
+      Summary: 3 entry assemblies, 12 transitive references, 1 unresolved leaf, 0 cycles.
       Action:  Add the missing dependencies to the scanned directory or restore their packages.
 
       Unresolved chains:
         PluginA.dll
-          -> ModLib.dll v1.0.0.0        [resolved]
-            -> CoreUtils.dll v1.0.0.0   [resolved]
-              -> UnityEngine.CoreModule.dll v0.0.0.0  [MISSING]
+          → ModLib.dll v1.0.0.0        [resolved]
+            → CoreUtils.dll v1.0.0.0   [resolved]
+              → GameplayNet.dll v1.0.0.0  [MISSING]
+
+Unity, BepInEx, Harmony, and other host- or loader-provided assemblies are filtered as provided leaves, so references such as `UnityEngine.CoreModule` do not appear as unresolved chains.
 
 Check a BepInEx plugin directory:
 
@@ -121,16 +125,25 @@ When `scan` sees `[BepInPlugin]` and `[BepInDependency]` metadata, it reports pl
 
 BepInEx support is static. `pefix` does not run the game, simulate the chainloader, download packages, or install DLLs.
 
-Add `--json` to any command for machine-readable output.
+Add `--json` to any command for machine-readable output. JSON responses include `schema_version`; file results carry stable `reason_code` values, and directory issues carry stable issue codes. By default, `scan --json` exits `0` after writing a report even when directory integrity fails; use explicit fail gates for CI.
 
-## Machine output
+<details>
+<summary>Machine output details</summary>
 
-`inspect --json`, `scan --json`, and `closure --json` include `schema_version`. File results carry stable `reason_code` values. Directory scan issues carry stable codes such as `missing_ref`, `dup_provider`, `asm_conflict`, and `bep_missing`.
+Embedded file results that can also be produced on their own keep their own `schema_version`, such as `scan.results[]`, `snstrip.results[]`, `fix.before`, `fix.after`, and refusal `before`. Directory scan issue codes include `missing_ref`, `dup_provider`, `asm_conflict`, `bep_missing`, and `bep_casing`.
 
-- Process exit reports command execution success, or an explicit CLI gate.
+- `inspect` exits `0` only for `compatible` by default; non-compatible inspection results exit `1` after printing the report. Other report commands use `0` for command execution success unless an explicit gate or refusal applies.
 - JSON `gate` reports directory integrity through `gate.integrity`, `gate.issue_count`, and `gate.issue_codes`.
+- `closure --json` reports `entry_assemblies`, `unresolved_chains`, `cycle_chains`, `total_refs_walked`, and `framework_leaves`; `framework_leaves` counts framework-provided leaves only, while host/loader-provided leaves are filtered but not counted there. `closure --fail-on-unresolved` is the explicit process gate for unresolved leaves.
+- `inspect` results expose `repair_class` and `repair_hint`; scan issues add `next_steps`, `verify_command`, and `unverified_risks`.
+- `repair_class` separates automatic mutation from diagnostics: `auto_fix` is the `pefix fix` status contract, `guided_fix` requires explicit user-supplied mutation intent, `assisted_fix` emits evidence for external repair, and `diagnostic_only` never mutates artifacts.
+- ReadyToRun, trimmable, and single-file bundle findings are `diagnostic_only`; `--apply --force` does not turn them into fixes.
+- Guided-fix JSON exposes `repair_class`, `unverified_risks`, and exact mutation `targets`.
+- `snstrip.outcome` reports the command result. Single-file values include `dry_run`, `patched`, `unsigned`, and `dep_refused`; directory values include `dry_run`, `patched`, `refused`, and `unchanged`.
+- Directory `snstrip --json` reports dependency files with rewrite targets at top level through `deps_patched` and `deps`; use top-level `dry_run` / `outcome` to distinguish planned rewrites from applied rewrites.
+- For CI gates, use `--fail-on <status>` for file status thresholds, `--fail-on-conflict` for version conflicts, and `closure --fail-on-unresolved` for unresolved chains.
 
-By default, `scan --json` exits `0` after writing a report even when `gate.integrity` is `fail`. Use `--fail-on <status>` for file status thresholds, `--fail-on-conflict` for version conflicts, and `closure --fail-on-unresolved` for unresolved chains.
+</details>
 
 ## Status legend
 
@@ -139,8 +152,8 @@ Every inspection produces one of five statuses:
 | Status     | Meaning                                                       |
 | ---------- | ------------------------------------------------------------- |
 | compatible | Already portable, no action needed.                           |
-| fixable    | Header can be rewritten in place.                             |
-| cautioned  | Could be rewritten but requires explicit consent (`--apply --force`). |
+| fixable    | Header can be rewritten by `pefix fix`.                       |
+| cautioned  | Requires reading `repair_class`: `non_portable` may be a guided header rewrite with `--apply --force`; ReadyToRun, trimming, and bundle findings are diagnostic-only. |
 | unsafe     | Refused. Rewriting would not produce a working assembly.      |
 | corrupt    | Not a valid PE file or malformed beyond inspection.           |
 
@@ -148,13 +161,15 @@ Each result also carries a stable `reason_code` printed in text and JSON output.
 
 ## What it fixes
 
-`pefix` rewrites the PE header and CorFlags of pure-IL `PE32+ AMD64` assemblies so they match the layout the .NET loader expects across platforms.
+`pefix fix` rewrites non-portable pure-IL `PE32+` managed headers and CorFlags so they match the layout the .NET loader expects across platforms.
 
 The rewrite is byte-level. It does not touch metadata, embedded resources, or strong-name tokens, and it does not perform `ildasm`/`ilasm` round-tripping. After the rewrite, `pefix` re-inspects the file and validates the assembly manifest before reporting success.
 
+Other mutation commands, such as `snstrip`, `redir`, and `publicize`, are Guided-fix paths only when they report mutation targets. No-op outcomes such as `snstrip.outcome=unsigned` are diagnostic-only. With fully specified CLI flags, mutating guided commands are Explicit Guided-fix paths, not part of the `fixable` status contract.
+
 ## What it refuses
 
-`pefix` will not rewrite the header in any of the following cases:
+`pefix fix` will not perform the automatic header rewrite in any of the following cases:
 
 | Refusal               | Why                                                           |
 | --------------------- | ------------------------------------------------------------- |
@@ -166,8 +181,8 @@ The rewrite is byte-level. It does not touch metadata, embedded resources, or st
 | strong-named          | Cautioned. `--apply --force` accepts that the strong-name will break. |
 | native dependencies   | Cautioned. P/Invoke targets must be available on the host.    |
 
-Direction is one-way: `pefix` rewrites `PE32+ AMD64` to `PE32 I386`. Already compatible assemblies are left untouched.
+Direction is one-way: `pefix` rewrites `PE32+` managed headers to `PE32 I386`. Already compatible assemblies are left untouched.
 
 ## Safety
 
-Before any in-place rewrite `pefix` copies the original to `MyMod.dll.bak`. The new bytes are written via an atomic temp-file rename, so a failed write never leaves a half-written assembly. If a `.bak` already exists, `pefix` refuses rather than overwrite.
+Before an in-place rewrite with backups enabled, `pefix` copies the original to `MyMod.dll.bak`. Single-file writes are staged and verified before commit. Guided mutation batch writes use best-effort rollback and are not a true atomic transaction; `pefix fix <dir>` still processes files one at a time. If a `.bak` already exists, apply commands refuse rather than overwrite.
