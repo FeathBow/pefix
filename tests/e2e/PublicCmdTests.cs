@@ -7,13 +7,15 @@ public sealed class PublicCmdTests : IDisposable
 
     public void Dispose() => _temp.Dispose();
 
-    [Fact]
-    public void PublicizeJsonDryRun()
+    [Theory]
+    [InlineData("publicize")]
+    [InlineData("publicise")]
+    public void PublicizeJsonDryRun(string verb)
     {
         string path = _temp.Copy("F19_internals.dll");
         byte[] before = FileAssert.ReadBytes(path);
 
-        CliResult result = CliRunner.Run("publicize", path, "--json");
+        CliResult result = CliRunner.Run(verb, path, "--json");
 
         Assert.Equal(0, result.ExitCode);
         var root = JsonAssert.ParseObject(result.Stdout);

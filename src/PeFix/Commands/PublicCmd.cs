@@ -9,6 +9,7 @@ internal static class PublicCmd
     {
         var opts = new OptSet();
         var cmd = new Command("publicize", "Publicize types/methods/fields in a managed assembly. Default dry-run; pass --apply to write.");
+        cmd.Aliases.Add("publicise");
         opts.AddTo(cmd);
         cmd.SetAction(r => (int)Public.Run(
             r.GetValue(opts.PathArg)!,
