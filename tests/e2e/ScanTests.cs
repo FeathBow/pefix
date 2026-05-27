@@ -56,6 +56,29 @@ public sealed class ScanTests : IDisposable
     }
 
     [Fact]
+    public void Scan_ProfileJson()
+    {
+        _temp.CopyAll("F26_bep_meta.dll");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--profile", "unity-bepinex", "--json");
+        Assert.Equal(0, result.ExitCode);
+
+        JsonElement root = JsonAssert.ParseObject(result.Stdout);
+        JsonElement profiles = root.GetProperty("profiles");
+        Assert.Equal("unity-bepinex", profiles.GetProperty("host").GetString());
+        Assert.Equal("plugin-folder", profiles.GetProperty("artifact").GetString());
+    }
+
+    [Fact]
+    public void Scan_ProfileRejectsUnknown()
+    {
+        _temp.CopyAll("F01_compatible_anycpu.dll");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--profile", "publish-dir");
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("Unsupported scan profile", result.Stderr);
+    }
+
+    [Fact]
     public void Scan_Fixable()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll", "F02_x64only_managed.dll");

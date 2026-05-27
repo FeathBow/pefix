@@ -14,7 +14,7 @@ public sealed class IssueTests : IDisposable
         _temp.CopyAll("F18_missing_refs.dll");
         var result = CliRunner.Run("scan", _temp.DirPath);
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Missing refs (2):", result.Stdout);
+        Assert.Contains("Missing references (2):", result.Stdout);
         Assert.Contains("Dependency: F18_missing_refs.dll expects v1.0.0.0, but no provider was found", result.Stdout);
         Assert.Contains("Microsoft.Extensions.DependencyInjection: F18_missing_refs.dll expects v1.0.0.0, but no provider was found", result.Stdout);
         Assert.Contains("Install the missing managed dependency into the scanned directory", result.Stdout);
@@ -51,8 +51,8 @@ public sealed class IssueTests : IDisposable
         Assert.All(issues.EnumerateArray(), issue => Assert.Contains("Install or restore the missing managed dependency", issue.GetProperty("repair_hint").GetString()));
         Assert.All(issues.EnumerateArray(), issue => Assert.Equal("pefix scan <path> --json", issue.GetProperty("verify_command").GetString()));
         Assert.All(issues.EnumerateArray(), issue => Assert.Contains("API compatibility", JsonAssert.StringArray(issue.GetProperty("unverified_risks"))[0]));
-        JsonElement dep = JsonAssert.SingleBy(missing, "assembly", "Dependency");
-        Assert.Equal("F18_missing_refs.dll", dep.GetProperty("required_by").GetString());
+        JsonElement dependency = JsonAssert.SingleBy(missing, "assembly", "Dependency");
+        Assert.Equal("F18_missing_refs.dll", dependency.GetProperty("required_by").GetString());
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class IssueTests : IDisposable
         CopyDup();
         var result = CliRunner.Run("scan", _temp.DirPath);
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Dup providers (1):", result.Stdout);
+        Assert.Contains("Duplicate providers (1):", result.Stdout);
         Assert.Contains("CompatibleAnyCpu: PluginA.dll, PluginB.dll", result.Stdout);
         Assert.Contains("Remove or relocate duplicate provider copies", result.Stdout);
         Assert.DoesNotContain("All assemblies use compatible headers", result.Stdout);
@@ -78,12 +78,12 @@ public sealed class IssueTests : IDisposable
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
         JsonElement root = doc.RootElement;
-        JsonElement dupProviders = root.GetProperty("dup_providers");
+        JsonElement duplicateProviders = root.GetProperty("dup_providers");
         JsonElement issues = root.GetProperty("issues");
         JsonElement gate = root.GetProperty("gate");
         JsonElement summary = root.GetProperty("summary");
 
-        Assert.Equal(1, dupProviders.GetArrayLength());
+        Assert.Equal(1, duplicateProviders.GetArrayLength());
         Assert.Equal(1, issues.GetArrayLength());
         Assert.Equal("dup_provider", issues[0].GetProperty("code").GetString());
         Assert.Equal("assisted_fix", issues[0].GetProperty("repair_class").GetString());
@@ -95,8 +95,8 @@ public sealed class IssueTests : IDisposable
         Assert.Equal("pass", gate.GetProperty("version_conflict").GetString());
         Assert.Equal(1, summary.GetProperty("dup_providers").GetInt32());
         Assert.Equal(1, summary.GetProperty("issues").GetInt32());
-        Assert.Equal("CompatibleAnyCpu", dupProviders[0].GetProperty("assembly").GetString());
-        Assert.Equal(2, dupProviders[0].GetProperty("files").GetArrayLength());
+        Assert.Equal("CompatibleAnyCpu", duplicateProviders[0].GetProperty("assembly").GetString());
+        Assert.Equal(2, duplicateProviders[0].GetProperty("files").GetArrayLength());
     }
 
     [Fact]
@@ -109,8 +109,8 @@ public sealed class IssueTests : IDisposable
         Assert.Equal(0, result.ExitCode);
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
-        JsonElement dupProviders = doc.RootElement.GetProperty("dup_providers");
-        JsonElement dupFiles = Assert.Single(dupProviders.EnumerateArray()).GetProperty("files");
+        JsonElement duplicateProviders = doc.RootElement.GetProperty("dup_providers");
+        JsonElement dupFiles = Assert.Single(duplicateProviders.EnumerateArray()).GetProperty("files");
         JsonElement issueFiles = Assert.Single(doc.RootElement.GetProperty("issues").EnumerateArray()).GetProperty("files");
         JsonElement summary = doc.RootElement.GetProperty("summary");
         const string fileA = "a/Plugin.dll";
@@ -189,7 +189,7 @@ public sealed class IssueTests : IDisposable
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
         JsonElement conflict = Assert.Single(doc.RootElement.GetProperty("conflicts").EnumerateArray());
-        const string referencedBy = "refs/Consumer.dll";
+        const string referencedBy = "references/Consumer.dll";
         const string providedBy = "providers/CompatibleAnyCpu.dll";
 
         Assert.Equal(referencedBy, conflict.GetProperty("referenced_by").GetString());
@@ -213,7 +213,7 @@ public sealed class IssueTests : IDisposable
 
         using JsonDocument doc = JsonDocument.Parse(result.Stdout);
         JsonElement missing = doc.RootElement.GetProperty("missing_refs");
-        const string requiredBy = "refs/F18_missing_refs.dll";
+        const string requiredBy = "references/F18_missing_refs.dll";
 
         Assert.Equal(2, missing.GetArrayLength());
         Assert.All(missing.EnumerateArray(), item => Assert.Equal(requiredBy, item.GetProperty("required_by").GetString()));
@@ -258,7 +258,7 @@ public sealed class IssueTests : IDisposable
     private void CopyConflict()
     {
         string providerDir = Path.Combine(_temp.DirPath, "providers");
-        string refDir = Path.Combine(_temp.DirPath, "refs");
+        string refDir = Path.Combine(_temp.DirPath, "references");
         Directory.CreateDirectory(providerDir);
         Directory.CreateDirectory(refDir);
         File.Copy(Paths.Get("F01_compatible_anycpu.dll"), Path.Combine(providerDir, "CompatibleAnyCpu.dll"), overwrite: true);
@@ -267,7 +267,7 @@ public sealed class IssueTests : IDisposable
 
     private void CopyMissRefs()
     {
-        string refDir = Path.Combine(_temp.DirPath, "refs");
+        string refDir = Path.Combine(_temp.DirPath, "references");
         Directory.CreateDirectory(refDir);
         File.Copy(Paths.Get("F18_missing_refs.dll"), Path.Combine(refDir, "F18_missing_refs.dll"), overwrite: true);
     }

@@ -51,7 +51,7 @@ public sealed class InspectTests : IDisposable
         Assert.Equal("need.hard", dep.GetProperty("guid").GetString());
         Assert.Equal(">=2.0.0", dep.GetProperty("range").GetString());
         Assert.True(dep.GetProperty("hard").GetBoolean());
-        Assert.Equal(JsonValueKind.Null, dep.GetProperty("present").ValueKind);
+        Assert.False(dep.GetProperty("present").GetBoolean());
         Assert.False(dep.GetProperty("case_mismatch").GetBoolean());
     }
 

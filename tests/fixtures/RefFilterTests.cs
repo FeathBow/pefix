@@ -51,4 +51,19 @@ public sealed class RefFilterTests
     {
         Assert.Equal(expected, RefFilter.Classify(name).ToString());
     }
+
+    [Fact]
+    public void HostProfile_ControlsProvidedLeafRules()
+    {
+        HostProfile hostProfile = new(
+            "test-host",
+            new Dictionary<string, ProvidedKind>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["HostOnly"] = ProvidedKind.Host,
+            },
+            []);
+
+        Assert.True(RefFilter.IsProvided("hostonly", hostProfile));
+        Assert.False(RefFilter.IsProvided("System", hostProfile));
+    }
 }

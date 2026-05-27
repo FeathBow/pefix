@@ -8,8 +8,8 @@ public sealed class ClosureTests
     [Fact]
     public void All_Resolved()
     {
-        Inspection a = Make("A", "1.0", [Asm("B", "1.0")]);
-        Inspection b = Make("B", "1.0", [Asm("C", "1.0")]);
+        Inspection a = Make("A", "1.0", [Identity("B", "1.0")]);
+        Inspection b = Make("B", "1.0", [Identity("C", "1.0")]);
         Inspection c = Make("C", "1.0", []);
 
         ClosureReport report = ClosureGraph.Build([a, b, c], "/test");
@@ -17,13 +17,13 @@ public sealed class ClosureTests
         Assert.Equal(3, report.Entries.Length);
         Assert.Empty(report.Unresolved);
         Assert.Empty(report.CycleChains);
-        Assert.Equal(0, report.FrameworkLeaves);
+        Assert.Equal(0, report.ProvidedLeaves.Total);
     }
 
     [Fact]
     public void Direct_Missing()
     {
-        Inspection a = Make("A", "1.0", [Asm("Missing", "2.0")]);
+        Inspection a = Make("A", "1.0", [Identity("Missing", "2.0")]);
 
         ClosureReport report = ClosureGraph.Build([a], "/test");
 
@@ -39,9 +39,9 @@ public sealed class ClosureTests
     [Fact]
     public void Transitive_Missing()
     {
-        Inspection a = Make("A", "1.0", [Asm("B", "1.0")]);
-        Inspection b = Make("B", "1.0", [Asm("C", "1.0")]);
-        Inspection c = Make("C", "1.0", [Asm("Missing", "1.0")]);
+        Inspection a = Make("A", "1.0", [Identity("B", "1.0")]);
+        Inspection b = Make("B", "1.0", [Identity("C", "1.0")]);
+        Inspection c = Make("C", "1.0", [Identity("Missing", "1.0")]);
 
         ClosureReport report = ClosureGraph.Build([a, b, c], "/test");
 
@@ -60,8 +60,8 @@ public sealed class ClosureTests
     [Fact]
     public void Cycle_Handled()
     {
-        Inspection a = Make("A", "1.0", [Asm("B", "1.0")]);
-        Inspection b = Make("B", "1.0", [Asm("A", "1.0")]);
+        Inspection a = Make("A", "1.0", [Identity("B", "1.0")]);
+        Inspection b = Make("B", "1.0", [Identity("A", "1.0")]);
 
         ClosureReport report = ClosureGraph.Build([a, b], "/test");
 
@@ -75,33 +75,33 @@ public sealed class ClosureTests
     [Fact]
     public void Framework_NotReported()
     {
-        Inspection a = Make("A", "1.0", [Asm("System", "4.0")]);
+        Inspection a = Make("A", "1.0", [Identity("System", "4.0")]);
 
         ClosureReport report = ClosureGraph.Build([a], "/test");
 
         Assert.Empty(report.Unresolved);
         Assert.Equal(1, report.RefsWalked);
-        Assert.Equal(1, report.FrameworkLeaves);
+        Assert.Equal(new ProvidedLeafCounts(1, 1), report.ProvidedLeaves);
     }
 
     [Fact]
-    public void Host_NotCountedAsFramework()
+    public void Host_Reference_Is_ProvidedLeaf_Not_FrameworkLeaf()
     {
-        Inspection a = Make("A", "1.0", [Asm("UnityEngine.CoreModule", "0.0.0.0")]);
+        Inspection a = Make("A", "1.0", [Identity("UnityEngine.CoreModule", "0.0.0.0")]);
 
         ClosureReport report = ClosureGraph.Build([a], "/test");
 
         Assert.Empty(report.Unresolved);
         Assert.Equal(1, report.RefsWalked);
-        Assert.Equal(0, report.FrameworkLeaves);
+        Assert.Equal(new ProvidedLeafCounts(1, 0), report.ProvidedLeaves);
     }
 
     [Fact]
     public void DiamondMissingDedupKeepsRepresentative()
     {
-        Inspection a = Make("A", "1.0", [Asm("B", "1.0"), Asm("C", "1.0")]);
-        Inspection b = Make("B", "1.0", [Asm("Missing", "1.0")]);
-        Inspection c = Make("C", "1.0", [Asm("Missing", "1.0")]);
+        Inspection a = Make("A", "1.0", [Identity("B", "1.0"), Identity("C", "1.0")]);
+        Inspection b = Make("B", "1.0", [Identity("Missing", "1.0")]);
+        Inspection c = Make("C", "1.0", [Identity("Missing", "1.0")]);
 
         ClosureReport report = ClosureGraph.Build([a, b, c], "/test");
 
@@ -110,7 +110,7 @@ public sealed class ClosureTests
         Assert.Equal("Missing", chain.Segments[^1].AssemblyName);
     }
 
-    private static Inspection Make(string name, string ver, AsmRef[] refs)
+    private static Inspection Make(string name, string ver, AssemblyIdentity[] references)
     {
         return new Inspection(
             $"{name}.dll",
@@ -132,9 +132,9 @@ public sealed class ClosureTests
             null,
             null,
             null,
-            refs,
-            Asm(name, ver));
+            references,
+            Identity(name, ver));
     }
 
-    private static AsmRef Asm(string name, string version) => new(name, version);
+    private static AssemblyIdentity Identity(string name, string version) => new(name, version);
 }

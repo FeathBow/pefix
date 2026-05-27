@@ -58,6 +58,7 @@ public sealed class ClosureE2E : IDisposable
         Assert.True(root.TryGetProperty("unresolved_chains", out _));
         Assert.True(root.TryGetProperty("cycle_chains", out _));
         Assert.True(root.TryGetProperty("total_refs_walked", out _));
+        Assert.True(root.TryGetProperty("provided_leaves", out _));
         Assert.True(root.TryGetProperty("framework_leaves", out _));
 
         JsonElement unresolved = root.GetProperty("unresolved_chains");

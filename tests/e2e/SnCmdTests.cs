@@ -78,8 +78,8 @@ public sealed class SnCmdTests : IDisposable
         Assert.Equal(0, result.ExitCode);
 
         var root = JsonAssert.ParseObject(result.Stdout);
-        var dep = Assert.Single(root.GetProperty("deps").EnumerateArray());
-        var depTarget = Assert.Single(dep.GetProperty("targets").EnumerateArray());
+        var dependency = Assert.Single(root.GetProperty("deps").EnumerateArray());
+        var depTarget = Assert.Single(dependency.GetProperty("targets").EnumerateArray());
         Assert.Equal("AssemblyRef", depTarget.GetProperty("table").GetString());
         Assert.Equal(1, depTarget.GetProperty("row").GetInt32());
     }

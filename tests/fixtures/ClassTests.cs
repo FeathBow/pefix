@@ -44,7 +44,7 @@ public sealed class ClassTests
         var result = PeAnalyzer.Inspect(Paths.Get("F11_r2r.dll"));
         Assert.Equal(Category.R2R, result.Category);
         Assert.Equal(Status.Cautioned, result.Status);
-        Assert.Equal(true, result.HasR2R);
+        Assert.Equal(true, result.HasReadyToRun);
     }
 
     [Fact]
@@ -114,8 +114,8 @@ public sealed class ClassTests
     public void F01_HasAsm()
     {
         var result = PeAnalyzer.Inspect(Paths.Get("F01_compatible_anycpu.dll"));
-        Assert.NotNull(result.AssemblyDef);
-        Assert.Equal("CompatibleAnyCpu", result.AssemblyDef.Value.Name);
+        Assert.NotNull(result.AssemblyDefinition);
+        Assert.Equal("CompatibleAnyCpu", result.AssemblyDefinition.Value.Name);
     }
 
     [Fact]

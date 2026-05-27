@@ -14,9 +14,9 @@ public sealed class ScanViewTest
         ScanView view = ScanBuild.Build(new ScanReport(
             Root,
             [Fixable("mods/Fix.dll"), Compatible("mods/Ok.dll")],
-            [new VerConflict("Dependency", "1.0.0.0", "2.0.0.0", Abs("mods/Fix.dll"), Abs("providers/Dependency.dll"))],
-            [new MissingRef("System.Text.Json", "8.0.0.0", Abs("mods/Fix.dll"))],
-            [new DupProvider("Newtonsoft.Json", [Abs("plugins/A/Newtonsoft.Json.dll"), Abs("plugins/B/Newtonsoft.Json.dll")])]),
+            [new VersionConflict("Dependency", "1.0.0.0", "2.0.0.0", Abs("mods/Fix.dll"), Abs("providers/Dependency.dll"))],
+            [new MissingReference("System.Text.Json", "8.0.0.0", Abs("mods/Fix.dll"))],
+            [new DuplicateProvider("Newtonsoft.Json", [Abs("plugins/A/Newtonsoft.Json.dll"), Abs("plugins/B/Newtonsoft.Json.dll")])]),
             withJson: true);
 
         Assert.True(view.Stats.HasFixable);
@@ -46,6 +46,31 @@ public sealed class ScanViewTest
         string text = ScanOut.Render(view);
         Assert.Contains("mods/Fix.dll [fixable] reason=non_portable action=fix", text);
         Assert.Contains("Remove the mismatched copy or install the version required by the referencing assembly", text);
+        Assert.Contains("Blocking Issues (3):", text);
+        Assert.Contains("[asm_conflict] Dependency", text);
+        Assert.Contains("repair: assisted_fix", text);
+        Assert.Contains("verify: pefix scan <path> --json", text);
+        Assert.Contains("Static Boundary: Findings are static evidence only", text);
+        Assert.True(
+            text.IndexOf("Blocking Issues", StringComparison.Ordinal) <
+            text.IndexOf("Group: portability", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Scan_TextStatesPassingStaticBoundary()
+    {
+        ScanView view = ScanBuild.Build(new ScanReport(
+            Root,
+            [Compatible("mods/Ok.dll")],
+            [],
+            [],
+            []),
+            withJson: false);
+
+        string text = ScanOut.Render(view);
+
+        Assert.Contains("Blocking Issues: none found under supported static checks.", text);
+        Assert.Contains("Runtime load success is not certified.", text);
     }
 
     private static Inspection Compatible(string path)
