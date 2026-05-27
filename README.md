@@ -1,14 +1,16 @@
 # pefix
 
-Static portability and load-failure diagnostics for .NET assemblies, with one safe automatic header fix.
+Dependency Doctor for .NET plugin and Unity/BepInEx mod folders, with one safe automatic header fix.
 
 [![CI](https://github.com/FeathBow/pefix/actions/workflows/ci.yml/badge.svg)](https://github.com/FeathBow/pefix/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/vpre/pefix.svg)](https://www.nuget.org/packages/pefix)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-`pefix` is a single-binary CLI that inspects .NET assemblies for portability and load-failure causes: PE header layout, target framework, ReadyToRun, trimming, single-file bundles, platform restrictions, mixed-mode native code, reference assemblies, BepInEx plugin metadata, and more. Directory scans also surface missing managed references, duplicate providers, version conflicts, and missing hard BepInEx plugin dependencies. `pefix closure` traces transitive `AssemblyRef` chains. The automatic rewrite contract is the byte-level PE header fix for pure-IL `PE32+` assemblies; other write commands require explicit user intent. File inspection uses stable `reason_code` values; directory issues use stable issue codes plus remediation hints.
+`pefix` is a single-binary CLI that runs static loadability preflights over .NET plugin folders before a host tries to load them. It inspects PE header layout, target framework, ReadyToRun, trimming, single-file bundles, platform restrictions, mixed-mode native code, reference assemblies, BepInEx plugin metadata, managed dependency closure, duplicate providers, version conflicts, and hard BepInEx plugin dependency rules. `pefix scan ./BepInEx/plugins --profile unity-bepinex` selects Unity/BepInEx host assumptions while keeping plugin-folder artifact rules explicit. The automatic rewrite contract is still only the byte-level PE header fix for pure-IL `PE32+` assemblies; BepInEx dependency, casing, version, duplicate GUID, and unresolved chain findings are assisted fixes with evidence and verification commands.
 
-The stable integration surface is the CLI, JSON output, reason codes, issue codes, and exit codes.
+Static loadability boundary: a passing report means no supported static issue was found under the selected profiles. It does not certify runtime load success, simulate BepInEx, download packages, install DLLs, or mutate mod-manager profiles.
+
+The stable integration surface is the CLI, JSON output, reason codes, issue codes, repair classes, and exit codes.
 
 ## Install
 
@@ -84,6 +86,9 @@ Output:
       Action:  Run pefix fix <path> --apply for entries marked fixable.
       Counts:  compatible: 1  fixable: 1  cautioned: 0  unsafe: 1  corrupt: 0  issues: 0
 
+      Blocking Issues: none found under supported static checks.
+      Static Boundary: Runtime load success is not certified.
+
       Group: portability
         - Compatible.dll [compatible] reason=portable action=none
         - X64OnlyManaged.dll [fixable] reason=non_portable action=fix
@@ -115,13 +120,19 @@ Unity, BepInEx, Harmony, and other host- or loader-provided assemblies are filte
 
 Check a BepInEx plugin directory:
 
-    pefix scan ./BepInEx/plugins
+    pefix scan ./BepInEx/plugins --profile unity-bepinex
 
-When `scan` sees `[BepInPlugin]` and `[BepInDependency]` metadata, it reports plugin GUIDs and hard dependencies. Missing hard dependencies appear as directory issues:
+When `scan` sees `[BepInPlugin]` and `[BepInDependency]` metadata, it reports plugin GUIDs, helper libraries, hard dependencies, duplicate plugin GUIDs, version mismatches, and plugin `AssemblyRef` chains with unresolved leaves. Blocking issues are printed before the audit groups so the report can be pasted into a support thread:
 
-    BepInEx deps (1):
-      - test.miss requires BepInEx plugin need.hard
-        Install the missing BepInEx plugin dependency into the scanned plugins directory.
+    Blocking Issues (1):
+      - [bep_missing] need.hard: test.miss requires BepInEx plugin need.hard, but no matching plugin GUID was found.
+        files: F27_bep_miss.dll
+        repair: assisted_fix
+        next: Install the missing BepInEx plugin dependency into the scanned plugins directory.
+        verify: pefix scan <path> --json
+        risk: Plugin ABI compatibility and runtime chainloader success are not proven.
+
+    Other supported issue codes include `bep_casing`, `bep_version_mismatch`, `bep_dup_guid`, and `plugin_unresolved_chain`.
 
 BepInEx support is static. `pefix` does not run the game, simulate the chainloader, download packages, or install DLLs.
 
@@ -130,12 +141,13 @@ Add `--json` to any command for machine-readable output. JSON responses include 
 <details>
 <summary>Machine output details</summary>
 
-Embedded file results that can also be produced on their own keep their own `schema_version`, such as `scan.results[]`, `snstrip.results[]`, `fix.before`, `fix.after`, and refusal `before`. Directory scan issue codes include `missing_ref`, `dup_provider`, `asm_conflict`, `bep_missing`, and `bep_casing`.
+Embedded file results that can also be produced on their own keep their own `schema_version`, such as `scan.results[]`, `snstrip.results[]`, `fix.before`, `fix.after`, and refusal `before`. Directory scan issue codes include `missing_ref`, `dup_provider`, `asm_conflict`, `bep_missing`, `bep_casing`, `bep_version_mismatch`, `bep_dup_guid`, and `plugin_unresolved_chain`.
 
 - `inspect` exits `0` only for `compatible` by default; non-compatible inspection results exit `1` after printing the report. Other report commands use `0` for command execution success unless an explicit gate or refusal applies.
 - JSON `gate` reports directory integrity through `gate.integrity`, `gate.issue_count`, and `gate.issue_codes`.
-- `closure --json` reports `entry_assemblies`, `unresolved_chains`, `cycle_chains`, `total_refs_walked`, and `framework_leaves`; `framework_leaves` counts framework-provided leaves only, while host/loader-provided leaves are filtered but not counted there. `closure --fail-on-unresolved` is the explicit process gate for unresolved leaves.
+- `closure --json` reports `entry_assemblies`, `unresolved_chains`, `cycle_chains`, `total_refs_walked`, `provided_leaves`, and the compatible `framework_leaves`; `provided_leaves` counts all selected Host Profile provided leaves, while `framework_leaves` keeps the previous framework-only contract. `closure --fail-on-unresolved` is the explicit process gate for unresolved leaves.
 - `inspect` results expose `repair_class` and `repair_hint`; scan issues add `next_steps`, `verify_command`, and `unverified_risks`.
+- `scan --profile unity-bepinex --json` includes `profiles.host=unity-bepinex` and `profiles.artifact=plugin-folder`; per-file BepInEx states include `plugin`, `helper_library`, `blocked_missing_bep_dependency`, `blocked_guid_case_mismatch`, `blocked_bep_version_mismatch`, and `risk_unresolved_assembly_chain`.
 - `repair_class` separates automatic mutation from diagnostics: `auto_fix` is the `pefix fix` status contract, `guided_fix` requires explicit user-supplied mutation intent, `assisted_fix` emits evidence for external repair, and `diagnostic_only` never mutates artifacts.
 - ReadyToRun, trimmable, and single-file bundle findings are `diagnostic_only`; `--apply --force` does not turn them into fixes.
 - Guided-fix JSON exposes `repair_class`, `unverified_risks`, and exact mutation `targets`.
@@ -165,7 +177,7 @@ Each result also carries a stable `reason_code` printed in text and JSON output.
 
 The rewrite is byte-level. It does not touch metadata, embedded resources, or strong-name tokens, and it does not perform `ildasm`/`ilasm` round-tripping. After the rewrite, `pefix` re-inspects the file and validates the assembly manifest before reporting success.
 
-Other mutation commands, such as `snstrip`, `redir`, and `publicize`, are Guided-fix paths only when they report mutation targets. No-op outcomes such as `snstrip.outcome=unsigned` are diagnostic-only. With fully specified CLI flags, mutating guided commands are Explicit Guided-fix paths, not part of the `fixable` status contract.
+Other mutation commands, such as `snstrip`, `redir`, and `publicize` (`publicise` alias), are Guided-fix paths only when they report mutation targets. No-op outcomes such as `snstrip.outcome=unsigned` are diagnostic-only. With fully specified CLI flags, mutating guided commands are Explicit Guided-fix paths, not part of the `fixable` status contract.
 
 ## What it refuses
 
