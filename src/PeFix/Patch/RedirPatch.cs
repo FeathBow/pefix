@@ -192,7 +192,7 @@ public static class RedirPatch
         {
             int rowOffset = EcmaTables.RowOffset(new EcmaTables.RowOffsetRequest
             {
-                TableId = TableId.AsmRef,
+                TableId = TableId.AssemblyReference,
                 Bytes = request.Original,
                 TableHeapOffset = request.TableHeapOffset,
                 RowIndex = rowIndex

@@ -1,7 +1,7 @@
-namespace PeFix.Meta;
+namespace PeFix.Cli;
 
-public readonly record struct VerConflict(
-    string AssemblyName,
+internal sealed record DirectoryConflict(
+    string Assembly,
     string Expected,
     string Actual,
     string ReferencedBy,

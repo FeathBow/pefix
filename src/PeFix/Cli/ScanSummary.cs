@@ -11,6 +11,6 @@ internal sealed record ScanSummary(
     [property: JsonPropertyName("corrupt")] int Corrupt,
     [property: JsonPropertyName("by_category")] Dictionary<string, int> ByCategory,
     [property: JsonPropertyName("by_action")] Dictionary<string, int> ByAction,
-    [property: JsonPropertyName("dup_providers")] int DupProviders,
+    [property: JsonPropertyName("dup_providers")] int DuplicateProviders,
     [property: JsonPropertyName("issues")] int Issues,
     [property: JsonPropertyName("by_issue")] Dictionary<string, int> ByIssue);

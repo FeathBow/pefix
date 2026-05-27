@@ -1,5 +1,5 @@
 namespace PeFix.Cli;
 
-internal sealed record DirDup(
+internal sealed record DirectoryDuplicateProvider(
     string Assembly,
     string[] Files);

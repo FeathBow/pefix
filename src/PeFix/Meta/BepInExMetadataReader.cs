@@ -2,7 +2,7 @@ using System.Reflection.Metadata;
 
 namespace PeFix.Meta;
 
-internal static class BepReader
+internal static class BepInExMetadataReader
 {
     private const string BepNamespace = "BepInEx";
     private const string RangeName = "VersionRange";
@@ -15,21 +15,21 @@ internal static class BepReader
     private static readonly AttrName PluginName = new(PluginShort, PluginAttr);
     private static readonly AttrName DepName = new(DepShort, DepAttr);
 
-    public static BepInfo? Read(MetadataReader reader)
+    public static BepInExMetadata? Read(MetadataReader reader)
     {
-        List<BepPlugin> plugins = [];
+        List<BepInExPluginMetadata> plugins = [];
         foreach (TypeDefinitionHandle handle in reader.TypeDefinitions)
         {
             TypeDefinition type = reader.GetTypeDefinition(handle);
-            BepPlugin? plugin = ReadPlugin(reader, type);
+            BepInExPluginMetadata? plugin = ReadPlugin(reader, type);
             if (plugin.HasValue)
                 plugins.Add(plugin.Value);
         }
 
-        return plugins.Count == 0 ? null : new BepInfo([.. plugins]);
+        return plugins.Count == 0 ? null : new BepInExMetadata([.. plugins]);
     }
 
-    private static BepPlugin? ReadPlugin(MetadataReader reader, TypeDefinition type)
+    private static BepInExPluginMetadata? ReadPlugin(MetadataReader reader, TypeDefinition type)
     {
         CustomAttributeHandleCollection attrs = type.GetCustomAttributes();
         foreach (CustomAttributeHandle handle in attrs)
@@ -38,7 +38,7 @@ internal static class BepReader
             if (!IsBepType(reader, attr, PluginName))
                 continue;
 
-            BepPlugin? plugin = TryPlugin(attr, ReadDeps(reader, attrs));
+            BepInExPluginMetadata? plugin = TryPlugin(attr, ReadDeps(reader, attrs));
             if (plugin.HasValue)
                 return plugin;
         }
@@ -46,7 +46,7 @@ internal static class BepReader
         return null;
     }
 
-    private static BepPlugin? TryPlugin(CustomAttribute attr, BepDep[] deps)
+    private static BepInExPluginMetadata? TryPlugin(CustomAttribute attr, BepInExDependencyMetadata[] deps)
     {
         try
         {
@@ -54,7 +54,7 @@ internal static class BepReader
             string? name = AttrReader.ReadFixedString(attr, 1);
             string? version = AttrReader.ReadFixedString(attr, 2);
             return guid is { Length: > 0 } && name is { Length: > 0 } && version is { Length: > 0 }
-                ? new BepPlugin(guid, name, version, deps)
+                ? new BepInExPluginMetadata(guid, name, version, deps)
                 : null;
         }
         catch (InvalidOperationException)
@@ -63,9 +63,9 @@ internal static class BepReader
         }
     }
 
-    private static BepDep[] ReadDeps(MetadataReader reader, CustomAttributeHandleCollection attrs)
+    private static BepInExDependencyMetadata[] ReadDeps(MetadataReader reader, CustomAttributeHandleCollection attrs)
     {
-        List<BepDep> deps = [];
+        List<BepInExDependencyMetadata> deps = [];
         foreach (CustomAttributeHandle handle in attrs)
         {
             CustomAttribute attr = reader.GetCustomAttribute(handle);
@@ -76,7 +76,7 @@ internal static class BepReader
         return [.. deps];
     }
 
-    private static BepDep? TryDep(CustomAttribute attr)
+    private static BepInExDependencyMetadata? TryDep(CustomAttribute attr)
     {
         try
         {
@@ -88,7 +88,7 @@ internal static class BepReader
                 return null;
 
             DepArgs args = ReadDepArgs(decoded);
-            return new BepDep(guid, args.Range, args.Hard);
+            return new BepInExDependencyMetadata(guid, args.Range, args.Hard);
         }
         catch (InvalidOperationException)
         {

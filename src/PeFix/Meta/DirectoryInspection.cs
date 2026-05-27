@@ -1,5 +1,5 @@
 namespace PeFix.Meta;
 
-public readonly record struct DirInspect(
+public readonly record struct DirectoryInspection(
     string Directory,
     Inspection[] Results);

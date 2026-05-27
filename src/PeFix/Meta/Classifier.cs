@@ -8,7 +8,7 @@ internal static class Classifier
             return CreateBad(snapshot.Path, "This file is not a valid PE file or is corrupted.");
         if (!snapshot.HasCliHeader)
             return CreateNative(snapshot);
-        return ClassifyCli(snapshot) with { Bep = snapshot.Bep };
+        return ClassifyCli(snapshot) with { BepInEx = snapshot.BepInEx };
     }
 
     private static Inspection ClassifyCli(PeSnapshot snapshot)
@@ -19,7 +19,7 @@ internal static class Classifier
         if (snapshot.HasRefs) return CreateMulti(snapshot);
         if (snapshot.Signals.IsMixedMode) return CreateMixed(snapshot);
         if (IsLegacyTfm(snapshot.Tfm)) return CreateTfmBad(snapshot);
-        if (snapshot.R2R.HasValue) return CreateR2R(snapshot);
+        if (snapshot.ReadyToRun.HasValue) return CreateR2R(snapshot);
         if (snapshot.IsTrimmable) return CreateTrim(snapshot);
         if (snapshot.IsBundle) return CreateBundle(snapshot);
         if (snapshot.OsPlatforms is { Length: > 0 }) return CreateOsApi(snapshot);
@@ -86,7 +86,7 @@ internal static class Classifier
             false,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.NativeBinary,
             Status.Unsafe,
@@ -100,8 +100,8 @@ internal static class Classifier
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef);
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition);
     }
 
     private static Inspection CreateRefAsm(PeSnapshot snapshot)
@@ -112,7 +112,7 @@ internal static class Classifier
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.RefAssembly,
             Status.Unsafe,
@@ -126,8 +126,8 @@ internal static class Classifier
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef);
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition);
     }
 
     private static Inspection CreateSat(PeSnapshot snapshot)
@@ -138,7 +138,7 @@ internal static class Classifier
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.Satellite,
             Status.Unsafe,
@@ -152,8 +152,8 @@ internal static class Classifier
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef);
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition);
     }
 
     private static Inspection CreateNest(PeSnapshot snapshot)
@@ -164,7 +164,7 @@ internal static class Classifier
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.ModuleNest,
             Status.Unsafe,
@@ -178,8 +178,8 @@ internal static class Classifier
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef);
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition);
     }
 
     private static Inspection CreateMulti(PeSnapshot snapshot)
@@ -190,7 +190,7 @@ internal static class Classifier
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.MultiModule,
             Status.Unsafe,
@@ -204,8 +204,8 @@ internal static class Classifier
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef);
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition);
     }
 
     private static Inspection CreateMixed(PeSnapshot snapshot)
@@ -216,7 +216,7 @@ internal static class Classifier
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.MixedMode,
             Status.Unsafe,
@@ -230,20 +230,20 @@ internal static class Classifier
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef);
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition);
     }
 
     private static Inspection CreateR2R(PeSnapshot snapshot)
     {
-        R2RInfo r2r = snapshot.R2R!.Value;
+        ReadyToRunInfo r2r = snapshot.ReadyToRun!.Value;
         return new Inspection(
             snapshot.Path,
             true,
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.R2R,
             Status.Cautioned,
@@ -252,13 +252,13 @@ internal static class Classifier
             [],
             [],
             ["Verify the .NET runtime version matches the R2R compilation target. Mismatched versions silently fall back to JIT. R2R code is skipped; JIT recompiles all methods."],
-            ClsMessages.LoadReqs(snapshot),
+            ClassificationMessages.LoadReqs(snapshot),
             snapshot.PInvokeDeps,
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef,
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition,
             true);
     }
 
@@ -270,7 +270,7 @@ internal static class Classifier
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.Trimmable,
             Status.Cautioned,
@@ -279,13 +279,13 @@ internal static class Classifier
             [],
             [],
             ["Verify required types are preserved. Use TrimmerRootDescriptors or [DynamicDependency] attributes to protect types from trimming."],
-            ClsMessages.LoadReqs(snapshot),
+            ClassificationMessages.LoadReqs(snapshot),
             snapshot.PInvokeDeps,
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef,
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition,
             null,
             true);
     }
@@ -298,7 +298,7 @@ internal static class Classifier
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.Bundle,
             Status.Cautioned,
@@ -307,13 +307,13 @@ internal static class Classifier
             [],
             [],
             ["Single-file bundles embed all assemblies inside the host EXE. Patching the outer PE header does not affect embedded assemblies. Use 'dotnet publish --no-self-contained' or patch each embedded assembly individually."],
-            ClsMessages.LoadReqs(snapshot),
+            ClassificationMessages.LoadReqs(snapshot),
             snapshot.PInvokeDeps,
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef);
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition);
     }
 
     private static Inspection CreateOsApi(PeSnapshot snapshot)
@@ -325,7 +325,7 @@ internal static class Classifier
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.PlatformApi,
             Status.Unsafe,
@@ -334,13 +334,13 @@ internal static class Classifier
             [],
             [],
             [$"This assembly targets {platforms}. It will throw PlatformNotSupportedException on other operating systems. Check if a cross-platform alternative exists."],
-            ClsMessages.LoadReqs(snapshot),
+            ClassificationMessages.LoadReqs(snapshot),
             snapshot.PInvokeDeps,
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef);
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition);
     }
 
     private static Inspection CreateCompat(PeSnapshot snapshot)
@@ -351,7 +351,7 @@ internal static class Classifier
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.Portability,
             Status.Compatible,
@@ -360,20 +360,20 @@ internal static class Classifier
             [],
             [],
             ["No action needed. This assembly is already portable."],
-            ClsMessages.LoadReqs(snapshot),
+            ClassificationMessages.LoadReqs(snapshot),
             snapshot.PInvokeDeps,
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef);
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition);
     }
 
     private static Inspection CreateFix(PeSnapshot snapshot)
     {
         Status status = GetStatus(snapshot);
-        string[] warnings = ClsMessages.Warnings(snapshot);
-        string nextStep = ClsMessages.NextStep(snapshot, status);
+        string[] warnings = ClassificationMessages.Warnings(snapshot);
+        string nextStep = ClassificationMessages.NextStep(snapshot, status);
 
         return new Inspection(
             snapshot.Path,
@@ -381,22 +381,22 @@ internal static class Classifier
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.Portability,
             status,
             ReasonCode.NonPortable,
             "This assembly uses a platform-specific managed PE header.",
-            ClsMessages.RuntimeRisks(snapshot),
+            ClassificationMessages.RuntimeRisks(snapshot),
             warnings,
             [nextStep],
-            ClsMessages.LoadReqs(snapshot),
+            ClassificationMessages.LoadReqs(snapshot),
             snapshot.PInvokeDeps,
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef);
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition);
     }
 
     private static Inspection CreateTfmBad(PeSnapshot snapshot)
@@ -407,7 +407,7 @@ internal static class Classifier
             true,
             snapshot.PeFormat,
             snapshot.Machine,
-            snapshot.CliFlags,
+            snapshot.ManagedCorFlags,
             snapshot.Signals,
             Category.TfmMismatch,
             Status.Unsafe,
@@ -421,8 +421,8 @@ internal static class Classifier
             snapshot.Tfm,
             snapshot.MetaVersion,
             snapshot.OsPlatforms,
-            snapshot.AssemblyRefs,
-            snapshot.AssemblyDef);
+            snapshot.AssemblyReferences,
+            snapshot.AssemblyDefinition);
     }
 
     // Legacy .NET Framework TFMs are "net" + digits only (e.g. net48, net472, net40).
@@ -437,10 +437,10 @@ internal static class Classifier
 
     private static bool IsCompatible(PeSnapshot snapshot)
     {
-        return snapshot.CliFlags.IlOnly
+        return snapshot.ManagedCorFlags.IlOnly
             && string.Equals(snapshot.PeFormat, "PE32", StringComparison.Ordinal)
             && string.Equals(snapshot.Machine, "I386", StringComparison.Ordinal)
-            && !snapshot.CliFlags.Required32Bit;
+            && !snapshot.ManagedCorFlags.Required32Bit;
     }
 
     private static Status GetStatus(PeSnapshot snapshot)

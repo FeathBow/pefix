@@ -2,24 +2,24 @@ namespace PeFix.Meta;
 
 public static class Scanner
 {
-    public static ScanReport Scan(string path)
+    public static ScanReport Scan(string path, HostProfile? hostProfile = null)
     {
-        DirInspect dir = InspectDir(path);
-        var deps = DepIndex.Build(dir.Results);
-        VerConflict[] conflicts = deps.FindConflicts(dir.Results);
-        MissingRef[] missingRefs = deps.FindMissing(dir.Results);
-        DupProvider[] dupProviders = DepIndex.FindDuplicates(dir.Results);
-        return new ScanReport(dir.Directory, dir.Results, conflicts, missingRefs, dupProviders);
+        DirectoryInspection dir = InspectDir(path);
+        var dependencies = DependencyIndex.Build(dir.Results, hostProfile);
+        VersionConflict[] conflicts = dependencies.FindConflicts(dir.Results);
+        MissingReference[] missingReferences = dependencies.FindMissingReferences(dir.Results);
+        DuplicateProvider[] duplicateProviders = DependencyIndex.FindDuplicateProviders(dir.Results);
+        return new ScanReport(dir.Directory, dir.Results, conflicts, missingReferences, duplicateProviders);
     }
 
-    public static DirInspect InspectDir(string path)
+    public static DirectoryInspection InspectDir(string path)
     {
         string fullPath = Path.GetFullPath(path);
         CheckDir(fullPath);
         string[] files = ScanFiles(fullPath);
         var results = new Inspection[files.Length];
         Parallel.For(0, files.Length, index => results[index] = PeAnalyzer.Inspect(files[index]));
-        return new DirInspect(fullPath, results);
+        return new DirectoryInspection(fullPath, results);
     }
 
     private static void CheckDir(string path)

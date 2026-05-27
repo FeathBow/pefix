@@ -12,7 +12,8 @@ internal static class ClosureMap
             [.. report.Unresolved.Select(MapChain)],
             [.. report.CycleChains.Select(MapChain)],
             report.RefsWalked,
-            report.FrameworkLeaves);
+            report.ProvidedLeaves.Total,
+            report.ProvidedLeaves.Framework);
     }
 
     private static ChainJson MapChain(ClosureChain chain)

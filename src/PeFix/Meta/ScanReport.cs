@@ -3,6 +3,6 @@ namespace PeFix.Meta;
 public readonly record struct ScanReport(
     string Directory,
     Inspection[] Results,
-    VerConflict[] Conflicts,
-    MissingRef[] MissingRefs,
-    DupProvider[] DupProviders);
+    VersionConflict[] Conflicts,
+    MissingReference[] MissingReferences,
+    DuplicateProvider[] DuplicateProviders);

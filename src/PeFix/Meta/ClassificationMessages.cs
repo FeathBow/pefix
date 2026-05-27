@@ -1,6 +1,6 @@
 namespace PeFix.Meta;
 
-internal static class ClsMessages
+internal static class ClassificationMessages
 {
     internal static string[] RuntimeRisks(PeSnapshot snapshot)
     {
@@ -66,15 +66,15 @@ internal static class ClsMessages
     internal static string? LoadReqs(PeSnapshot snapshot)
     {
         // True AnyCPU: IlOnly + I386 + not Required32Bit; no host architecture restriction.
-        if (snapshot.CliFlags.IlOnly
+        if (snapshot.ManagedCorFlags.IlOnly
             && string.Equals(snapshot.Machine, "I386", StringComparison.Ordinal)
-            && !snapshot.CliFlags.Required32Bit)
+            && !snapshot.ManagedCorFlags.Required32Bit)
         {
             return null;
         }
 
         // AnyCPU Prefer32Bit variant; still loads in both 32/64-bit, no restriction.
-        if (snapshot.CliFlags.IlOnly && snapshot.CliFlags.Preferred32Bit)
+        if (snapshot.ManagedCorFlags.IlOnly && snapshot.ManagedCorFlags.Preferred32Bit)
         {
             return null;
         }

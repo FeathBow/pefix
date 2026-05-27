@@ -15,7 +15,7 @@ internal static class InspectOut
             Details: new (string, string)[]
             {
                 ("PE Format:", $"{result.PeFormat ?? "Unknown"} ({result.Machine ?? "Unknown"})"),
-                ("IL Only:", FormatBool(result.CliFlags.IlOnly)),
+                ("IL Only:", FormatBool(result.ManagedCorFlags.IlOnly)),
                 ("Strong Name:", FormatBool(result.Signals.StrongName)),
                 ("P/Invoke:", FormatBool(result.Signals.HasPInvoke)),
                 ("Category:", Labels.CatText(result.Category)),

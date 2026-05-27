@@ -1,6 +1,6 @@
 namespace PeFix.Cli;
 
-internal sealed record DirIssue(
+internal sealed record DirectoryIssue(
     string Code,
     string Subject,
     string Summary,
@@ -9,4 +9,5 @@ internal sealed record DirIssue(
     string RepairClass,
     string RepairHint,
     string VerifyCommand,
-    string[] UnverifiedRisks);
+    string[] UnverifiedRisks,
+    IssueEvidence? Evidence = null);

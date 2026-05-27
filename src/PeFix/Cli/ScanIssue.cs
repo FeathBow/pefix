@@ -11,4 +11,5 @@ internal sealed record ScanIssue(
     [property: JsonPropertyName("repair_class")] string RepairClass,
     [property: JsonPropertyName("repair_hint")] string RepairHint,
     [property: JsonPropertyName("verify_command")] string VerifyCommand,
-    [property: JsonPropertyName("unverified_risks")] string[] UnverifiedRisks);
+    [property: JsonPropertyName("unverified_risks")] string[] UnverifiedRisks,
+    [property: JsonPropertyName("evidence")] IssueEvidence? Evidence);

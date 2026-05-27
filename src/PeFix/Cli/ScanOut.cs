@@ -7,10 +7,11 @@ internal static class ScanOut
         using var writer = new StringWriter();
         WriteHeader(writer, view);
         WriteCounts(writer, view);
+        WriteIssues(writer, view);
         WriteGroups(writer, view);
-        WriteConfs(writer, view);
+        WriteConflicts(writer, view);
         WriteMissing(writer, view);
-        WriteDup(writer, view);
+        WriteDuplicateProviders(writer, view);
         WriteBep(writer, view);
         WriteNexts(writer, view);
         WriteHint(writer, view);
@@ -28,6 +29,36 @@ internal static class ScanOut
     private static void WriteCounts(StringWriter writer, ScanView view)
     {
         writer.WriteLine($"  Counts:  compatible: {view.Stats.Counts.Compatible}  fixable: {view.Stats.Counts.Fixable}  cautioned: {view.Stats.Counts.Cautioned}  unsafe: {view.Stats.Counts.Unsafe}  corrupt: {view.Stats.Counts.Corrupt}  issues: {view.Issues.Length}");
+    }
+
+    private static void WriteIssues(StringWriter writer, ScanView view)
+    {
+        writer.WriteLine();
+        if (!view.HasIssues)
+        {
+            writer.WriteLine("  Blocking Issues: none found under supported static checks.");
+            writer.WriteLine("  Static Boundary: Runtime load success is not certified.");
+            return;
+        }
+
+        writer.WriteLine($"  Blocking Issues ({view.Issues.Length}):");
+        foreach (DirectoryIssue issue in view.Issues)
+            WriteIssue(writer, issue);
+
+        writer.WriteLine("  Static Boundary: Findings are static evidence only; runtime load success is not certified.");
+    }
+
+    private static void WriteIssue(StringWriter writer, DirectoryIssue issue)
+    {
+        writer.WriteLine($"    - [{issue.Code}] {issue.Subject}: {issue.Summary}");
+        writer.WriteLine($"      files: {string.Join(", ", issue.Files)}");
+        writer.WriteLine($"      repair: {issue.RepairClass}");
+        foreach (string step in issue.NextSteps)
+            writer.WriteLine($"      next: {step}");
+
+        writer.WriteLine($"      verify: {issue.VerifyCommand}");
+        foreach (string risk in issue.UnverifiedRisks)
+            writer.WriteLine($"      risk: {risk}");
     }
 
     private static void WriteGroups(StringWriter writer, ScanView view)
@@ -54,49 +85,49 @@ internal static class ScanOut
         }
     }
 
-    private static void WriteConfs(StringWriter writer, ScanView view)
+    private static void WriteConflicts(StringWriter writer, ScanView view)
     {
         if (view.Conflicts.Length == 0)
             return;
 
         writer.WriteLine();
         writer.WriteLine($"  Version Conflicts ({view.Conflicts.Length}):");
-        foreach (DirConf conflict in view.Conflicts)
+        foreach (DirectoryConflict conflict in view.Conflicts)
             writer.WriteLine($"    - {conflict.Assembly}: {conflict.ReferencedBy} expects v{conflict.Expected}, but v{conflict.Actual} is provided by {conflict.ProvidedBy}");
     }
 
     private static void WriteMissing(StringWriter writer, ScanView view)
     {
-        if (view.MissingRefs.Length == 0)
+        if (view.MissingReferences.Length == 0)
             return;
 
         writer.WriteLine();
-        writer.WriteLine($"  Missing refs ({view.MissingRefs.Length}):");
-        foreach (DirMiss missingRef in view.MissingRefs)
+        writer.WriteLine($"  Missing references ({view.MissingReferences.Length}):");
+        foreach (DirectoryMissingReference missingRef in view.MissingReferences)
             writer.WriteLine($"    - {missingRef.Assembly}: {missingRef.RequiredBy} expects v{missingRef.Version}, but no provider was found");
     }
 
-    private static void WriteDup(StringWriter writer, ScanView view)
+    private static void WriteDuplicateProviders(StringWriter writer, ScanView view)
     {
-        if (view.DupProviders.Length == 0)
+        if (view.DuplicateProviders.Length == 0)
             return;
 
         writer.WriteLine();
-        writer.WriteLine($"  Dup providers ({view.DupProviders.Length}):");
-        foreach (DirDup dupProvider in view.DupProviders)
-            writer.WriteLine($"    - {dupProvider.Assembly}: {string.Join(", ", dupProvider.Files)}");
+        writer.WriteLine($"  Duplicate providers ({view.DuplicateProviders.Length}):");
+        foreach (DirectoryDuplicateProvider duplicateProvider in view.DuplicateProviders)
+            writer.WriteLine($"    - {duplicateProvider.Assembly}: {string.Join(", ", duplicateProvider.Files)}");
     }
 
     private static void WriteBep(StringWriter writer, ScanView view)
     {
-        DirIssue[] issues = [.. view.Issues.Where(issue =>
+        DirectoryIssue[] issues = [.. view.Issues.Where(issue =>
             issue.Code is IssueCode.BepMissing or IssueCode.BepCasing)];
         if (issues.Length == 0)
             return;
 
         writer.WriteLine();
         writer.WriteLine($"  BepInEx deps ({issues.Length}):");
-        foreach (DirIssue issue in issues)
+        foreach (DirectoryIssue issue in issues)
             writer.WriteLine($"    - {issue.Summary}");
     }
 

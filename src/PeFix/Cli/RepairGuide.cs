@@ -45,10 +45,10 @@ internal static class RepairGuide
         };
     }
 
-    public static DirIssue ForIssue(IssueFacts issue)
+    public static DirectoryIssue ForIssue(IssueFacts issue)
     {
         var repair = IssueRepair.For(issue.Code);
-        return new DirIssue(
+        return new DirectoryIssue(
             issue.Code,
             issue.Subject,
             issue.Summary,
@@ -57,7 +57,8 @@ internal static class RepairGuide
             repair.Class,
             repair.RepairHint,
             repair.VerifyCommand,
-            repair.UnverifiedRisks);
+            repair.UnverifiedRisks,
+            issue.Evidence);
     }
 
     private static RepairInfo NonPortable(Inspection result)
@@ -81,6 +82,7 @@ internal static class RepairGuide
         public required string Subject { get; init; }
         public required string Summary { get; init; }
         public required string[] Files { get; init; }
+        public IssueEvidence? Evidence { get; init; }
     }
 
     private sealed class IssueRepair
@@ -115,6 +117,18 @@ internal static class RepairGuide
                     BepCasingStep,
                     BepCasingStep,
                     "Plugin ABI compatibility and runtime chainloader success are not proven."),
+                IssueCode.BepDuplicateGuid => Assisted(
+                    "Keep one BepInEx plugin for this GUID.",
+                    "Remove duplicate BepInEx plugins or ask the plugin authors to use distinct GUIDs.",
+                    "The intended plugin provider and runtime chainloader selection are not proven."),
+                IssueCode.BepVersionMismatch => Assisted(
+                    "Install a BepInEx plugin dependency version that satisfies the declared range.",
+                    "Install a compatible BepInEx plugin dependency version or update the dependent plugin declaration.",
+                    "Plugin ABI compatibility and runtime chainloader success are not proven."),
+                IssueCode.PluginUnresolvedChain => Assisted(
+                    "Install or restore the missing managed dependency chain for this plugin.",
+                    "Run pefix closure <path> --fail-on-unresolved, then install the missing managed dependency into the scanned plugins directory.",
+                    "API compatibility and runtime chainloader success are not proven."),
                 _ => throw new ArgumentOutOfRangeException(nameof(code), code, "Unsupported issue code.")
             };
         }

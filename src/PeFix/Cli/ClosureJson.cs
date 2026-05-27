@@ -8,5 +8,6 @@ internal sealed record ClosureJson(
     [property: JsonPropertyName("unresolved_chains")] ChainJson[] Unresolved,
     [property: JsonPropertyName("cycle_chains")] ChainJson[] CycleChains,
     [property: JsonPropertyName("total_refs_walked")] int RefsWalked,
+    [property: JsonPropertyName("provided_leaves")] int ProvidedLeaves,
     [property: JsonPropertyName("framework_leaves")] int FrameworkLeaves,
     [property: JsonPropertyName("schema_version"), JsonPropertyOrder(-1)] int SchemaVersion = 1);

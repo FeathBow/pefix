@@ -4,27 +4,30 @@ public static class ClosureGraph
 {
     private const int DepthCap = 64;
 
-    public static ClosureReport Build(IReadOnlyList<Inspection> inspections, string directory)
+    public static ClosureReport Build(
+        IReadOnlyList<Inspection> inspections,
+        string directory,
+        HostProfile? hostProfile = null)
     {
         ArgumentNullException.ThrowIfNull(inspections);
 
-        WalkCtx ctx = new(DepIndex.Build(inspections));
+        WalkCtx ctx = new(DependencyIndex.Build(inspections, hostProfile));
         List<string> entries = [];
 
         foreach (Inspection entry in inspections)
         {
-            if (!entry.AssemblyDef.HasValue)
+            if (!entry.AssemblyDefinition.HasValue)
                 continue;
 
-            AsmRef def = entry.AssemblyDef.Value;
+            AssemblyIdentity def = entry.AssemblyDefinition.Value;
             entries.Add(def.Name);
             ClosureNode entryNode = new(def.Name, def.Version, ChainKind.Entry);
 
-            AsmRef[] refs = entry.AssemblyRefs ?? [];
-            if (refs.Length == 0)
+            AssemblyIdentity[] references = entry.AssemblyReferences ?? [];
+            if (references.Length == 0)
                 continue;
 
-            foreach (AsmRef directRef in refs)
+            foreach (AssemblyIdentity directRef in references)
             {
                 WalkRef(entryNode, directRef, ctx);
             }
@@ -36,10 +39,10 @@ public static class ClosureGraph
             ctx.Unresolved(),
             ctx.Cycles(),
             ctx.RefsWalked,
-            ctx.FrameworkLeaves);
+            ctx.ProvidedLeaves());
     }
 
-    private static void WalkRef(ClosureNode entryNode, AsmRef directRef, WalkCtx ctx)
+    private static void WalkRef(ClosureNode entryNode, AssemblyIdentity directRef, WalkCtx ctx)
     {
         HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase) { entryNode.AssemblyName };
         Stack<WalkFrm> stack = new();
@@ -50,11 +53,10 @@ public static class ClosureGraph
             WalkFrm frm = stack.Pop();
             ctx.CountRef();
 
-            ProvidedKind provided = DepIndex.ClassifyProvided(frm.Ref.Name);
+            ProvidedKind provided = ctx.Deps.ClassifyProvided(frm.Ref.Name);
             if (provided != ProvidedKind.None)
             {
-                if (provided is ProvidedKind.Framework)
-                    ctx.CountFramework();
+                ctx.CountProvidedLeaf(provided);
                 continue;
             }
 
@@ -79,7 +81,7 @@ public static class ClosureGraph
             ClosureNode resNode = new(frm.Ref.Name, frm.Ref.Version, ChainKind.Resolved);
             WalkTrail nextTrail = frm.Trail.Next(frm.Ref.Name, resNode);
 
-            AsmRef[] nextRefs = nextProv.AssemblyRefs ?? [];
+            AssemblyIdentity[] nextRefs = nextProv.AssemblyReferences ?? [];
             for (int i = nextRefs.Length - 1; i >= 0; i--)
             {
                 stack.Push(new WalkFrm(nextRefs[i], nextTrail));
@@ -87,20 +89,20 @@ public static class ClosureGraph
         }
     }
 
-    private static ClosureNode Leaf(AsmRef asmRef, ChainKind kind)
+    private static ClosureNode Leaf(AssemblyIdentity assemblyReference, ChainKind kind)
     {
-        return new ClosureNode(asmRef.Name, asmRef.Version, kind);
+        return new ClosureNode(assemblyReference.Name, assemblyReference.Version, kind);
     }
 
     private sealed class WalkFrm
     {
-        public AsmRef Ref { get; }
+        public AssemblyIdentity Ref { get; }
         public WalkTrail Trail { get; }
         public int Depth => Trail.Depth;
 
-        public WalkFrm(AsmRef asmRef, WalkTrail trail)
+        public WalkFrm(AssemblyIdentity assemblyReference, WalkTrail trail)
         {
-            Ref = asmRef;
+            Ref = assemblyReference;
             Trail = trail;
         }
     }
@@ -132,18 +134,29 @@ public static class ClosureGraph
         private readonly List<ClosureChain> _chains = [];
         private readonly HashSet<string> _emitted = new(StringComparer.OrdinalIgnoreCase);
 
-        public WalkCtx(DepIndex deps)
+        public WalkCtx(DependencyIndex dependencies)
         {
-            Deps = deps;
+            Deps = dependencies;
         }
 
-        public DepIndex Deps { get; }
+        public DependencyIndex Deps { get; }
         public int RefsWalked { get; private set; }
-        public int FrameworkLeaves { get; private set; }
+        private int TotalProvidedLeaves { get; set; }
+        private int FrameworkProvidedLeaves { get; set; }
 
         public void CountRef() => RefsWalked++;
 
-        public void CountFramework() => FrameworkLeaves++;
+        public void CountProvidedLeaf(ProvidedKind kind)
+        {
+            TotalProvidedLeaves++;
+            if (kind is ProvidedKind.Framework)
+                FrameworkProvidedLeaves++;
+        }
+
+        public ProvidedLeafCounts ProvidedLeaves()
+        {
+            return new ProvidedLeafCounts(TotalProvidedLeaves, FrameworkProvidedLeaves);
+        }
 
         public ClosureChain[] Unresolved()
         {

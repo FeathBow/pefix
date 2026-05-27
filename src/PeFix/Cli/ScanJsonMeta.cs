@@ -2,4 +2,5 @@ namespace PeFix.Cli;
 
 internal sealed record ScanJsonMeta(
     ScanSummary Summary,
-    ScanGate Gate);
+    ScanGate Gate,
+    ScanProfiles? Profiles);

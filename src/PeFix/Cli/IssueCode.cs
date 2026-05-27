@@ -7,4 +7,7 @@ internal static class IssueCode
     public const string DupProvider = "dup_provider";
     public const string BepMissing = "bep_missing";
     public const string BepCasing = "bep_casing";
+    public const string BepDuplicateGuid = "bep_dup_guid";
+    public const string BepVersionMismatch = "bep_version_mismatch";
+    public const string PluginUnresolvedChain = "plugin_unresolved_chain";
 }

@@ -6,7 +6,7 @@ public readonly record struct Inspection(
     bool HasCliHeader,
     string? PeFormat,
     string? Machine,
-    CliFlags CliFlags,
+    ManagedCorFlags ManagedCorFlags,
     Signals Signals,
     Category? Category,
     Status Status,
@@ -20,8 +20,8 @@ public readonly record struct Inspection(
     string? Tfm,
     string? MetaVersion,
     string[]? OsPlatforms,
-    AsmRef[]? AssemblyRefs,
-    AsmRef? AssemblyDef,
-    bool? HasR2R = null,
+    AssemblyIdentity[]? AssemblyReferences,
+    AssemblyIdentity? AssemblyDefinition,
+    bool? HasReadyToRun = null,
     bool? IsTrimmable = null,
-    BepInfo? Bep = null);
+    BepInExMetadata? BepInEx = null);

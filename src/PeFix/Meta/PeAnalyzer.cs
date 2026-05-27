@@ -95,13 +95,13 @@ public static class PeAnalyzer
             return new PeSnapshot(path, true, false, peFormat, machine, default, default);
         }
 
-        CorFlags corFlags = corHeader.Flags;
+        System.Reflection.PortableExecutable.CorFlags corFlags = corHeader.Flags;
         MetadataReader reader = peReader.GetMetadataReader();
-        CliFlags flags = new(
-            corFlags.HasFlag(CorFlags.ILOnly),
-            corFlags.HasFlag(CorFlags.Requires32Bit),
-            corFlags.HasFlag(CorFlags.Prefers32Bit),
-            corFlags.HasFlag(CorFlags.StrongNameSigned));
+        ManagedCorFlags flags = new(
+            corFlags.HasFlag(System.Reflection.PortableExecutable.CorFlags.ILOnly),
+            corFlags.HasFlag(System.Reflection.PortableExecutable.CorFlags.Requires32Bit),
+            corFlags.HasFlag(System.Reflection.PortableExecutable.CorFlags.Prefers32Bit),
+            corFlags.HasFlag(System.Reflection.PortableExecutable.CorFlags.StrongNameSigned));
         Signals signals = new(
             flags.Signed || corHeader.StrongNameSignatureDirectory.Size > 0,
             HasPInvoke(reader),
@@ -112,14 +112,14 @@ public static class PeAnalyzer
         string? tfm = ReadTfm(reader);
         string metaVersion = ReadMeta(reader);
         string[]? osPlatforms = ReadOs(reader);
-        AsmRef[] assemblyRefs = ReadAsmRefs(reader);
-        AsmRef? assemblyDef = ReadAsmDef(reader);
-        R2RInfo? r2r = ReadR2R(peReader, corHeader);
+        AssemblyIdentity[] assemblyRefs = ReadAssemblyReferences(reader);
+        AssemblyIdentity? assemblyDef = ReadAssemblyDefinition(reader);
+        ReadyToRunInfo? r2r = ReadR2R(peReader, corHeader);
         bool isTrimmable = ReadTrim(reader);
         bool moduleNest = HasNest(reader);
         bool moduleRefs = HasRefs(reader);
         bool isSatellite = IsSatellite(reader);
-        BepInfo? bep = BepReader.Read(reader);
+        BepInExMetadata? bep = BepInExMetadataReader.Read(reader);
 
         return new PeSnapshot(
             path, true, true, peFormat, machine, flags, signals,
@@ -134,7 +134,7 @@ public static class PeAnalyzer
         string name = reader.GetString(def.Name);
         return name.EndsWith(ResourceExt, StringComparison.OrdinalIgnoreCase);
     }
-    private static R2RInfo? ReadR2R(PEReader reader, CorHeader corHeader)
+    private static ReadyToRunInfo? ReadR2R(PEReader reader, CorHeader corHeader)
     {
         DirectoryEntry dir = corHeader.ManagedNativeHeaderDirectory;
         if (dir.Size == 0)
@@ -152,7 +152,7 @@ public static class PeAnalyzer
 
         ushort major = BinaryPrimitives.ReadUInt16LittleEndian(data[4..]);
         ushort minor = BinaryPrimitives.ReadUInt16LittleEndian(data[6..]);
-        return new R2RInfo(major, minor);
+        return new ReadyToRunInfo(major, minor);
     }
 
     private static bool ReadTrim(MetadataReader reader)
@@ -332,27 +332,27 @@ public static class PeAnalyzer
         return platforms.Count > 0 ? [.. platforms] : null;
     }
 
-    private static AsmRef? ReadAsmDef(MetadataReader reader)
+    private static AssemblyIdentity? ReadAssemblyDefinition(MetadataReader reader)
     {
         AssemblyDefinition def = reader.GetAssemblyDefinition();
-        string asmName = reader.GetString(def.Name);
+        string assemblyName = reader.GetString(def.Name);
         Version v = def.Version;
         string version = $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
-        return new AsmRef(asmName, version);
+        return new AssemblyIdentity(assemblyName, version);
     }
 
-    private static AsmRef[] ReadAsmRefs(MetadataReader reader)
+    private static AssemblyIdentity[] ReadAssemblyReferences(MetadataReader reader)
     {
-        List<AsmRef> refs = [];
+        List<AssemblyIdentity> references = [];
         foreach (AssemblyReferenceHandle handle in reader.AssemblyReferences)
         {
-            AssemblyReference asmRef = reader.GetAssemblyReference(handle);
-            string asmName = reader.GetString(asmRef.Name);
-            Version v = asmRef.Version;
+            System.Reflection.Metadata.AssemblyReference metadataReference = reader.GetAssemblyReference(handle);
+            string assemblyName = reader.GetString(metadataReference.Name);
+            Version v = metadataReference.Version;
             string version = $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
-            refs.Add(new AsmRef(asmName, version));
+            references.Add(new AssemblyIdentity(assemblyName, version));
         }
-        return [.. refs];
+        return [.. references];
     }
 
     private static string MachineText(Machine machine)

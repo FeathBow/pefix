@@ -39,7 +39,7 @@ internal static class ClosureOut
             ("Transitive Refs:", report.RefsWalked.ToString(CultureInfo.InvariantCulture)),
             ("Unresolved:", report.Unresolved.Length.ToString(CultureInfo.InvariantCulture)),
             ("Cycles:", report.CycleChains.Length.ToString(CultureInfo.InvariantCulture)),
-            ("Framework Leaves:", report.FrameworkLeaves.ToString(CultureInfo.InvariantCulture)),
+            ("Provided Leaves:", report.ProvidedLeaves.Total.ToString(CultureInfo.InvariantCulture)),
         };
 
         var block = new MutBlock(dirName, "closure", status, summary, action, details);

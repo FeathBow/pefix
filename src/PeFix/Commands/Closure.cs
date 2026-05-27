@@ -12,7 +12,7 @@ internal static class Closure
         if (!Directory.Exists(fullPath))
             return CliErr.Usage($"Path must be a directory: {fullPath}");
 
-        DirInspect dir;
+        DirectoryInspection dir;
         try
         {
             dir = Scanner.InspectDir(fullPath);

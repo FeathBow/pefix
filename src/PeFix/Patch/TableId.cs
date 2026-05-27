@@ -30,7 +30,7 @@ internal enum TableId
     Assembly = 0x20,
     AsmProc = 0x21,
     AsmOs = 0x22,
-    AsmRef = 0x23,
+    AssemblyReference = 0x23,
     File = 0x26,
     ExportType = 0x27,
     ManifestRes = 0x28,

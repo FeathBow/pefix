@@ -14,7 +14,8 @@ internal static class ScanCmd
             Path = r.GetValue(opts.PathArg)!,
             Json = r.GetValue(RootCmd.JsonOpt),
             FailOn = r.GetValue(opts.FailOnOpt),
-            FailOnConflict = r.GetValue(opts.ConflictOpt)
+            FailOnConflict = r.GetValue(opts.ConflictOpt),
+            Profile = r.GetValue(opts.ProfileOpt)
         }));
         return cmd;
     }
@@ -36,11 +37,17 @@ internal static class ScanCmd
             Description = "Exit with code 1 when version conflicts are detected."
         };
 
+        public Option<string?> ProfileOpt { get; } = new("--profile")
+        {
+            Description = "Static host/artifact profile assumptions. Supported: unity-bepinex."
+        };
+
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
             cmd.Options.Add(FailOnOpt);
             cmd.Options.Add(ConflictOpt);
+            cmd.Options.Add(ProfileOpt);
         }
     }
 }

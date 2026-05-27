@@ -1,6 +1,6 @@
 namespace PeFix.Meta;
 
-public readonly record struct CliFlags(
+public readonly record struct ManagedCorFlags(
     bool IlOnly,
     bool Required32Bit,
     bool Preferred32Bit,

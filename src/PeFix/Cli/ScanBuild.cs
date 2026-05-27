@@ -7,18 +7,24 @@ internal static class ScanBuild
     private const string Pass = "pass";
     private const string Fail = "fail";
 
-    public static ScanView Build(ScanReport report, bool withJson)
+    public static ScanView Build(ScanReport report, bool withJson, ScanProfiles? profiles = null)
     {
-        ScanRel rel = new(report.Directory);
-        var bepIndex = BepIndex.From(report.Results);
-        var context = new ScanBuildContext(rel, withJson, bepIndex);
+        ScanPathRelativizer rel = new(report.Directory);
+        BepInExProviderIndex bepInExProviderIndex = BepInExProviderIndex.From(report.Results);
+        ClosureReport closure = ClosureGraph.Build(report.Results, report.Directory);
+        BepInExExplainResult bepExplain = BepInExExplain.Explain(
+            report.Results,
+            rel,
+            bepInExProviderIndex,
+            closure);
+        var context = new ScanBuildContext(rel, withJson, bepInExProviderIndex, bepExplain);
         ScanFile[] files = BuildFiles(report, context);
-        DirConf[] conflicts = BuildConflicts(report, rel);
-        DirMiss[] missingRefs = BuildMisses(report, rel);
-        DirDup[] duplicateProviders = BuildDuplicates(report, rel);
-        DirIssue[] issues = [
-            .. BuildIssues(conflicts, missingRefs, duplicateProviders),
-            .. BepIssues.Build(report.Results, rel, bepIndex)
+        DirectoryConflict[] conflicts = BuildConflicts(report, rel);
+        DirectoryMissingReference[] missingReferences = BuildMisses(report, rel);
+        DirectoryDuplicateProvider[] duplicateProviders = BuildDuplicates(report, rel);
+        DirectoryIssue[] issues = [
+            .. DirectoryIssueBuilder.Build(conflicts, missingReferences, duplicateProviders),
+            .. bepExplain.Issues
         ];
         ScanStats stats = BuildStats(files, conflicts.Length > 0, issues);
         ScanJsonMeta? json = withJson
@@ -27,7 +33,8 @@ internal static class ScanBuild
                 Files = files,
                 Stats = stats,
                 DuplicateCount = duplicateProviders.Length,
-                Issues = issues
+                Issues = issues,
+                Profiles = profiles
             })
             : null;
         return new ScanView(
@@ -35,7 +42,7 @@ internal static class ScanBuild
             stats,
             files,
             conflicts,
-            missingRefs,
+            missingReferences,
             duplicateProviders,
             issues,
             json);
@@ -49,101 +56,53 @@ internal static class ScanBuild
     private static ScanFile BuildFile(Inspection result, ScanBuildContext context)
     {
         return new ScanFile(
-            context.Rel.One(result.Path),
+            context.Rel.RelativePath(result.Path),
             Labels.CatText(result.Category),
             result.Status,
             InspectMap.CanPatch(result),
             InspectText.Summary(result),
             InspectMap.ActionCode(result),
             result.ReasonCode,
-            context.WithJson ? InspectMap.Map(result, dep => context.BepIndex.Status(dep.Guid)) : null);
+            context.WithJson
+                ? InspectMap.Map(
+                    result,
+                    new BepInExInspectContext(
+                        context.BepInExProviderIndex,
+                        context.BepInExExplain.StateForFile(result.Path)))
+                : null);
     }
 
-    private static DirConf[] BuildConflicts(ScanReport report, ScanRel rel)
+    private static DirectoryConflict[] BuildConflicts(ScanReport report, ScanPathRelativizer rel)
     {
         return [.. report.Conflicts
             .OrderBy(item => item.AssemblyName, StringComparer.Ordinal)
-            .Select(conflict => new DirConf(
+            .Select(conflict => new DirectoryConflict(
                 conflict.AssemblyName,
                 conflict.Expected,
                 conflict.Actual,
-                rel.One(conflict.ReferencedBy),
-                rel.One(conflict.ProvidedBy)))];
+                rel.RelativePath(conflict.ReferencedBy),
+                rel.RelativePath(conflict.ProvidedBy)))];
     }
 
-    private static DirMiss[] BuildMisses(ScanReport report, ScanRel rel)
+    private static DirectoryMissingReference[] BuildMisses(ScanReport report, ScanPathRelativizer rel)
     {
-        return [.. report.MissingRefs
-            .OrderBy(item => item.RefName, StringComparer.Ordinal)
-            .Select(missingRef => new DirMiss(
-                missingRef.RefName,
-                missingRef.NeedVer,
-                rel.One(missingRef.NeedBy)))];
+        return [.. report.MissingReferences
+            .OrderBy(item => item.ReferenceName, StringComparer.Ordinal)
+            .Select(missingRef => new DirectoryMissingReference(
+                missingRef.ReferenceName,
+                missingRef.RequiredVersion,
+                rel.RelativePath(missingRef.RequiredBy)))];
     }
 
-    private static DirDup[] BuildDuplicates(ScanReport report, ScanRel rel)
+    private static DirectoryDuplicateProvider[] BuildDuplicates(ScanReport report, ScanPathRelativizer rel)
     {
-        return [.. report.DupProviders
-            .Select(dupProvider => new DirDup(
-                dupProvider.AsmName,
-                rel.Many(dupProvider.Files)))];
+        return [.. report.DuplicateProviders
+            .Select(duplicateProvider => new DirectoryDuplicateProvider(
+                duplicateProvider.AssemblyName,
+                rel.RelativePaths(duplicateProvider.Files)))];
     }
 
-    private static DirIssue[] BuildIssues(
-        DirConf[] conflicts,
-        DirMiss[] missingRefs,
-        DirDup[] duplicateProviders)
-    {
-        var issues = new List<DirIssue>(conflicts.Length + missingRefs.Length + duplicateProviders.Length);
-        AddConflicts(issues, conflicts);
-        AddMisses(issues, missingRefs);
-        AddDuplicates(issues, duplicateProviders);
-        return [.. issues];
-    }
-
-    private static void AddConflicts(List<DirIssue> issues, DirConf[] conflicts)
-    {
-        foreach (DirConf conflict in conflicts)
-        {
-            issues.Add(RepairGuide.ForIssue(new RepairGuide.IssueFacts
-            {
-                Code = IssueCode.AsmConflict,
-                Subject = conflict.Assembly,
-                Summary = $"{conflict.ReferencedBy} expects v{conflict.Expected}, but v{conflict.Actual} is provided by {conflict.ProvidedBy}.",
-                Files = [conflict.ReferencedBy, conflict.ProvidedBy]
-            }));
-        }
-    }
-
-    private static void AddMisses(List<DirIssue> issues, DirMiss[] missingRefs)
-    {
-        foreach (DirMiss missingRef in missingRefs)
-        {
-            issues.Add(RepairGuide.ForIssue(new RepairGuide.IssueFacts
-            {
-                Code = IssueCode.MissingRef,
-                Subject = missingRef.Assembly,
-                Summary = $"{missingRef.RequiredBy} expects v{missingRef.Version}, but no provider was found.",
-                Files = [missingRef.RequiredBy]
-            }));
-        }
-    }
-
-    private static void AddDuplicates(List<DirIssue> issues, DirDup[] duplicateProviders)
-    {
-        foreach (DirDup duplicateProvider in duplicateProviders)
-        {
-            issues.Add(RepairGuide.ForIssue(new RepairGuide.IssueFacts
-            {
-                Code = IssueCode.DupProvider,
-                Subject = duplicateProvider.Assembly,
-                Summary = $"Multiple providers were found: {string.Join(", ", duplicateProvider.Files)}.",
-                Files = duplicateProvider.Files
-            }));
-        }
-    }
-
-    private static ScanStats BuildStats(ScanFile[] files, bool hasConflict, DirIssue[] issues)
+    private static ScanStats BuildStats(ScanFile[] files, bool hasConflict, DirectoryIssue[] issues)
     {
         var need = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         ScanCounts counts = new(0, 0, 0, 0, 0);
@@ -159,7 +118,7 @@ internal static class ScanBuild
                 hasFixable = true;
         }
 
-        foreach (DirIssue issue in issues)
+        foreach (DirectoryIssue issue in issues)
         {
             foreach (string file in issue.Files)
                 need.Add(file);
@@ -195,7 +154,7 @@ internal static class ScanBuild
                 .Select(issue => issue.Code)
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(code => code, StringComparer.Ordinal)]);
-        return new ScanJsonMeta(summary, gate);
+        return new ScanJsonMeta(summary, gate, context.Profiles);
     }
 
     private static Dictionary<string, int> CountByCategory(ScanFile[] files)
@@ -214,10 +173,10 @@ internal static class ScanBuild
         return counts;
     }
 
-    private static Dictionary<string, int> CountByIssue(DirIssue[] issues)
+    private static Dictionary<string, int> CountByIssue(DirectoryIssue[] issues)
     {
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (DirIssue issue in issues)
+        foreach (DirectoryIssue issue in issues)
             AddCount(counts, issue.Code);
         return counts;
     }
@@ -240,13 +199,18 @@ internal static class ScanBuild
         counts[key] = counts.TryGetValue(key, out int count) ? count + 1 : 1;
     }
 
-    private readonly record struct ScanBuildContext(ScanRel Rel, bool WithJson, BepIndex BepIndex);
+    private readonly record struct ScanBuildContext(
+        ScanPathRelativizer Rel,
+        bool WithJson,
+        BepInExProviderIndex BepInExProviderIndex,
+        BepInExExplainResult BepInExExplain);
 
     private sealed record ScanJsonBuild
     {
         public required ScanFile[] Files { get; init; }
         public required ScanStats Stats { get; init; }
         public required int DuplicateCount { get; init; }
-        public required DirIssue[] Issues { get; init; }
+        public required DirectoryIssue[] Issues { get; init; }
+        public required ScanProfiles? Profiles { get; init; }
     }
 }

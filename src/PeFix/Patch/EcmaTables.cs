@@ -71,7 +71,7 @@ internal static class EcmaTables
         (int)TableId.Assembly => 4 + 2 + 2 + 2 + 2 + 4 + w.Blob + w.Str + w.Str,
         (int)TableId.AsmProc => 4,
         (int)TableId.AsmOs => 4 + 4 + 4,
-        (int)TableId.AsmRef => 2 + 2 + 2 + 2 + 4 + w.Blob + w.Str + w.Str + w.Blob,
+        (int)TableId.AssemblyReference => 2 + 2 + 2 + 2 + 4 + w.Blob + w.Str + w.Str + w.Blob,
         _ => throw new InvalidOperationException($"Unsupported metadata table 0x{table:X2}.")
     };
 
@@ -89,14 +89,14 @@ internal static class EcmaTables
             (heapSizes & 0x01) != 0 ? 4 : 2,
             (heapSizes & 0x02) != 0 ? 4 : 2,
             (heapSizes & 0x04) != 0 ? 4 : 2,
-            Coded([(int)TableId.Module, (int)TableId.ModuleRef, (int)TableId.AsmRef, (int)TableId.TypeRef], 2),
+            Coded([(int)TableId.Module, (int)TableId.ModuleRef, (int)TableId.AssemblyReference, (int)TableId.TypeRef], 2),
             Coded([(int)TableId.TypeDef, (int)TableId.TypeRef, (int)TableId.TypeSpec], 2),
             Coded([(int)TableId.Field, (int)TableId.Param, (int)TableId.Prop], 2),
             Coded([
                 (int)TableId.MethodDef, (int)TableId.Field, (int)TableId.TypeRef, (int)TableId.TypeDef,
                 (int)TableId.Param, (int)TableId.IfaceImpl, (int)TableId.MemberRef, (int)TableId.Module,
                 (int)TableId.DeclSec, (int)TableId.Prop, (int)TableId.Event, (int)TableId.StandSig,
-                (int)TableId.ModuleRef, (int)TableId.TypeSpec, (int)TableId.Assembly, (int)TableId.AsmRef,
+                (int)TableId.ModuleRef, (int)TableId.TypeSpec, (int)TableId.Assembly, (int)TableId.AssemblyReference,
                 (int)TableId.File, (int)TableId.ExportType, (int)TableId.ManifestRes,
                 (int)TableId.GenParam, (int)TableId.GenParamC, (int)TableId.MethodSpec
             ], 5),

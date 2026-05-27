@@ -19,9 +19,10 @@ internal static class JsonWriter
             json.Summary,
             [.. view.Files.Select(file => file.Json!)],
             [.. view.Conflicts.Select(MapConflict)],
-            [.. view.MissingRefs.Select(MapMissing)],
-            [.. view.DupProviders.Select(MapDuplicate)],
+            [.. view.MissingReferences.Select(MapMissing)],
+            [.. view.DuplicateProviders.Select(MapDuplicate)],
             [.. view.Issues.Select(MapIssue)],
+            json.Profiles is null ? null : new ScanProfilesJson(json.Profiles.Host, json.Profiles.Artifact),
             json.Gate);
         return JsonSerializer.Serialize(scanJson, JsonContext.Default.ScanJson);
     }
@@ -122,7 +123,7 @@ internal static class JsonWriter
             InspectMap.Map(result.After));
     }
 
-    private static ScanConflict MapConflict(DirConf conflict)
+    private static ScanConflict MapConflict(DirectoryConflict conflict)
     {
         return new ScanConflict(
             conflict.Assembly,
@@ -132,20 +133,20 @@ internal static class JsonWriter
             conflict.ProvidedBy);
     }
 
-    private static ScanMissing MapMissing(DirMiss missingRef)
+    private static ScanMissingReference MapMissing(DirectoryMissingReference missingRef)
     {
-        return new ScanMissing(
+        return new ScanMissingReference(
             missingRef.Assembly,
             missingRef.Version,
             missingRef.RequiredBy);
     }
 
-    private static ScanDup MapDuplicate(DirDup dupProvider)
+    private static ScanDuplicateProvider MapDuplicate(DirectoryDuplicateProvider duplicateProvider)
     {
-        return new ScanDup(dupProvider.Assembly, dupProvider.Files);
+        return new ScanDuplicateProvider(duplicateProvider.Assembly, duplicateProvider.Files);
     }
 
-    private static ScanIssue MapIssue(DirIssue issue)
+    private static ScanIssue MapIssue(DirectoryIssue issue)
     {
         return new ScanIssue(
             issue.Code,
@@ -156,7 +157,8 @@ internal static class JsonWriter
             issue.RepairClass,
             issue.RepairHint,
             issue.VerifyCommand,
-            issue.UnverifiedRisks);
+            issue.UnverifiedRisks,
+            issue.Evidence);
     }
 
     private static BatchFixJson CreateBatch(BatchResult result)

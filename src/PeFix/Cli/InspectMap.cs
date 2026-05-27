@@ -5,14 +5,12 @@ namespace PeFix.Cli;
 
 internal static class InspectMap
 {
-    private static readonly Func<BepDep, BepDepState> UnknownBep = _ => BepDepState.Unknown;
-
     public static InspectJson Map(Inspection result)
     {
-        return Map(result, UnknownBep);
+        return Map(result, BepInExInspectContext.Empty);
     }
 
-    public static InspectJson Map(Inspection result, Func<BepDep, BepDepState> depState)
+    public static InspectJson Map(Inspection result, BepInExInspectContext bepInExContext)
     {
         RepairInfo repair = RepairGuide.ForInspect(result);
         return new InspectJson(
@@ -22,10 +20,10 @@ internal static class InspectMap
             result.PeFormat,
             result.Machine,
             new CorFlagsJson(
-                result.CliFlags.IlOnly,
-                result.CliFlags.Required32Bit,
-                result.CliFlags.Preferred32Bit,
-                result.CliFlags.Signed),
+                result.ManagedCorFlags.IlOnly,
+                result.ManagedCorFlags.Required32Bit,
+                result.ManagedCorFlags.Preferred32Bit,
+                result.ManagedCorFlags.Signed),
             new SignalsJson(
                 result.Signals.StrongName,
                 result.Signals.HasPInvoke,
@@ -46,41 +44,45 @@ internal static class InspectMap
             result.Tfm,
             result.MetaVersion,
             result.OsPlatforms,
-            result.AssemblyRefs?.Select(r => new AsmRefJson(r.Name, r.Version)).ToArray(),
-            result.AssemblyDef is { } def ? new AsmRefJson(def.Name, def.Version) : null,
-            MapBep(result.Bep, depState),
-            result.HasR2R,
+            result.AssemblyReferences?.Select(r => new AssemblyReferenceJson(r.Name, r.Version)).ToArray(),
+            result.AssemblyDefinition is { } def ? new AssemblyReferenceJson(def.Name, def.Version) : null,
+            MapBep(result.BepInEx, bepInExContext),
+            result.HasReadyToRun,
             result.IsTrimmable);
     }
 
-    public static BepJson? MapBep(BepInfo? bep, Func<BepDep, BepDepState> depState)
+    public static BepInExJson? MapBep(BepInExMetadata? bep, BepInExInspectContext context)
     {
-        if (!bep.HasValue)
+        if (!bep.HasValue && context.ExplainState is null)
             return null;
 
-        return new BepJson([.. bep.Value.Plugins.Select(plugin => new BepPluginJson(
+        BepInExPluginMetadata[] plugins = bep?.Plugins ?? [];
+        return new BepInExJson(context.ExplainState ?? BepInExExplainState.HelperLibrary, [.. plugins.Select(plugin => new BepInExPluginJson(
             plugin.Guid,
             plugin.Name,
             plugin.Version,
-            [.. plugin.Deps.Select(dep => MapDep(dep, depState(dep)))]))]);
+            [.. plugin.Deps.Select(dependency => MapDep(dependency, context.ProviderPresenceFor(dependency)))]))]);
     }
 
-    private static BepDepJson MapDep(BepDep dep, BepDepState state)
+    private static BepInExDependencyJson MapDep(
+        BepInExDependencyMetadata dependency,
+        BepInExDependencyProviderPresence providerPresence)
     {
-        return new BepDepJson(
-            dep.Guid,
-            dep.Range,
-            dep.Hard,
-            Present(state),
-            state is BepDepState.CaseMismatch);
+        return new BepInExDependencyJson(
+            dependency.Guid,
+            dependency.Range,
+            dependency.Hard,
+            IsProviderPresent(providerPresence),
+            providerPresence is BepInExDependencyProviderPresence.CaseMismatchProviderFound);
     }
 
-    private static bool? Present(BepDepState state)
+    private static bool? IsProviderPresent(BepInExDependencyProviderPresence providerPresence)
     {
-        return state switch
+        return providerPresence switch
         {
-            BepDepState.Present => true,
-            BepDepState.Missing or BepDepState.CaseMismatch => false,
+            BepInExDependencyProviderPresence.ExactProviderFound => true,
+            BepInExDependencyProviderPresence.NoProviderFound => false,
+            BepInExDependencyProviderPresence.CaseMismatchProviderFound => false,
             _ => null
         };
     }

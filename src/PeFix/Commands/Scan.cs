@@ -16,10 +16,13 @@ internal static class Scan
             threshold = value;
         }
 
+        if (!ScanProfile.TryParse(args.Profile, out ScanProfiles? profiles))
+            return CliErr.Usage($"Unsupported scan profile: {args.Profile}");
+
         ScanReport report;
         try
         {
-            report = Scanner.Scan(args.Path);
+            report = Scanner.Scan(args.Path, profiles?.HostProfile);
         }
         catch (IOException ex)
         {
@@ -30,7 +33,7 @@ internal static class Scan
             return CliErr.Io(ex);
         }
 
-        ScanView view = ScanBuild.Build(report, args.Json);
+        ScanView view = ScanBuild.Build(report, args.Json, profiles);
 
         if (args.Json)
         {
@@ -55,5 +58,6 @@ internal static class Scan
         public required bool Json { get; init; }
         public required string? FailOn { get; init; }
         public required bool FailOnConflict { get; init; }
+        public required string? Profile { get; init; }
     }
 }
