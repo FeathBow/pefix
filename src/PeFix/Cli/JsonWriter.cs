@@ -11,20 +11,19 @@ internal static class JsonWriter
         return JsonSerializer.Serialize(InspectMap.Map(result), JsonContext.Default.InspectJson);
     }
 
-    public static string Render(ScanView view)
+    public static string Render(ScanView view, ScanJsonParts json)
     {
-        ScanJsonMeta json = view.Json ?? throw new InvalidOperationException("Scan JSON metadata was not built.");
-        var scanJson = new ScanJson(
+        var output = new ScanJson(
             view.Directory,
             json.Summary,
-            [.. view.Files.Select(file => file.Json!)],
+            json.Results,
             [.. view.Conflicts.Select(MapConflict)],
             [.. view.MissingReferences.Select(MapMissing)],
             [.. view.DuplicateProviders.Select(MapDuplicate)],
             [.. view.Issues.Select(MapIssue)],
-            json.Profiles is null ? null : new ScanProfilesJson(json.Profiles.Host, json.Profiles.Artifact),
+            MapProfile(json.Profile),
             json.Gate);
-        return JsonSerializer.Serialize(scanJson, JsonContext.Default.ScanJson);
+        return JsonSerializer.Serialize(output, JsonContext.Default.ScanJson);
     }
 
     public static string Render(PatchResult result)
@@ -160,6 +159,33 @@ internal static class JsonWriter
             issue.UnverifiedRisks,
             issue.Evidence);
     }
+
+    private static ProfileJson? MapProfile(ScanProfile? profile)
+    {
+        if (profile is null)
+            return null;
+
+        LoaderTarget? target = profile.DeclaredLoaderTarget;
+        return new ProfileJson(
+            profile.Host.Name,
+            profile.Artifact,
+            target.HasValue ? GenerationToken(target.Value.Generation) : null,
+            target.HasValue ? FlavorToken(target.Value.Flavor) : null);
+    }
+
+    private static string? GenerationToken(LoaderGeneration generation) => generation switch
+    {
+        LoaderGeneration.BepInEx5 => "bepinex5",
+        LoaderGeneration.BepInEx6 => "bepinex6",
+        _ => null
+    };
+
+    private static string? FlavorToken(LoaderFlavor flavor) => flavor switch
+    {
+        LoaderFlavor.Mono => "mono",
+        LoaderFlavor.Il2Cpp => "il2cpp",
+        _ => null
+    };
 
     private static BatchFixJson CreateBatch(BatchResult result)
     {

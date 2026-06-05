@@ -10,6 +10,6 @@ internal sealed record ScanJson(
     [property: JsonPropertyName("missing_refs")] ScanMissingReference[] MissingReferences,
     [property: JsonPropertyName("dup_providers")] ScanDuplicateProvider[] DuplicateProviders,
     [property: JsonPropertyName("issues")] ScanIssue[] Issues,
-    [property: JsonPropertyName("profiles")] ScanProfilesJson? Profiles,
+    [property: JsonPropertyName("profiles")] ProfileJson? Profile,
     [property: JsonPropertyName("gate")] ScanGate Gate,
     [property: JsonPropertyName("schema_version"), JsonPropertyOrder(-1)] int SchemaVersion = 1);

@@ -42,7 +42,7 @@ namespace PeFix;
 [JsonSerializable(typeof(ScanIssue[]))]
 [JsonSerializable(typeof(IssueEvidence))]
 [JsonSerializable(typeof(ScanGate))]
-[JsonSerializable(typeof(ScanProfilesJson))]
+[JsonSerializable(typeof(ProfileJson))]
 [JsonSerializable(typeof(FixJson))]
 [JsonSerializable(typeof(RefusalJson))]
 [JsonSerializable(typeof(BatchSummary))]

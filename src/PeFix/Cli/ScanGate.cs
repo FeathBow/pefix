@@ -6,4 +6,6 @@ internal sealed record ScanGate(
     [property: JsonPropertyName("integrity")] string Integrity,
     [property: JsonPropertyName("version_conflict")] string VersionConflict,
     [property: JsonPropertyName("issue_count")] int IssueCount,
-    [property: JsonPropertyName("issue_codes")] string[] IssueCodes);
+    [property: JsonPropertyName("issue_codes")] string[] IssueCodes,
+    [property: JsonPropertyName("blocking_file_count")] int BlockingFileCount,
+    [property: JsonPropertyName("blocking_file_reasons")] string[] BlockingFileReasons);

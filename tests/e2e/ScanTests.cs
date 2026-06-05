@@ -40,6 +40,8 @@ public sealed class ScanTests : IDisposable
         Assert.Equal("pass", gate.GetProperty("version_conflict").GetString());
         Assert.Equal(0, gate.GetProperty("issue_count").GetInt32());
         Assert.Equal(0, gate.GetProperty("issue_codes").GetArrayLength());
+        Assert.Equal(0, gate.GetProperty("blocking_file_count").GetInt32());
+        Assert.Equal(0, gate.GetProperty("blocking_file_reasons").GetArrayLength());
         Assert.Equal(0, issues.GetArrayLength());
         Assert.Equal(0, summary.GetProperty("issues").GetInt32());
         JsonElement ok = JsonAssert.SingleBy(results, "reason_code", "portable");
@@ -56,23 +58,37 @@ public sealed class ScanTests : IDisposable
     }
 
     [Fact]
-    public void Scan_ProfileJson()
+    public void Scan_ProfileOutput()
     {
         _temp.CopyAll("F26_bep_meta.dll");
         var result = CliRunner.Run("scan", _temp.DirPath, "--profile", "unity-bepinex", "--json");
         Assert.Equal(0, result.ExitCode);
 
         JsonElement root = JsonAssert.ParseObject(result.Stdout);
-        JsonElement profiles = root.GetProperty("profiles");
-        Assert.Equal("unity-bepinex", profiles.GetProperty("host").GetString());
-        Assert.Equal("plugin-folder", profiles.GetProperty("artifact").GetString());
+        JsonElement profileJson = root.GetProperty("profiles");
+        Assert.Equal("unity-bepinex", profileJson.GetProperty("host").GetString());
+        Assert.Equal("plugin-folder", profileJson.GetProperty("artifact").GetString());
+    }
+
+    [Fact]
+    public void Scan_ProfileOutputIncludesDeclaredLoaderTarget()
+    {
+        _temp.CopyAll("F26_bep_meta.dll");
+        CliResult result = CliRunner.Run("scan", _temp.DirPath, "--profile", "unity-bepinex6-il2cpp", "--json");
+
+        Assert.Equal(0, result.ExitCode);
+        JsonElement profileJson = JsonAssert.ParseObject(result.Stdout).GetProperty("profiles");
+        Assert.Equal("unity-bepinex", profileJson.GetProperty("host").GetString());
+        Assert.Equal("plugin-folder", profileJson.GetProperty("artifact").GetString());
+        Assert.Equal("bepinex6", profileJson.GetProperty("declared_loader_generation").GetString());
+        Assert.Equal("il2cpp", profileJson.GetProperty("declared_loader_flavor").GetString());
     }
 
     [Fact]
     public void Scan_ProfileRejectsUnknown()
     {
         _temp.CopyAll("F01_compatible_anycpu.dll");
-        var result = CliRunner.Run("scan", _temp.DirPath, "--profile", "publish-dir");
+        var result = CliRunner.Run("scan", _temp.DirPath, "--profile", "not-a-real-profile");
 
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("Unsupported scan profile", result.Stderr);

@@ -1,11 +1,11 @@
 namespace PeFix.Cli;
 
-internal sealed class ScanPathRelativizer
+internal sealed class PathRelativizer
 {
     private readonly string _root;
     private readonly Dictionary<string, string> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public ScanPathRelativizer(string root)
+    public PathRelativizer(string root)
     {
         _root = root;
     }

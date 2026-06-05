@@ -16,13 +16,13 @@ internal static class Scan
             threshold = value;
         }
 
-        if (!ScanProfile.TryParse(args.Profile, out ScanProfiles? profiles))
+        if (!ProfileParser.TryParse(args.Profile, out ScanProfile? profile))
             return CliErr.Usage($"Unsupported scan profile: {args.Profile}");
 
         ScanReport report;
         try
         {
-            report = Scanner.Scan(args.Path, profiles?.HostProfile);
+            report = Scanner.Scan(args.Path, profile?.Host);
         }
         catch (IOException ex)
         {
@@ -33,11 +33,14 @@ internal static class Scan
             return CliErr.Io(ex);
         }
 
-        ScanView view = ScanBuild.Build(report, args.Json, profiles);
+        ScanResult scan = ScanBuild.Build(report, args.Json, profile);
+        ScanView view = scan.View;
 
         if (args.Json)
         {
-            JsonOut.Write(JsonWriter.Render(view));
+            ScanJsonParts json = scan.Json
+                ?? throw new InvalidOperationException("Scan JSON context was not built.");
+            JsonOut.Write(JsonWriter.Render(view, json));
         }
         else
         {
@@ -47,9 +50,17 @@ internal static class Scan
         if (args.FailOnConflict && view.Stats.HasConflict)
             return CliExit.Issue;
 
+        if (args.FailOnIssue && HasBlockingIssue(view))
+            return CliExit.Issue;
+
         return threshold is { } t && view.Files.Any(file => GateEval.Meets(file.Status, t))
             ? CliExit.Issue
             : CliExit.Success;
+    }
+
+    private static bool HasBlockingIssue(ScanView view)
+    {
+        return view.HasIssues || view.HasBlockingFiles;
     }
 
     internal sealed class ScanArgs
@@ -58,6 +69,7 @@ internal static class Scan
         public required bool Json { get; init; }
         public required string? FailOn { get; init; }
         public required bool FailOnConflict { get; init; }
+        public required bool FailOnIssue { get; init; }
         public required string? Profile { get; init; }
     }
 }

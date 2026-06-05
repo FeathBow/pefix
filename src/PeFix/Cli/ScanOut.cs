@@ -36,7 +36,10 @@ internal static class ScanOut
         writer.WriteLine();
         if (!view.HasIssues)
         {
-            writer.WriteLine("  Blocking Issues: none found under supported static checks.");
+            string detail = view.HasBlockingFiles
+                ? "blocking file diagnostics are listed below."
+                : "none found under supported static checks.";
+            writer.WriteLine($"  Blocking Issues: {detail}");
             writer.WriteLine("  Static Boundary: Runtime load success is not certified.");
             return;
         }
@@ -78,9 +81,9 @@ internal static class ScanOut
             writer.WriteLine($"  Group: {group.Key}");
             foreach (ScanFile file in group)
             {
-                writer.WriteLine($"    - {file.ViewPath} [{Labels.StatusText(file.Status)}] reason={file.ReasonCode} action={file.Action}");
+                writer.WriteLine($"    - {file.ViewPath} [{Labels.StatusText(file.Status)}] reason={file.ReasonCode} action={file.ActionText}");
                 if (file.NeedsWork)
-                    writer.WriteLine($"      why: {file.Why}");
+                    writer.WriteLine($"      why: {file.ReasonText}");
             }
         }
     }
@@ -170,6 +173,9 @@ internal static class ScanOut
                 ? "Resolve directory issues below, then run pefix fix <path> --apply for entries marked fixable."
                 : "Resolve directory issues below before attempting runtime validation.";
         }
+
+        if (view.HasBlockingFiles)
+            return "Resolve blocking file diagnostics below before attempting runtime validation.";
 
         return view.Stats.HasFixable
             ? "Run pefix fix <path> --apply for entries marked fixable."

@@ -7,10 +7,9 @@ internal sealed record ScanFile(
     string Category,
     Status Status,
     bool CanPatch,
-    string Why,
-    string Action,
-    string ReasonCode,
-    InspectJson? Json)
+    string ReasonText,
+    string ActionText,
+    string ReasonCode)
 {
     public bool NeedsWork => Status != Status.Compatible;
 }

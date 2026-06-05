@@ -7,8 +7,9 @@ internal sealed record ScanView(
     DirectoryConflict[] Conflicts,
     DirectoryMissingReference[] MissingReferences,
     DirectoryDuplicateProvider[] DuplicateProviders,
-    DirectoryIssue[] Issues,
-    ScanJsonMeta? Json = null)
+    DirectoryIssue[] Issues)
 {
     public bool HasIssues => Issues.Length > 0;
+
+    public bool HasBlockingFiles => Files.Any(file => file.Status is PeFix.Meta.Status.Unsafe or PeFix.Meta.Status.Corrupt);
 }

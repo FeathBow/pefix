@@ -15,6 +15,7 @@ internal static class ScanCmd
             Json = r.GetValue(RootCmd.JsonOpt),
             FailOn = r.GetValue(opts.FailOnOpt),
             FailOnConflict = r.GetValue(opts.ConflictOpt),
+            FailOnIssue = r.GetValue(opts.IssueOpt),
             Profile = r.GetValue(opts.ProfileOpt)
         }));
         return cmd;
@@ -37,9 +38,14 @@ internal static class ScanCmd
             Description = "Exit with code 1 when version conflicts are detected."
         };
 
+        public Option<bool> IssueOpt { get; } = new("--fail-on-issue")
+        {
+            Description = "Exit with code 1 when any blocking directory issue or unsafe/corrupt file diagnosis is found. Use as a CI gate on publish/plugin folders."
+        };
+
         public Option<string?> ProfileOpt { get; } = new("--profile")
         {
-            Description = "Static host/artifact profile assumptions. Supported: unity-bepinex."
+            Description = "Static host/artifact profile assumptions. Supported: unity-bepinex, unity-bepinex5, unity-bepinex6-mono, unity-bepinex6-il2cpp, dotnet-plugin, publish-dir."
         };
 
         public void AddTo(Command cmd)
@@ -47,6 +53,7 @@ internal static class ScanCmd
             cmd.Arguments.Add(PathArg);
             cmd.Options.Add(FailOnOpt);
             cmd.Options.Add(ConflictOpt);
+            cmd.Options.Add(IssueOpt);
             cmd.Options.Add(ProfileOpt);
         }
     }

@@ -11,13 +11,16 @@ public sealed class ScanViewTest
     [Fact]
     public void Scan_Parity()
     {
-        ScanView view = ScanBuild.Build(new ScanReport(
+        ScanResult scan = ScanBuild.Build(new ScanReport(
             Root,
             [Fixable("mods/Fix.dll"), Compatible("mods/Ok.dll")],
             [new VersionConflict("Dependency", "1.0.0.0", "2.0.0.0", Abs("mods/Fix.dll"), Abs("providers/Dependency.dll"))],
             [new MissingReference("System.Text.Json", "8.0.0.0", Abs("mods/Fix.dll"))],
-            [new DuplicateProvider("Newtonsoft.Json", [Abs("plugins/A/Newtonsoft.Json.dll"), Abs("plugins/B/Newtonsoft.Json.dll")])]),
+            [new DuplicateProvider("Newtonsoft.Json", [Abs("plugins/A/Newtonsoft.Json.dll"), Abs("plugins/B/Newtonsoft.Json.dll")])],
+            []),
             withJson: true);
+        ScanView view = scan.View;
+        ScanJsonParts json = scan.Json ?? throw new InvalidOperationException("JSON context was not built.");
 
         Assert.True(view.Stats.HasFixable);
         Assert.True(view.Stats.HasConflict);
@@ -28,10 +31,10 @@ public sealed class ScanViewTest
         Assert.Equal("portability", view.Files[0].Category);
         Assert.Equal(Status.Fixable, view.Files[0].Status);
         Assert.Equal("non_portable", view.Files[0].ReasonCode);
-        Assert.Equal("fix", view.Files[0].Action);
-        Assert.Contains("platform-specific header", view.Files[0].Why);
+        Assert.Equal("fix", view.Files[0].ActionText);
+        Assert.Contains("platform-specific header", view.Files[0].ReasonText);
 
-        using JsonDocument doc = JsonDocument.Parse(JsonWriter.Render(view));
+        using JsonDocument doc = JsonDocument.Parse(JsonWriter.Render(view, json));
         JsonElement root = doc.RootElement;
         Assert.Equal(3, root.GetProperty("issues").GetArrayLength());
         Assert.Equal("fail", root.GetProperty("gate").GetProperty("integrity").GetString());
@@ -42,6 +45,9 @@ public sealed class ScanViewTest
         Assert.Equal(1, root.GetProperty("summary").GetProperty("by_action").GetProperty("fix").GetInt32());
         Assert.Equal(1, root.GetProperty("summary").GetProperty("by_action").GetProperty("none").GetInt32());
         Assert.Equal(3, root.GetProperty("gate").GetProperty("issue_count").GetInt32());
+        Assert.Equal(
+            ["asm_conflict", "dup_provider", "missing_ref"],
+            JsonAssert.StringArray(root.GetProperty("gate").GetProperty("issue_codes")));
 
         string text = ScanOut.Render(view);
         Assert.Contains("mods/Fix.dll [fixable] reason=non_portable action=fix", text);
@@ -59,18 +65,38 @@ public sealed class ScanViewTest
     [Fact]
     public void Scan_TextStatesPassingStaticBoundary()
     {
-        ScanView view = ScanBuild.Build(new ScanReport(
+        ScanResult scan = ScanBuild.Build(new ScanReport(
             Root,
             [Compatible("mods/Ok.dll")],
             [],
             [],
+            [],
             []),
             withJson: false);
+        ScanView view = scan.View;
 
         string text = ScanOut.Render(view);
 
         Assert.Contains("Blocking Issues: none found under supported static checks.", text);
         Assert.Contains("Runtime load success is not certified.", text);
+    }
+
+    [Fact]
+    public void Scan_TextCallsOutBlockingFileDiagnostics()
+    {
+        ScanResult scan = ScanBuild.Build(new ScanReport(
+            Root,
+            [NewInspect("mods/Ref.dll", Status.Unsafe, "ref_assembly")],
+            [],
+            [],
+            [],
+            []),
+            withJson: false);
+
+        string text = ScanOut.Render(scan.View);
+
+        Assert.Contains("Action:  Resolve blocking file diagnostics below", text);
+        Assert.Contains("Blocking Issues: blocking file diagnostics are listed below.", text);
     }
 
     private static Inspection Compatible(string path)
