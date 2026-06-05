@@ -10,32 +10,7 @@ internal static partial class HarnessAssertions
     private const string AssistedFix = "assisted_fix";
     private const string DiagnosticOnly = "diagnostic_only";
     private const string GuidedFix = "guided_fix";
-    private const string ProfileName = "unity-bepinex";
-    private static readonly IReadOnlyDictionary<string, Action<TempDir>> ScenarioAssertions =
-        new Dictionary<string, Action<TempDir>>(StringComparer.Ordinal)
-        {
-            ["bep_valid_plugin"] = AssertBepValidPlugin,
-            ["bep_helper_library"] = AssertBepHelperLibrary,
-            ["bep_missing_hard_dep"] = AssertBepMissingHardDependency,
-            ["bep_case_mismatch"] = AssertBepCaseMismatch,
-            ["bep_version_mismatch"] = AssertBepVersionMismatch,
-            ["bep_duplicate_guid"] = AssertBepDuplicateGuid,
-            ["bep_unresolved_chain"] = AssertBepUnresolvedChain,
-            ["plugin_invalid_artifact"] = AssertInvalidArtifact,
-            ["generic_plugin_missing_ref"] = AssertGenericMissingReference,
-            ["generic_plugin_conflict"] = AssertGenericConflict,
-            ["generic_plugin_dup_provider"] = AssertGenericDuplicateProvider,
-            ["strong_name_or_pinvoke_guided_fix"] = AssertPartialGuidedFix,
-            ["header_auto_fix"] = AssertHeaderAutoFix,
-        };
-
-    public static void AssertScenario(string scenario, TempDir temp)
-    {
-        if (!ScenarioAssertions.TryGetValue(scenario, out Action<TempDir>? assertScenario))
-            throw new InvalidOperationException($"Unknown v0.4 release harness scenario '{scenario}'.");
-
-        assertScenario(temp);
-    }
+    private const string UnityProfile = "unity-bepinex";
 
     public static void AssertBepValidPlugin(TempDir temp)
     {
@@ -43,7 +18,7 @@ internal static partial class HarnessAssertions
 
         JsonElement root = ScanUnityJson(temp);
 
-        AssertProfile(root);
+        AssertUnityProfile(root);
         Assert.Equal("pass", Gate(root, "integrity"));
         Assert.Equal("plugin", BepState(root, "F26_bep_meta.dll"));
         Assert.Empty(root.GetProperty("issues").EnumerateArray());
@@ -126,6 +101,9 @@ internal static partial class HarnessAssertions
         JsonElement root = ScanUnityJson(temp);
         JsonElement result = ResultFor(root, "F05_reference_assembly.dll");
 
+        Assert.Equal("fail", Gate(root, "integrity"));
+        Assert.Equal(1, root.GetProperty("gate").GetProperty("blocking_file_count").GetInt32());
+        Assert.Contains("ref_assembly", JsonAssert.StringArray(root.GetProperty("gate").GetProperty("blocking_file_reasons")));
         Assert.Equal("invalid_artifact", BepState(root, "F05_reference_assembly.dll"));
         Assert.Equal("ref_assembly", result.GetProperty("reason_code").GetString());
         Assert.Equal(DiagnosticOnly, result.GetProperty("repair_class").GetString());
@@ -187,6 +165,7 @@ internal static partial class HarnessAssertions
             .Where(issue => issue.GetProperty("code").GetString() == code)];
 
         Assert.NotEmpty(issues);
+        Assert.Contains(code, JsonAssert.StringArray(root.GetProperty("gate").GetProperty("issue_codes")));
         foreach (JsonElement issue in issues)
         {
             Assert.Equal(AssistedFix, issue.GetProperty("repair_class").GetString());
@@ -194,14 +173,12 @@ internal static partial class HarnessAssertions
             Assert.NotEmpty(JsonAssert.StringArray(issue.GetProperty("next_steps")));
             Assert.NotEmpty(JsonAssert.StringArray(issue.GetProperty("unverified_risks")));
         }
-
-        Assert.Contains(code, IssueCodes(root));
         return issues[0];
     }
 
     public static CliResult ScanUnityText(TempDir temp)
     {
-        CliResult result = CliRunner.Run("scan", temp.DirPath, "--profile", ProfileName);
+        CliResult result = CliRunner.Run("scan", temp.DirPath, "--profile", UnityProfile);
 
         Assert.Equal(SuccessExitCode, result.ExitCode);
         return result;
@@ -209,7 +186,7 @@ internal static partial class HarnessAssertions
 
     public static JsonElement ScanUnityJson(TempDir temp)
     {
-        CliResult result = CliRunner.Run("scan", temp.DirPath, "--profile", ProfileName, "--json");
+        CliResult result = CliRunner.Run("scan", temp.DirPath, "--profile", UnityProfile, "--json");
 
         Assert.Equal(SuccessExitCode, result.ExitCode);
         return JsonAssert.ParseObject(result.Stdout);
@@ -230,6 +207,18 @@ internal static partial class HarnessAssertions
         Assert.Equal(GateFailureExitCode, result.ExitCode);
         Assert.Equal("fail", Gate(root, "version_conflict"));
         AssertIssueContract(root, "asm_conflict");
+    }
+
+    public static void AssertPublishGateFails(TempDir temp)
+    {
+        temp.Copy("F18_missing_refs.dll");
+
+        CliResult result = CliRunner.Run("scan", temp.DirPath, "--profile", "publish-dir", "--json", "--fail-on-issue");
+        JsonElement root = JsonAssert.ParseObject(result.Stdout);
+
+        Assert.Equal(GateFailureExitCode, result.ExitCode);
+        Assert.Equal("fail", Gate(root, "integrity"));
+        AssertIssueContract(root, "missing_ref");
     }
 
     private static JsonElement ScanJson(TempDir temp)
@@ -254,11 +243,6 @@ internal static partial class HarnessAssertions
             ?? throw new InvalidOperationException($"Gate '{name}' was null.");
     }
 
-    private static string[] IssueCodes(JsonElement root)
-    {
-        return JsonAssert.StringArray(root.GetProperty("gate").GetProperty("issue_codes"));
-    }
-
     private static JsonElement ResultFor(JsonElement root, string fileName)
     {
         return Assert.Single(
@@ -275,12 +259,12 @@ internal static partial class HarnessAssertions
             ?? throw new InvalidOperationException("BepInEx state was null.");
     }
 
-    private static void AssertProfile(JsonElement root)
+    private static void AssertUnityProfile(JsonElement root)
     {
-        JsonElement profiles = root.GetProperty("profiles");
+        JsonElement profileJson = root.GetProperty("profiles");
 
-        Assert.Equal(ProfileName, profiles.GetProperty("host").GetString());
-        Assert.Equal("plugin-folder", profiles.GetProperty("artifact").GetString());
+        Assert.Equal(UnityProfile, profileJson.GetProperty("host").GetString());
+        Assert.Equal("plugin-folder", profileJson.GetProperty("artifact").GetString());
     }
 
     private static void CopyAs(TempDir temp, string fixture, string fileName)
