@@ -43,6 +43,13 @@ internal sealed class DependencyIndex
         {
             foreach (AssemblyIdentity referenceIdentity in inspection.AssemblyReferences ?? [])
             {
+                // Host-provided assemblies (framework, Unity, loader) are unified
+                // by the runtime, so version skew against an in-folder copy is not
+                // a binding outcome. This mirrors FindMissingReferences, which also
+                // skips provided leaves, and avoids false conflicts on real games.
+                if (ClassifyProvided(referenceIdentity.Name) != ProvidedKind.None)
+                    continue;
+
                 if (!TryGetProvider(referenceIdentity.Name, out Inspection provider))
                     continue;
 

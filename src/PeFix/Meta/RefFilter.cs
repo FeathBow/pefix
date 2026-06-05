@@ -5,6 +5,8 @@ public sealed class HostProfile
     public const string DefaultName = "default";
     public const string UnityBepInExName = "unity-bepinex";
 
+    public const string DotNetName = "dotnet";
+
     public static HostProfile Default { get; } = new(
         DefaultName,
         ProvidedLeafRules.DefaultExactNames,
@@ -12,8 +14,16 @@ public sealed class HostProfile
 
     public static HostProfile UnityBepInEx { get; } = new(
         UnityBepInExName,
-        ProvidedLeafRules.DefaultExactNames,
-        ProvidedLeafRules.DefaultPrefixNames);
+        ProvidedLeafRules.UnityBepInExExactNames,
+        ProvidedLeafRules.UnityBepInExPrefixNames);
+
+    // A generic .NET plugin host / publish directory: only the framework is
+    // provided. Unity, BepInEx, Harmony and other loader assemblies are NOT
+    // host-provided here, so referencing them without supplying them is a gap.
+    public static HostProfile DotNet { get; } = new(
+        DotNetName,
+        ProvidedLeafRules.FrameworkExactNames,
+        ProvidedLeafRules.FrameworkPrefixNames);
 
     private readonly IReadOnlyDictionary<string, ProvidedKind> _exactNames;
     private readonly IReadOnlyList<ProvidedLeafPrefix> _prefixNames;
@@ -75,7 +85,7 @@ internal readonly record struct ProvidedLeafPrefix(string Prefix, ProvidedKind K
 
 internal static class ProvidedLeafRules
 {
-    internal static readonly Dictionary<string, ProvidedKind> DefaultExactNames = new(StringComparer.OrdinalIgnoreCase)
+    internal static readonly Dictionary<string, ProvidedKind> FrameworkExactNames = new(StringComparer.OrdinalIgnoreCase)
     {
         ["mscorlib"] = ProvidedKind.Framework,
         ["System"] = ProvidedKind.Framework,
@@ -83,6 +93,18 @@ internal static class ProvidedLeafRules
         ["Microsoft.CSharp"] = ProvidedKind.Framework,
         ["Microsoft.VisualBasic"] = ProvidedKind.Framework,
         ["Microsoft.VisualBasic.Core"] = ProvidedKind.Framework,
+    };
+
+    internal static readonly ProvidedLeafPrefix[] FrameworkPrefixNames =
+    [
+        new("System.", ProvidedKind.Framework),
+        new("WindowsBase", ProvidedKind.Framework),
+        new("PresentationCore", ProvidedKind.Framework),
+        new("PresentationFramework", ProvidedKind.Framework),
+    ];
+
+    private static readonly Dictionary<string, ProvidedKind> LoaderHostExactNames = new(StringComparer.OrdinalIgnoreCase)
+    {
         ["0Harmony"] = ProvidedKind.Loader,
         ["Harmony"] = ProvidedKind.Loader,
         ["GodotSharp"] = ProvidedKind.Host,
@@ -91,15 +113,48 @@ internal static class ProvidedLeafRules
         ["MelonLoader"] = ProvidedKind.Loader,
     };
 
-    internal static readonly ProvidedLeafPrefix[] DefaultPrefixNames =
+    private static readonly ProvidedLeafPrefix[] LoaderHostPrefixNames =
     [
-        new("System.", ProvidedKind.Framework),
-        new("WindowsBase", ProvidedKind.Framework),
-        new("PresentationCore", ProvidedKind.Framework),
-        new("PresentationFramework", ProvidedKind.Framework),
         new("UnityEngine.", ProvidedKind.Host),
         new("UnityEditor.", ProvidedKind.Host),
         new("BepInEx.", ProvidedKind.Loader),
         new("MelonLoader.", ProvidedKind.Loader),
     ];
+
+    private static readonly Dictionary<string, ProvidedKind> UnityBepInExHostExactNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["0Harmony"] = ProvidedKind.Loader,
+        ["Harmony"] = ProvidedKind.Loader,
+        ["UnityEngine"] = ProvidedKind.Host,
+        ["BepInEx"] = ProvidedKind.Loader,
+    };
+
+    private static readonly ProvidedLeafPrefix[] UnityBepInExHostPrefixNames =
+    [
+        new("UnityEngine.", ProvidedKind.Host),
+        new("UnityEditor.", ProvidedKind.Host),
+        new("BepInEx.", ProvidedKind.Loader),
+    ];
+
+    internal static readonly Dictionary<string, ProvidedKind> UnityBepInExExactNames = Merge(
+        FrameworkExactNames,
+        UnityBepInExHostExactNames);
+
+    internal static readonly ProvidedLeafPrefix[] UnityBepInExPrefixNames =
+        [.. FrameworkPrefixNames, .. UnityBepInExHostPrefixNames];
+
+    internal static readonly Dictionary<string, ProvidedKind> DefaultExactNames = Merge(FrameworkExactNames, LoaderHostExactNames);
+
+    internal static readonly ProvidedLeafPrefix[] DefaultPrefixNames = [.. FrameworkPrefixNames, .. LoaderHostPrefixNames];
+
+    private static Dictionary<string, ProvidedKind> Merge(
+        Dictionary<string, ProvidedKind> first,
+        Dictionary<string, ProvidedKind> second)
+    {
+        Dictionary<string, ProvidedKind> merged = new(first, StringComparer.OrdinalIgnoreCase);
+        foreach (KeyValuePair<string, ProvidedKind> entry in second)
+            merged[entry.Key] = entry.Value;
+
+        return merged;
+    }
 }
