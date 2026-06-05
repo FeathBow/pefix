@@ -6,7 +6,7 @@ internal sealed class BepInExProviderIndex
 {
     private readonly HashSet<string> _exact = new(StringComparer.Ordinal);
     private readonly HashSet<string> _folded = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, List<BepInExPluginProvider>> _providers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<BepInExPluginProvider>> _byGuid = new(StringComparer.Ordinal);
 
     private BepInExProviderIndex()
     {
@@ -33,43 +33,43 @@ internal sealed class BepInExProviderIndex
         return index;
     }
 
-    public BepInExDependencyProviderPresence ProviderPresenceFor(string dependencyGuid)
+    public BepInExProviderMatch MatchFor(string dependencyGuid)
     {
         if (_exact.Contains(dependencyGuid))
-            return BepInExDependencyProviderPresence.ExactProviderFound;
+            return BepInExProviderMatch.Exact;
 
         return _folded.Contains(dependencyGuid)
-            ? BepInExDependencyProviderPresence.CaseMismatchProviderFound
-            : BepInExDependencyProviderPresence.NoProviderFound;
+            ? BepInExProviderMatch.CaseOnly
+            : BepInExProviderMatch.None;
     }
 
-    public BepInExPluginProvider[] ProvidersForExactGuid(string guid)
+    public BepInExPluginProvider[] ForExactGuid(string guid)
     {
-        return _providers.TryGetValue(guid, out List<BepInExPluginProvider>? providers)
+        return _byGuid.TryGetValue(guid, out List<BepInExPluginProvider>? providers)
             ? [.. providers]
             : [];
     }
 
-    public BepInExPluginProvider[] ProvidersForCaseInsensitiveGuid(string guid)
+    public BepInExPluginProvider[] ForAnyCase(string guid)
     {
-        return [.. _providers
+        return [.. _byGuid
             .Where(item => string.Equals(item.Key, guid, StringComparison.OrdinalIgnoreCase))
             .SelectMany(item => item.Value)];
     }
 
     public BepInExPluginProvider[] DuplicateProviders()
     {
-        return [.. _providers
+        return [.. _byGuid
             .Where(item => item.Value.Count > 1)
             .SelectMany(item => item.Value)];
     }
 
     private void AddProvider(BepInExPluginMetadata plugin, string path)
     {
-        if (!_providers.TryGetValue(plugin.Guid, out List<BepInExPluginProvider>? providers))
+        if (!_byGuid.TryGetValue(plugin.Guid, out List<BepInExPluginProvider>? providers))
         {
             providers = [];
-            _providers.Add(plugin.Guid, providers);
+            _byGuid.Add(plugin.Guid, providers);
         }
 
         providers.Add(new BepInExPluginProvider(plugin.Guid, plugin.Version, path));

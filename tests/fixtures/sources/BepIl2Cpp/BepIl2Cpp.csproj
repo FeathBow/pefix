@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>BepIl2Cpp</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BepInExUnityIl2Cpp\BepInExUnityIl2Cpp.csproj" />
+  </ItemGroup>
+</Project>

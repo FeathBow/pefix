@@ -7,175 +7,178 @@ internal static class BepInExExplain
 {
     public static BepInExExplainResult Explain(
         Inspection[] results,
-        ScanPathRelativizer rel,
-        BepInExProviderIndex index)
+        PathRelativizer rel,
+        BepInExProviderIndex providerIndex)
     {
-        return Explain(results, rel, index, null);
+        return Explain(results, rel, providerIndex, null, null);
     }
 
     public static BepInExExplainResult Explain(
         Inspection[] results,
-        ScanPathRelativizer rel,
-        BepInExProviderIndex index,
-        ClosureReport? closure)
+        PathRelativizer rel,
+        BepInExProviderIndex providerIndex,
+        ClosureReport? closure,
+        LoaderTarget? declaredHost = null,
+        IReadOnlyDictionary<string, LoaderTarget>? loaderByPath = null)
     {
-        List<DirectoryIssue> issues = [];
-        Dictionary<string, string> states = new(StringComparer.Ordinal);
-        bool hasBepInExContext = results.Any(result => result.BepInEx is { Plugins.Length: > 0 });
-        ExplainContext context = new(issues, states, rel, index, hasBepInExContext, results);
-        AddDuplicateGuidIssues(context);
+        List<DirectoryIssue> reportIssues = [];
+        Dictionary<string, string> fileStates = new(StringComparer.Ordinal);
+        loaderByPath ??= LoaderTargetReader.FromInspections(results);
+        PluginLookup pluginLookup = BuildPluginLookup(results);
+        ExplainCtx ctx = new(
+            reportIssues,
+            fileStates,
+            rel,
+            providerIndex,
+            pluginLookup.HasPlugins,
+            pluginLookup.ByAssembly);
+        AddDuplicateGuidIssues(ctx);
         foreach (Inspection result in results)
-            AddResult(context, result);
+            AddResult(ctx, result);
+
+        MismatchResult loaderMismatch = LoaderMismatchExplain.Explain(
+            new MismatchCtx(rel, results, declaredHost, loaderByPath));
+        foreach (string path in loaderMismatch.BlockedPaths)
+            fileStates[path] = BepStateCode.LoaderMismatch;
+        reportIssues.AddRange(loaderMismatch.Issues);
 
         if (closure.HasValue)
-            AddClosureIssues(context, closure.Value);
+            AddClosureIssues(ctx, closure.Value);
 
-        return new BepInExExplainResult([.. issues], new ReadOnlyDictionary<string, string>(states));
+        return new BepInExExplainResult([.. reportIssues], new ReadOnlyDictionary<string, string>(fileStates));
     }
 
-    private static void AddResult(ExplainContext context, Inspection result)
+    private static void AddResult(ExplainCtx ctx, Inspection result)
     {
         if (!result.BepInEx.HasValue)
         {
-            if (context.HasBepInExContext)
-                context.States[result.Path] = StateForNonPlugin(result);
+            if (ctx.HasPlugins)
+                ctx.FileStates[result.Path] = StateForNonPlugin(result);
 
             return;
         }
 
-        context.States[result.Path] = BepInExExplainState.Plugin;
+        ctx.FileStates[result.Path] = BepStateCode.Plugin;
         foreach (BepInExPluginMetadata plugin in result.BepInEx.Value.Plugins)
-            AddPlugin(context, result, plugin);
+            AddPlugin(ctx, result, plugin);
     }
 
-    private static void AddPlugin(ExplainContext context, Inspection result, BepInExPluginMetadata plugin)
+    private static void AddPlugin(ExplainCtx ctx, Inspection result, BepInExPluginMetadata plugin)
     {
         foreach (BepInExDependencyMetadata dependency in plugin.Deps)
         {
             if (!dependency.Hard)
                 continue;
 
-            BepInExDependencyProviderPresence presence = context.Index.ProviderPresenceFor(dependency.Guid);
-            if (presence is BepInExDependencyProviderPresence.ExactProviderFound)
+            BepInExProviderMatch match = ctx.Providers.MatchFor(dependency.Guid);
+            if (match is BepInExProviderMatch.Exact)
             {
-                AddVersionMismatch(context, result, plugin, dependency);
+                AddVersionMismatch(ctx, result, plugin, dependency);
                 continue;
             }
 
-            context.States[result.Path] = StateFor(presence);
-            BepInExPluginProvider[] providers = presence is BepInExDependencyProviderPresence.CaseMismatchProviderFound
-                ? context.Index.ProvidersForCaseInsensitiveGuid(dependency.Guid)
+            ctx.FileStates[result.Path] = StateFor(match);
+            BepInExPluginProvider[] providers = match is BepInExProviderMatch.CaseOnly
+                ? ctx.Providers.ForAnyCase(dependency.Guid)
                 : [];
-            context.Issues.Add(RepairGuide.ForIssue(new RepairGuide.IssueFacts
-            {
-                Code = IssueCodeFor(presence),
-                Subject = dependency.Guid,
-                Summary = Summary(plugin.Guid, dependency.Guid, presence),
-                Files = [context.Rel.RelativePath(result.Path)],
-                Evidence = new IssueEvidence(
-                    DeclaredRange: dependency.Range,
-                    ProviderFiles: RelProviderFiles(context, providers))
-            }));
+            ctx.Issues.Add(RepairGuide.ForIssue(
+                IssueCodeFor(match),
+                dependency.Guid,
+                Summary(plugin.Guid, dependency.Guid, match),
+                [ctx.Rel.RelativePath(result.Path)],
+                IssueEvidence.ForBepDependency(
+                    dependency.Range,
+                    providerFiles: providers.Length == 0 ? null : ProviderFiles(ctx, providers))));
         }
     }
 
-    private static void AddDuplicateGuidIssues(ExplainContext context)
+    private static void AddDuplicateGuidIssues(ExplainCtx ctx)
     {
-        foreach (IGrouping<string, BepInExPluginProvider> group in context.Index
+        foreach (IGrouping<string, BepInExPluginProvider> group in ctx.Providers
                      .DuplicateProviders()
                      .GroupBy(provider => provider.Guid, StringComparer.Ordinal))
         {
             BepInExPluginProvider[] providers = [.. group];
-            context.Issues.Add(RepairGuide.ForIssue(new RepairGuide.IssueFacts
-            {
-                Code = IssueCode.BepDuplicateGuid,
-                Subject = group.Key,
-                Summary = $"Multiple BepInEx plugins declare GUID {group.Key}: {string.Join(", ", providers.Select(provider => context.Rel.RelativePath(provider.File)))}.",
-                Files = [.. providers.Select(provider => context.Rel.RelativePath(provider.File))],
-                Evidence = new IssueEvidence(
-                    ProviderFiles: [.. providers.Select(provider => context.Rel.RelativePath(provider.File))])
-            }));
+            string[] providerFiles = [.. providers.Select(provider => ctx.Rel.RelativePath(provider.File))];
+            ctx.Issues.Add(RepairGuide.ForIssue(
+                IssueCode.BepDuplicateGuid,
+                group.Key,
+                $"Multiple BepInEx plugins declare GUID {group.Key}: {string.Join(", ", providerFiles)}.",
+                providerFiles,
+                IssueEvidence.ForProviderFiles(providerFiles)));
         }
     }
 
     private static void AddVersionMismatch(
-        ExplainContext context,
+        ExplainCtx ctx,
         Inspection result,
         BepInExPluginMetadata plugin,
         BepInExDependencyMetadata dependency)
     {
-        BepInExPluginProvider[] providers = context.Index.ProvidersForExactGuid(dependency.Guid);
+        BepInExPluginProvider[] providers = ctx.Providers.ForExactGuid(dependency.Guid);
         if (providers.Length != 1 || BepVersionRange.IsMinimumSatisfied(dependency.Range, providers[0].Version))
             return;
 
-        string[] providerFiles = ProviderFiles(context, providers);
-        context.States[result.Path] = BepInExExplainState.BlockedVersionMismatch;
-        context.Issues.Add(RepairGuide.ForIssue(new RepairGuide.IssueFacts
-        {
-            Code = IssueCode.BepVersionMismatch,
-            Subject = dependency.Guid,
-            Summary = $"{plugin.Guid} requires BepInEx plugin {dependency.Guid} {dependency.Range}, but {providers[0].Version} is provided by {providerFiles[0]}.",
-            Files = [context.Rel.RelativePath(result.Path), providerFiles[0]],
-            Evidence = new IssueEvidence(
-                DeclaredRange: dependency.Range,
-                PresentVersion: providers[0].Version,
-                ProviderFiles: providerFiles)
-        }));
+        string[] providerFiles = ProviderFiles(ctx, providers);
+        ctx.FileStates[result.Path] = BepStateCode.VersionMismatch;
+        ctx.Issues.Add(RepairGuide.ForIssue(
+            IssueCode.BepVersionMismatch,
+            dependency.Guid,
+            $"{plugin.Guid} requires BepInEx plugin {dependency.Guid} {dependency.Range}, but {providers[0].Version} is provided by {providerFiles[0]}.",
+            [ctx.Rel.RelativePath(result.Path), providerFiles[0]],
+            IssueEvidence.ForBepDependency(
+                dependency.Range,
+                providers[0].Version,
+                providerFiles)));
     }
 
-    private static void AddClosureIssues(ExplainContext context, ClosureReport closure)
+    private static void AddClosureIssues(ExplainCtx ctx, ClosureReport closure)
     {
         foreach (ClosureChain chain in closure.Unresolved)
         {
-            if (PluginFileFor(context, chain.Entry.AssemblyName) is not { } file)
+            if (!ctx.ByAssembly.TryGetValue(chain.Entry.AssemblyName, out string? file))
                 continue;
 
-            context.States[file] = BepInExExplainState.RiskUnresolvedAssemblyChain;
-            context.Issues.Add(RepairGuide.ForIssue(new RepairGuide.IssueFacts
-            {
-                Code = IssueCode.PluginUnresolvedChain,
-                Subject = chain.Segments[^1].AssemblyName,
-                Summary = ChainSummary(chain),
-                Files = [context.Rel.RelativePath(file)],
-                Evidence = new IssueEvidence(
-                    EntryFile: context.Rel.RelativePath(file),
-                    RequestChain: [.. chain.Segments.Select(segment => $"{segment.AssemblyName}.dll")],
-                    MissingLeaf: $"{chain.Segments[^1].AssemblyName}.dll")
-            }));
+            ctx.FileStates[file] = BepStateCode.UnresolvedChain;
+            ctx.Issues.Add(RepairGuide.ForIssue(
+                IssueCode.PluginUnresolvedChain,
+                chain.Segments[^1].AssemblyName,
+                ChainSummary(chain),
+                [ctx.Rel.RelativePath(file)],
+                IssueEvidence.ForClosure(
+                    ctx.Rel.RelativePath(file),
+                    [.. chain.Segments.Select(segment => $"{segment.AssemblyName}.dll")],
+                    $"{chain.Segments[^1].AssemblyName}.dll")));
         }
     }
 
-    private static string? PluginFileFor(ExplainContext context, string assemblyName)
+    private static PluginLookup BuildPluginLookup(Inspection[] results)
     {
-        foreach (Inspection result in context.Results)
+        Dictionary<string, string> byAssembly = new(StringComparer.Ordinal);
+        bool hasPlugins = false;
+        foreach (Inspection result in results)
         {
-            if (result.AssemblyDefinition?.Name != assemblyName || !result.BepInEx.HasValue)
+            if (result.BepInEx is not { Plugins.Length: > 0 })
                 continue;
 
-            if (result.BepInEx.Value.Plugins.Length > 0)
-                return result.Path;
+            hasPlugins = true;
+            if (result.AssemblyDefinition is { } assembly)
+                byAssembly.TryAdd(assembly.Name, result.Path);
         }
 
-        return null;
+        return new PluginLookup(hasPlugins, byAssembly);
     }
 
     private static string StateForNonPlugin(Inspection result)
     {
         return result.ValidPe && result.HasCliHeader && result.Status is not Status.Unsafe and not Status.Corrupt
-            ? BepInExExplainState.HelperLibrary
-            : BepInExExplainState.InvalidArtifact;
+            ? BepStateCode.Helper
+            : BepStateCode.Invalid;
     }
 
-    private static string[]? RelProviderFiles(ExplainContext context, BepInExPluginProvider[] providers)
+    private static string[] ProviderFiles(ExplainCtx ctx, BepInExPluginProvider[] providers)
     {
-        return providers.Length == 0
-            ? null
-            : ProviderFiles(context, providers);
-    }
-
-    private static string[] ProviderFiles(ExplainContext context, BepInExPluginProvider[] providers)
-    {
-        return [.. providers.Select(provider => context.Rel.RelativePath(provider.File))];
+        return [.. providers.Select(provider => ctx.Rel.RelativePath(provider.File))];
     }
 
     private static string ChainSummary(ClosureChain chain)
@@ -193,16 +196,16 @@ internal static class BepInExExplain
         return string.Join("; ", parts) + ".";
     }
 
-    private static string StateFor(BepInExDependencyProviderPresence presence)
+    private static string StateFor(BepInExProviderMatch match)
     {
-        return presence is BepInExDependencyProviderPresence.CaseMismatchProviderFound
-            ? BepInExExplainState.BlockedGuidCaseMismatch
-            : BepInExExplainState.BlockedMissingDependency;
+        return match is BepInExProviderMatch.CaseOnly
+            ? BepStateCode.GuidCaseMismatch
+            : BepStateCode.MissingDependency;
     }
 
-    private static string IssueCodeFor(BepInExDependencyProviderPresence presence)
+    private static string IssueCodeFor(BepInExProviderMatch match)
     {
-        return presence is BepInExDependencyProviderPresence.CaseMismatchProviderFound
+        return match is BepInExProviderMatch.CaseOnly
             ? IssueCode.BepCasing
             : IssueCode.BepMissing;
     }
@@ -210,19 +213,23 @@ internal static class BepInExExplain
     private static string Summary(
         string plugin,
         string dependency,
-        BepInExDependencyProviderPresence presence)
+        BepInExProviderMatch match)
     {
-        string reason = presence is BepInExDependencyProviderPresence.CaseMismatchProviderFound
+        string reason = match is BepInExProviderMatch.CaseOnly
             ? "only a case-different plugin GUID was found"
             : "no matching plugin GUID was found";
         return $"{plugin} requires BepInEx plugin {dependency}, but {reason}.";
     }
 
-    private readonly record struct ExplainContext(
+    private readonly record struct PluginLookup(
+        bool HasPlugins,
+        IReadOnlyDictionary<string, string> ByAssembly);
+
+    private readonly record struct ExplainCtx(
         List<DirectoryIssue> Issues,
-        Dictionary<string, string> States,
-        ScanPathRelativizer Rel,
-        BepInExProviderIndex Index,
-        bool HasBepInExContext,
-        Inspection[] Results);
+        Dictionary<string, string> FileStates,
+        PathRelativizer Rel,
+        BepInExProviderIndex Providers,
+        bool HasPlugins,
+        IReadOnlyDictionary<string, string> ByAssembly);
 }

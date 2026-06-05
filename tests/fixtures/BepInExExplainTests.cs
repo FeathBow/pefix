@@ -52,8 +52,8 @@ public sealed class BepInExExplainTests
         Inspection helper = Managed("Helper.dll");
         BepInExExplainResult result = BepInExExplain.Explain([plugin, helper], Rel(), BepInExProviderIndex.From([plugin, helper]));
 
-        Assert.Equal(BepInExExplainState.Plugin, result.StateForFile(Abs("Plugin.dll")));
-        Assert.Equal(BepInExExplainState.HelperLibrary, result.StateForFile(Abs("Helper.dll")));
+        Assert.Equal(BepStateCode.Plugin, result.StateForFile(Abs("Plugin.dll")));
+        Assert.Equal(BepStateCode.Helper, result.StateForFile(Abs("Helper.dll")));
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class BepInExExplainTests
         Inspection invalid = Invalid("Reference.dll");
         BepInExExplainResult result = BepInExExplain.Explain([plugin, invalid], Rel(), BepInExProviderIndex.From([plugin, invalid]));
 
-        Assert.Equal(BepInExExplainState.InvalidArtifact, result.StateForFile(Abs("Reference.dll")));
+        Assert.Equal(BepStateCode.Invalid, result.StateForFile(Abs("Reference.dll")));
     }
 
     [Fact]
@@ -86,8 +86,8 @@ public sealed class BepInExExplainTests
             Rel(),
             BepInExProviderIndex.From([missing, casing, provider]));
 
-        Assert.Equal(BepInExExplainState.BlockedMissingDependency, result.StateForFile(Abs("Missing.dll")));
-        Assert.Equal(BepInExExplainState.BlockedGuidCaseMismatch, result.StateForFile(Abs("Casing.dll")));
+        Assert.Equal(BepStateCode.MissingDependency, result.StateForFile(Abs("Missing.dll")));
+        Assert.Equal(BepStateCode.GuidCaseMismatch, result.StateForFile(Abs("Casing.dll")));
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public sealed class BepInExExplainTests
 
         DirectoryIssue issue = Assert.Single(result.Issues.Where(item => item.Code == IssueCode.BepVersionMismatch).ToArray());
         AssertIssue(issue, IssueCode.BepVersionMismatch, "need.version", ["Plugin.dll", "Provider.dll"]);
-        Assert.Equal(BepInExExplainState.BlockedVersionMismatch, result.StateForFile(Abs("Plugin.dll")));
+        Assert.Equal(BepStateCode.VersionMismatch, result.StateForFile(Abs("Plugin.dll")));
         Assert.Contains("requires BepInEx plugin need.version >=2.0.0", issue.Summary);
         Assert.Contains("1.5.0 is provided by Provider.dll", issue.Summary);
     }
@@ -133,7 +133,7 @@ public sealed class BepInExExplainTests
 
         DirectoryIssue issue = Assert.Single(result.Issues.Where(item => item.Code == IssueCode.PluginUnresolvedChain).ToArray());
         AssertIssue(issue, IssueCode.PluginUnresolvedChain, "Missing", ["Plugin.dll"], "runtime chainloader success");
-        Assert.Equal(BepInExExplainState.RiskUnresolvedAssemblyChain, result.StateForFile(Abs("Plugin.dll")));
+        Assert.Equal(BepStateCode.UnresolvedChain, result.StateForFile(Abs("Plugin.dll")));
         Assert.Contains("Plugin.dll loads Helper.dll", issue.Summary);
         Assert.Contains("Helper.dll needs Missing.dll", issue.Summary);
     }
@@ -158,9 +158,9 @@ public sealed class BepInExExplainTests
         Assert.Contains(risk, issue.UnverifiedRisks[0]);
     }
 
-    private static ScanPathRelativizer Rel()
+    private static PathRelativizer Rel()
     {
-        return new ScanPathRelativizer(Root);
+        return new PathRelativizer(Root);
     }
 
     private static Inspection Plugin(

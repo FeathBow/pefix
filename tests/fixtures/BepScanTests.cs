@@ -20,7 +20,7 @@ public sealed class BepScanTests : IDisposable
     }
 
     [Fact]
-    public void Scan_ShowsBepInExExplainStates()
+    public void Scan_ReportsBepStates()
     {
         Copy("F26_bep_meta.dll");
         Copy("F01_compatible_anycpu.dll");
@@ -40,7 +40,7 @@ public sealed class BepScanTests : IDisposable
 
         Assert.True(dep.GetProperty("hard").GetBoolean());
         Assert.Equal(">=2.0.0", dep.GetProperty("range").GetString());
-        AssertProviderAbsent(dep);
+        AssertAbsent(dep);
         JsonElement gate = root.GetProperty("gate");
         JsonElement summary = root.GetProperty("summary");
         JsonElement issue = Assert.Single(root.GetProperty("issues").EnumerateArray());
@@ -61,7 +61,7 @@ public sealed class BepScanTests : IDisposable
     }
 
     [Fact]
-    public void Scan_MarksHardDependencyProviderPresentButVersionUnsatisfied()
+    public void Scan_MarksHardDependencyVersionMismatch()
     {
         Copy("F27_bep_miss.dll");
         Copy("F28_bep_need.dll");
@@ -69,7 +69,7 @@ public sealed class BepScanTests : IDisposable
         JsonElement dep = OneDep(root, "need.hard");
 
         Assert.True(dep.GetProperty("hard").GetBoolean());
-        AssertProviderPresent(dep);
+        AssertPresent(dep);
         Assert.Equal("fail", root.GetProperty("gate").GetProperty("integrity").GetString());
         Assert.Equal(["bep_version_mismatch"], JsonAssert.StringArray(root.GetProperty("gate").GetProperty("issue_codes")));
         Assert.Equal("blocked_bep_version_mismatch", BepState(root, "F27_bep_miss.dll"));
@@ -83,7 +83,7 @@ public sealed class BepScanTests : IDisposable
         JsonElement root = Scan("F31_bep_case.dll");
         JsonElement dep = OneDep(root, "need.hard");
 
-        AssertProviderAbsent(dep);
+        AssertAbsent(dep);
         Assert.True(dep.GetProperty("case_mismatch").GetBoolean());
         JsonElement issue = JsonAssert.SingleBy(root.GetProperty("issues"), "code", "bep_casing");
         Assert.Contains("Fix the plugin GUID casing", issue.GetProperty("repair_hint").GetString());
@@ -141,7 +141,7 @@ public sealed class BepScanTests : IDisposable
     }
 
     [Fact]
-    public void Scan_MarksSoftDependencyMissingWithoutFailingGate()
+    public void Scan_MarksSoftDependencyMissing()
     {
         Copy("F29_bep_soft.dll");
         JsonElement root = Scan();
@@ -149,7 +149,7 @@ public sealed class BepScanTests : IDisposable
 
         Assert.False(dep.GetProperty("hard").GetBoolean());
         Assert.Equal(">=1.0.0", dep.GetProperty("range").GetString());
-        AssertProviderAbsent(dep);
+        AssertAbsent(dep);
         Assert.Equal("pass", root.GetProperty("gate").GetProperty("integrity").GetString());
     }
 
@@ -162,7 +162,7 @@ public sealed class BepScanTests : IDisposable
 
         Assert.False(dep.GetProperty("hard").GetBoolean());
         Assert.Equal(JsonValueKind.Null, dep.GetProperty("range").ValueKind);
-        AssertProviderAbsent(dep);
+        AssertAbsent(dep);
         Assert.Equal("pass", root.GetProperty("gate").GetProperty("integrity").GetString());
     }
 
@@ -214,12 +214,12 @@ public sealed class BepScanTests : IDisposable
         throw new InvalidOperationException($"BepInEx dependency '{guid}' was not found.");
     }
 
-    private static void AssertProviderPresent(JsonElement dependency)
+    private static void AssertPresent(JsonElement dependency)
     {
         Assert.True(dependency.GetProperty("present").GetBoolean());
     }
 
-    private static void AssertProviderAbsent(JsonElement dependency)
+    private static void AssertAbsent(JsonElement dependency)
     {
         Assert.False(dependency.GetProperty("present").GetBoolean());
     }

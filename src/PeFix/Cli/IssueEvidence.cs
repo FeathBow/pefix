@@ -8,4 +8,33 @@ internal sealed record IssueEvidence(
     [property: JsonPropertyName("provider_files")] string[]? ProviderFiles = null,
     [property: JsonPropertyName("entry_file")] string? EntryFile = null,
     [property: JsonPropertyName("request_chain")] string[]? RequestChain = null,
-    [property: JsonPropertyName("missing_leaf")] string? MissingLeaf = null);
+    [property: JsonPropertyName("missing_leaf")] string? MissingLeaf = null)
+{
+    public static IssueEvidence ForProviderFiles(string[] providerFiles)
+    {
+        return new IssueEvidence(ProviderFiles: providerFiles);
+    }
+
+    public static IssueEvidence ForBepDependency(
+        string? declaredRange,
+        string? presentVersion = null,
+        string[]? providerFiles = null)
+    {
+        return new IssueEvidence(
+            DeclaredRange: declaredRange,
+            PresentVersion: presentVersion,
+            ProviderFiles: providerFiles);
+    }
+
+    public static IssueEvidence ForClosure(
+        string entryFile,
+        string[] requestChain,
+        string missingLeaf)
+    {
+        return new IssueEvidence(
+            EntryFile: entryFile,
+            RequestChain: requestChain,
+            MissingLeaf: missingLeaf);
+    }
+
+}

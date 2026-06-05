@@ -45,20 +45,25 @@ internal static class RepairGuide
         };
     }
 
-    public static DirectoryIssue ForIssue(IssueFacts issue)
+    public static DirectoryIssue ForIssue(
+        string code,
+        string subject,
+        string summary,
+        string[] files,
+        IssueEvidence? evidence = null)
     {
-        var repair = IssueRepair.For(issue.Code);
+        var repair = IssueRepair.For(code);
         return new DirectoryIssue(
-            issue.Code,
-            issue.Subject,
-            issue.Summary,
-            issue.Files,
+            code,
+            subject,
+            summary,
+            files,
             repair.NextSteps,
             repair.Class,
             repair.RepairHint,
             repair.VerifyCommand,
             repair.UnverifiedRisks,
-            issue.Evidence);
+            evidence);
     }
 
     private static RepairInfo NonPortable(Inspection result)
@@ -74,15 +79,6 @@ internal static class RepairGuide
     private static string NextStepOr(Inspection result, string fallback)
     {
         return result.NextSteps.Length > 0 ? result.NextSteps[0] : fallback;
-    }
-
-    internal sealed class IssueFacts
-    {
-        public required string Code { get; init; }
-        public required string Subject { get; init; }
-        public required string Summary { get; init; }
-        public required string[] Files { get; init; }
-        public IssueEvidence? Evidence { get; init; }
     }
 
     private sealed class IssueRepair
@@ -129,6 +125,10 @@ internal static class RepairGuide
                     "Install or restore the missing managed dependency chain for this plugin.",
                     "Run pefix closure <path> --fail-on-unresolved, then install the missing managed dependency into the scanned plugins directory.",
                     "API compatibility and runtime chainloader success are not proven."),
+                IssueCode.BepLoaderMismatch => Assisted(
+                    "Keep plugins for a single BepInEx generation and runtime flavor in this folder.",
+                    "Install plugins built for one BepInEx generation (5 or 6) and one runtime flavor (Mono or IL2CPP) that matches your installed loader; move the others out of the plugins directory.",
+                    "Runtime chainloader state is not observed; declared or scanned loader-target metadata does not prove runtime load success."),
                 _ => throw new ArgumentOutOfRangeException(nameof(code), code, "Unsupported issue code.")
             };
         }

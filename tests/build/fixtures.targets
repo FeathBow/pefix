@@ -106,6 +106,10 @@
       <Staged>F32_bep_flag.dll</Staged>
       <Assembly>BepFlag</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\BepIl2Cpp\BepIl2Cpp.csproj">
+      <Staged>F33_bep_il2cpp.dll</Staged>
+      <Assembly>BepIl2Cpp</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>
