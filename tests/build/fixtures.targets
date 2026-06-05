@@ -110,6 +110,18 @@
       <Staged>F33_bep_il2cpp.dll</Staged>
       <Assembly>BepIl2Cpp</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\MemberProviderThin\MemberProviderThin.csproj">
+      <Staged>F34_member_provider_thin.dll</Staged>
+      <Assembly>MemberProvider</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\MemberProviderFull\MemberProviderFull.csproj">
+      <Staged>F35_member_provider_full.dll</Staged>
+      <Assembly>MemberProvider</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\MemberConsumer\MemberConsumer.csproj">
+      <Staged>F36_member_consumer.dll</Staged>
+      <Assembly>MemberConsumer</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>

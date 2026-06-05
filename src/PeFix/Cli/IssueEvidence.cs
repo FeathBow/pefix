@@ -8,7 +8,12 @@ internal sealed record IssueEvidence(
     [property: JsonPropertyName("provider_files")] string[]? ProviderFiles = null,
     [property: JsonPropertyName("entry_file")] string? EntryFile = null,
     [property: JsonPropertyName("request_chain")] string[]? RequestChain = null,
-    [property: JsonPropertyName("missing_leaf")] string? MissingLeaf = null)
+    [property: JsonPropertyName("missing_leaf")] string? MissingLeaf = null,
+    [property: JsonPropertyName("type_name")] string? TypeName = null,
+    [property: JsonPropertyName("member")] string? MemberName = null,
+    [property: JsonPropertyName("parameter_count")] int? ParameterCount = null,
+    [property: JsonPropertyName("matching_tier")] string? MatchingTier = null,
+    [property: JsonPropertyName("provided_by")] string? ProviderFile = null)
 {
     public static IssueEvidence ForProviderFiles(string[] providerFiles)
     {
@@ -37,4 +42,18 @@ internal sealed record IssueEvidence(
             MissingLeaf: missingLeaf);
     }
 
+    public static IssueEvidence ForMissingMember(
+        string typeName,
+        string member,
+        int parameterCount,
+        string matchingTier,
+        string providedBy)
+    {
+        return new IssueEvidence(
+            TypeName: typeName,
+            MemberName: member,
+            ParameterCount: parameterCount,
+            MatchingTier: matchingTier,
+            ProviderFile: providedBy);
+    }
 }

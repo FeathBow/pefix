@@ -101,6 +101,10 @@ internal static class RepairGuide
                     "Install or restore the missing managed dependency.",
                     "Install the missing managed dependency into the scanned directory or restore the package that should provide it.",
                     "API compatibility and runtime load success are not proven."),
+                IssueCode.MissingMember => Assisted(
+                    "Align the referencing assembly and provider assembly so the referenced member exists.",
+                    "Install provider and consumer assemblies built against the same API surface, or restore the package version that exposes the referenced member.",
+                    "Full signature compatibility, reflection usage, and runtime load success are not proven."),
                 IssueCode.DupProvider => Assisted(
                     "Keep one provider copy for this assembly name.",
                     "Remove or relocate duplicate provider copies in the scanned directory.",
