@@ -105,6 +105,10 @@ internal static class RepairGuide
                     "Align the referencing assembly and provider assembly so the referenced member exists.",
                     "Install provider and consumer assemblies built against the same API surface, or restore the package version that exposes the referenced member.",
                     "Full signature compatibility, reflection usage, and runtime load success are not proven."),
+                IssueCode.ReflectionMissing => Assisted(
+                    "Install or restore the assembly named by the reflection load string.",
+                    "Install the reflected assembly into the scanned directory or remove the literal reflection load.",
+                    "Reflection target API compatibility and runtime load success are not proven."),
                 IssueCode.DupProvider => Assisted(
                     "Keep one provider copy for this assembly name.",
                     "Remove or relocate duplicate provider copies in the scanned directory.",

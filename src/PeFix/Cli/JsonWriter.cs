@@ -11,8 +11,11 @@ internal static class JsonWriter
         return JsonSerializer.Serialize(InspectMap.Map(result), JsonContext.Default.InspectJson);
     }
 
-    public static string Render(ScanView view, ScanJsonParts json)
+    public static string Render(ScanView view, ScanParts json)
     {
+        if (json.References is { } references)
+            return RenderWithReferences(view, json, references);
+
         var output = new ScanJson(
             view.Directory,
             json.Summary,
@@ -24,6 +27,25 @@ internal static class JsonWriter
             MapProfile(json.Profile),
             json.Gate);
         return JsonSerializer.Serialize(output, JsonContext.Default.ScanJson);
+    }
+
+    private static string RenderWithReferences(
+        ScanView view,
+        ScanParts json,
+        RefEntry[] references)
+    {
+        var output = new RefsJson(
+            view.Directory,
+            json.Summary,
+            json.Results,
+            [.. view.Conflicts.Select(MapConflict)],
+            [.. view.MissingReferences.Select(MapMissing)],
+            [.. view.DuplicateProviders.Select(MapDuplicate)],
+            MapReferences(view.Directory, references),
+            [.. view.Issues.Select(MapIssue)],
+            MapProfile(json.Profile),
+            json.Gate);
+        return JsonSerializer.Serialize(output, JsonContext.Default.RefsJson);
     }
 
     public static string Render(PatchResult result)
@@ -143,6 +165,40 @@ internal static class JsonWriter
     private static ScanDuplicateProvider MapDuplicate(DirectoryDuplicateProvider duplicateProvider)
     {
         return new ScanDuplicateProvider(duplicateProvider.Assembly, duplicateProvider.Files);
+    }
+
+    private static RefJson[] MapReferences(
+        string directory,
+        RefEntry[] references)
+    {
+        PathRelativizer rel = new(directory);
+        return [.. references
+            .GroupBy(entry => entry.ReferenceName, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => MapReferenceGroup(group, rel))];
+    }
+
+    private static RefJson MapReferenceGroup(
+        IGrouping<string, RefEntry> group,
+        PathRelativizer rel)
+    {
+        string status = RefStatText.Token(RefStatText.Highest(group));
+        return new RefJson(
+            group.Key,
+            status,
+            [.. group.Select(entry => MapReferenceConsumer(entry, rel))]);
+    }
+
+    private static RefUseJson MapReferenceConsumer(
+        RefEntry entry,
+        PathRelativizer rel)
+    {
+        return new RefUseJson(
+            rel.RelativePath(entry.ConsumerPath),
+            entry.RequestedVersion,
+            RefStatText.Token(entry.Status),
+            entry.ProviderPath is null ? null : rel.RelativePath(entry.ProviderPath),
+            entry.ProviderVersion);
     }
 
     private static ScanIssue MapIssue(DirectoryIssue issue)

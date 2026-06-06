@@ -7,28 +7,44 @@ internal static class ScanBuild
     private const string Pass = "pass";
     private const string Fail = "fail";
 
-    public static ScanResult Build(ScanReport report, bool withJson, ScanProfile? profile = null)
+    public static ScanResult Build(
+        ScanReport report,
+        bool withJson,
+        ScanProfile? profile = null,
+        bool includeReferences = false)
+    {
+        HostProfile hostProfile = profile?.Host ?? HostProfile.Default;
+        bool publishDirProfile = IsPublishDirProfile(profile);
+        return Build(
+            report,
+            withJson,
+            RefEvidence.Collect(report, hostProfile, publishDirProfile),
+            profile,
+            includeReferences);
+    }
+
+    internal static ScanResult Build(
+        ScanReport report,
+        bool withJson,
+        RefFinding[] findings,
+        ScanProfile? profile = null,
+        bool includeReferences = false)
     {
         PathRelativizer rel = new(report.Directory);
         ScanBuildCtx ctx = CreateCtx(report, profile, rel);
+        RefEntry[] references = BuildReferences(report, profile, includeReferences);
+        RefEntry[]? jsonReferences = includeReferences ? references : null;
         BepInExExplainResult bepInExExplain = BuildBepInExExplain(ctx);
         ScanFile[] files = BuildFiles(report.Results, rel);
         DirectoryConflict[] conflicts = BuildConflicts(report, rel);
         DirectoryMissingReference[] missingReferences = BuildMissingRefs(report, rel);
         DirectoryDuplicateProvider[] duplicateProviders = BuildDuplicates(report, rel);
-        DirectoryIssue[] issues = BuildIssues(new ScanDirectoryIssueInput
-        {
-            Report = report,
-            Rel = rel,
-            Conflicts = conflicts,
-            MissingReferences = missingReferences,
-            DuplicateProviders = duplicateProviders,
-            BepInExExplain = bepInExExplain
-        });
-        ScanMetrics metrics = BuildMetrics(new ScanMetricInput
+        IssueBuild issueBuild = BuildIssues(findings, ctx.Rel, bepInExExplain);
+        ScanMetrics metrics = MetricBuild.Build(new MetricInput
         {
             Files = files,
-            Issues = issues,
+            Issues = issueBuild.Issues,
+            GateIssues = issueBuild.GateIssues,
             HasConflict = conflicts.Length > 0,
             DuplicateCount = duplicateProviders.Length
         });
@@ -39,9 +55,21 @@ internal static class ScanBuild
             conflicts,
             missingReferences,
             duplicateProviders,
-            issues);
-        ScanJsonParts? json = withJson ? BuildJson(ctx, bepInExExplain, metrics) : null;
+            issueBuild.Issues,
+            metrics.GateIssueCount,
+            references);
+        ScanParts? json = withJson ? BuildJson(ctx, bepInExExplain, metrics, jsonReferences) : null;
         return new ScanResult(view, json);
+    }
+
+    private static RefEntry[] BuildReferences(
+        ScanReport report,
+        ScanProfile? profile,
+        bool includeReferences)
+    {
+        return includeReferences
+            ? RefInventory.Collect(report.Results, profile?.Host ?? HostProfile.Default)
+            : [];
     }
 
     private static ScanBuildCtx CreateCtx(
@@ -74,34 +102,34 @@ internal static class ScanBuild
             ctx.LoaderByPath);
     }
 
-    private static DirectoryIssue[] BuildIssues(ScanDirectoryIssueInput input)
+    private static IssueBuild BuildIssues(
+        RefFinding[] findings,
+        PathRelativizer rel,
+        BepInExExplainResult bepInExExplain)
     {
-        return [
-            .. DirectoryIssueBuilder.Build(new IssueSources
-            {
-                Conflicts = input.Conflicts,
-                MissingReferences = input.MissingReferences,
-                DuplicateProviders = input.DuplicateProviders,
-                MemberRefGaps = input.Report.MemberRefGaps,
-                Rel = input.Rel
-            }),
-            .. input.BepInExExplain.Issues
-        ];
+        RefFinding[] gateFindings = [.. findings.Where(item => item.Confidence == Confidence.Gate)];
+        return new IssueBuild
+        {
+            Issues = [.. DirectoryIssueBuilder.Build(findings, rel), .. bepInExExplain.Issues],
+            GateIssues = [.. DirectoryIssueBuilder.Build(gateFindings, rel), .. bepInExExplain.Issues]
+        };
     }
 
-    private static ScanJsonParts BuildJson(
+    private static ScanParts BuildJson(
         ScanBuildCtx ctx,
         BepInExExplainResult bepInExExplain,
-        ScanMetrics metrics)
+        ScanMetrics metrics,
+        RefEntry[]? references)
     {
-        return BuildScanJson(new ScanJsonInput
+        return BuildScanJson(new ScanInput
         {
             Results = ctx.Report.Results,
             Profile = ctx.Profile,
             BepInExProviderIndex = ctx.BepInExProviderIndex,
             BepInExExplain = bepInExExplain,
             LoaderByPath = ctx.LoaderByPath,
-            Metrics = metrics
+            Metrics = metrics,
+            References = references
         });
     }
 
@@ -156,60 +184,7 @@ internal static class ScanBuild
                 rel.RelativePaths(duplicateProvider.Files)))];
     }
 
-    private static ScanMetrics BuildMetrics(ScanMetricInput input)
-    {
-        var need = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        ScanCounts counts = new(0, 0, 0, 0, 0);
-        bool hasFixable = false;
-        int blockingFileCount = 0;
-        var byCategory = new Dictionary<string, int>(StringComparer.Ordinal);
-        var byAction = new Dictionary<string, int>(StringComparer.Ordinal);
-        var byIssue = new Dictionary<string, int>(StringComparer.Ordinal);
-        var blockingReasons = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (ScanFile file in input.Files)
-        {
-            counts = CountStatus(counts, file.Status);
-            AddCount(byCategory, file.Category);
-            AddCount(byAction, file.ActionText);
-            if (file.NeedsWork)
-                need.Add(file.ViewPath);
-
-            if (file.CanPatch)
-                hasFixable = true;
-
-            if (file.Status is Status.Unsafe or Status.Corrupt)
-            {
-                blockingFileCount++;
-                blockingReasons.Add(file.ReasonCode);
-            }
-        }
-
-        foreach (DirectoryIssue issue in input.Issues)
-        {
-            AddCount(byIssue, issue.Code);
-            foreach (string file in issue.Files)
-                need.Add(file);
-        }
-
-        return new ScanMetrics
-        {
-            FileCount = input.Files.Length,
-            DuplicateCount = input.DuplicateCount,
-            Stats = new ScanStats(
-                counts,
-                need.Count,
-                hasFixable,
-                input.HasConflict),
-            ByCategory = byCategory,
-            ByAction = byAction,
-            ByIssue = byIssue,
-            BlockingFileCount = blockingFileCount,
-            BlockingFileReasons = [.. blockingReasons.OrderBy(reason => reason, StringComparer.Ordinal)]
-        };
-    }
-
-    private static InspectJson[] BuildInspectJson(ScanJsonInput input)
+    private static InspectJson[] BuildInspectJson(ScanInput input)
     {
         return [.. input.Results.Select(result => InspectMap.Map(
             result,
@@ -224,7 +199,13 @@ internal static class ScanBuild
         return profile is null || string.Equals(profile.Artifact, ProfileParser.PluginFolder, StringComparison.Ordinal);
     }
 
-    internal static ScanJsonParts BuildScanJson(ScanJsonInput input)
+    private static bool IsPublishDirProfile(ScanProfile? profile)
+    {
+        return profile is not null
+            && string.Equals(profile.Artifact, ProfileParser.PublishDir, StringComparison.Ordinal);
+    }
+
+    internal static ScanParts BuildScanJson(ScanInput input)
     {
         InspectJson[] fileResults = BuildInspectJson(input);
         int issueCount = input.Metrics.ByIssue.Values.Sum();
@@ -241,39 +222,22 @@ internal static class ScanBuild
             issueCount,
             input.Metrics.ByIssue);
         ScanGate gate = new(
-            GateStatus(issueCount == 0 && input.Metrics.BlockingFileCount == 0),
+            GateStatus(input.Metrics.GateIssueCount == 0 && input.Metrics.BlockingFileCount == 0),
             GateStatus(!input.Metrics.Stats.HasConflict),
-            issueCount,
-            [.. input.Metrics.ByIssue.Keys.OrderBy(code => code, StringComparer.Ordinal)],
+            input.Metrics.GateIssueCount,
+            input.Metrics.GateIssueCodes,
             input.Metrics.BlockingFileCount,
             input.Metrics.BlockingFileReasons);
-        return new ScanJsonParts
+        return new ScanParts
         {
             Results = fileResults,
             Summary = summary,
             Gate = gate,
-            Profile = input.Profile
+            Profile = input.Profile,
+            References = input.References
         };
     }
 
     private static string GateStatus(bool passed) => passed ? Pass : Fail;
-
-    private static ScanCounts CountStatus(ScanCounts counts, Status status)
-    {
-        return status switch
-        {
-            Status.Compatible => counts with { Compatible = counts.Compatible + 1 },
-            Status.Fixable => counts with { Fixable = counts.Fixable + 1 },
-            Status.Cautioned => counts with { Cautioned = counts.Cautioned + 1 },
-            Status.Unsafe => counts with { Unsafe = counts.Unsafe + 1 },
-            Status.Corrupt => counts with { Corrupt = counts.Corrupt + 1 },
-            _ => throw new ArgumentOutOfRangeException(nameof(status), status, "Unsupported inspection status.")
-        };
-    }
-
-    private static void AddCount(Dictionary<string, int> counts, string key)
-    {
-        counts[key] = counts.TryGetValue(key, out int count) ? count + 1 : 1;
-    }
 
 }

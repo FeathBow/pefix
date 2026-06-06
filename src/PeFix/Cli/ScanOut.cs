@@ -1,8 +1,10 @@
+using PeFix.Meta;
+
 namespace PeFix.Cli;
 
 internal static class ScanOut
 {
-    public static string Render(ScanView view)
+    public static string Render(ScanView view, bool includeReferences = false)
     {
         using var writer = new StringWriter();
         WriteHeader(writer, view);
@@ -12,6 +14,7 @@ internal static class ScanOut
         WriteConflicts(writer, view);
         WriteMissing(writer, view);
         WriteDuplicateProviders(writer, view);
+        WriteReferences(writer, view, includeReferences);
         WriteBep(writer, view);
         WriteNexts(writer, view);
         WriteHint(writer, view);
@@ -119,6 +122,50 @@ internal static class ScanOut
         writer.WriteLine($"  Duplicate providers ({view.DuplicateProviders.Length}):");
         foreach (DirectoryDuplicateProvider duplicateProvider in view.DuplicateProviders)
             writer.WriteLine($"    - {duplicateProvider.Assembly}: {string.Join(", ", duplicateProvider.Files)}");
+    }
+
+    private static void WriteReferences(
+        StringWriter writer,
+        ScanView view,
+        bool includeReferences)
+    {
+        if (!includeReferences)
+            return;
+
+        writer.WriteLine();
+        writer.WriteLine($"  References ({view.References.Length}):");
+        PathRelativizer rel = new(view.Directory);
+        foreach (IGrouping<string, RefEntry> group in ReferenceGroups(view))
+            WriteReferenceGroup(writer, rel, group);
+    }
+
+    private static IEnumerable<IGrouping<string, RefEntry>> ReferenceGroups(ScanView view)
+    {
+        return view.References
+            .GroupBy(entry => entry.ReferenceName, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal);
+    }
+
+    private static void WriteReferenceGroup(
+        StringWriter writer,
+        PathRelativizer rel,
+        IGrouping<string, RefEntry> group)
+    {
+        string status = RefStatText.Token(RefStatText.Highest(group));
+        writer.WriteLine($"  Reference {group.Key} [{status}]");
+        foreach (RefEntry entry in group)
+            writer.WriteLine($"    - v{entry.RequestedVersion} by {rel.RelativePath(entry.ConsumerPath)} [{RefStatText.Token(entry.Status)}]{ProviderSuffix(entry, rel)}");
+    }
+
+    private static string ProviderSuffix(RefEntry entry, PathRelativizer rel)
+    {
+        if (entry.ProviderPath is null)
+            return string.Empty;
+
+        string provider = rel.RelativePath(entry.ProviderPath);
+        return entry.ProviderVersion is null
+            ? $" provider={provider}"
+            : $" provider={provider} v{entry.ProviderVersion}";
     }
 
     private static void WriteBep(StringWriter writer, ScanView view)
