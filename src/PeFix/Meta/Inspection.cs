@@ -24,4 +24,7 @@ public readonly record struct Inspection(
     AssemblyIdentity? AssemblyDefinition,
     bool? HasReadyToRun = null,
     bool? IsTrimmable = null,
-    BepInExMetadata? BepInEx = null);
+    BepInExMetadata? BepInEx = null)
+{
+    internal PeView? View { get; init; }
+}

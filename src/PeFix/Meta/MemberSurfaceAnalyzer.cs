@@ -1,30 +1,27 @@
 using System.Collections.Immutable;
-using System.Reflection;
 using System.Reflection.Metadata;
-using System.Reflection.PortableExecutable;
 
 namespace PeFix.Meta;
 
 internal static class MemberSurfaceAnalyzer
 {
+    internal const string ConservativeMatchingTier = "name+parameter-count";
+
     public static MemberRefGap[] FindMethodGaps(IReadOnlyList<Inspection> inspections, DependencyIndex dependencies)
     {
         ArgumentNullException.ThrowIfNull(inspections);
         ArgumentNullException.ThrowIfNull(dependencies);
 
         List<MemberRefGap> gaps = [];
-        var surfaces = new SurfaceCache();
 
         foreach (Inspection consumer in inspections)
         {
-            if (!TryOpenReader(consumer.Path, out MetadataReaderProvider provider))
+            if (consumer.View is not { } view)
                 continue;
 
-            using MetadataReaderProvider metadataProvider = provider;
-            MetadataReader reader = metadataProvider.GetMetadataReader();
-            foreach (MemberReferenceHandle handle in reader.MemberReferences)
+            foreach (MethodRefUse methodRef in view.MethodRefs)
             {
-                if (!TryBuildMethodRefGap(reader, handle, dependencies, consumer, surfaces, out MemberRefGap gap))
+                if (!TryBuildMethodRefGap(methodRef, dependencies, consumer, out MemberRefGap gap))
                     continue;
 
                 gaps.Add(gap);
@@ -41,15 +38,57 @@ internal static class MemberSurfaceAnalyzer
             item.MatchingTier))];
     }
 
-    private static bool TryBuildMethodRefGap(
+    internal static MethodRefUse[] ReadMethodRefs(MetadataReader reader)
+    {
+        List<MethodRefUse> methodRefs = [];
+        foreach (MemberReferenceHandle handle in reader.MemberReferences)
+        {
+            if (TryReadMethodRef(reader, handle, out MethodRefUse methodRef))
+                methodRefs.Add(methodRef);
+        }
+
+        return [.. methodRefs];
+    }
+
+    internal static MemSurface ReadSurface(MetadataReader reader)
+    {
+        Dictionary<string, HashSet<MemberShape>> membersByType = new(StringComparer.Ordinal);
+        foreach (TypeDefinitionHandle typeHandle in reader.TypeDefinitions)
+        {
+            TypeDefinition typeDef = reader.GetTypeDefinition(typeHandle);
+            string typeName = TypeName(reader, typeDef.Namespace, typeDef.Name);
+            HashSet<MemberShape> members = ReadMethods(reader, typeDef);
+            membersByType[typeName] = members;
+        }
+
+        return new MemSurface(membersByType);
+    }
+
+    private static HashSet<MemberShape> ReadMethods(
+        MetadataReader reader,
+        TypeDefinition typeDef)
+    {
+        HashSet<MemberShape> members = [];
+        foreach (MethodDefinitionHandle methodHandle in typeDef.GetMethods())
+        {
+            MethodDefinition method = reader.GetMethodDefinition(methodHandle);
+            string name = reader.GetString(method.Name);
+            if (name is ".cctor")
+                continue;
+
+            if (TryDecodeParamCount(method, out int paramCount))
+                members.Add(new MemberShape(name, paramCount));
+        }
+
+        return members;
+    }
+
+    private static bool TryReadMethodRef(
         MetadataReader reader,
         MemberReferenceHandle handle,
-        DependencyIndex dependencies,
-        Inspection consumer,
-        SurfaceCache surfaces,
-        out MemberRefGap gap)
+        out MethodRefUse methodRef)
     {
-        gap = default;
+        methodRef = default;
         MemberReference member = reader.GetMemberReference(handle);
         if (member.Parent.Kind != HandleKind.TypeReference)
             return false;
@@ -58,68 +97,49 @@ internal static class MemberSurfaceAnalyzer
         if (typeRef.ResolutionScope.Kind != HandleKind.AssemblyReference)
             return false;
 
-        AssemblyReference assemblyReference = reader.GetAssemblyReference((AssemblyReferenceHandle)typeRef.ResolutionScope);
-        string referenceName = reader.GetString(assemblyReference.Name);
-        if (dependencies.ClassifyProvided(referenceName) != ProvidedKind.None)
-            return false;
-
-        if (!dependencies.TryGetProvider(referenceName, out Inspection provider))
-            return false;
-
-        string typeName = TypeName(reader, typeRef.Namespace, typeRef.Name);
         if (!TryDecodeParamCount(member, out int paramCount))
             return false;
 
-        if (!surfaces.TryGet(provider, out MemberSurface surface))
-            return false;
-
-        string memberName = reader.GetString(member.Name);
-        if (!surface.TryGetMembers(typeName, out HashSet<MemberShape> members))
-            return false;
-
-        if (members.Contains(new MemberShape(memberName, paramCount)))
-            return false;
-
-        gap = new MemberRefGap(
-            referenceName,
-            typeName,
-            memberName,
-            paramCount,
-            "name+parameter-count",
-            consumer.Path,
-            provider.Path);
+        AssemblyReference assemblyReference = reader.GetAssemblyReference((AssemblyReferenceHandle)typeRef.ResolutionScope);
+        methodRef = new MethodRefUse(
+            reader.GetString(assemblyReference.Name),
+            TypeName(reader, typeRef.Namespace, typeRef.Name),
+            reader.GetString(member.Name),
+            paramCount);
         return true;
     }
 
-    private static MemberSurface? ReadMemberSurface(Inspection provider)
+    private static bool TryBuildMethodRefGap(
+        MethodRefUse methodRef,
+        DependencyIndex dependencies,
+        Inspection consumer,
+        out MemberRefGap gap)
     {
-        if (!TryOpenReader(provider.Path, out MetadataReaderProvider readerProvider))
-            return null;
+        gap = default;
+        if (dependencies.ClassifyProvided(methodRef.AssemblyName) != ProvidedKind.None)
+            return false;
 
-        using MetadataReaderProvider metadataProvider = readerProvider;
-        MetadataReader reader = metadataProvider.GetMetadataReader();
-        Dictionary<string, HashSet<MemberShape>> membersByType = new(StringComparer.Ordinal);
+        if (!dependencies.TryGetProvider(methodRef.AssemblyName, out Inspection provider))
+            return false;
 
-        foreach (TypeDefinitionHandle typeHandle in reader.TypeDefinitions)
-        {
-            TypeDefinition typeDef = reader.GetTypeDefinition(typeHandle);
-            string typeName = TypeName(reader, typeDef.Namespace, typeDef.Name);
-            HashSet<MemberShape> members = [];
-            foreach (MethodDefinitionHandle methodHandle in typeDef.GetMethods())
-            {
-                MethodDefinition method = reader.GetMethodDefinition(methodHandle);
-                string name = reader.GetString(method.Name);
-                if (name is ".cctor")
-                    continue;
+        if (provider.View is not { } providerView)
+            return false;
 
-                if (TryDecodeParamCount(method, out int paramCount))
-                    members.Add(new MemberShape(name, paramCount));
-            }
+        if (!providerView.MemSurface.TryGetMembers(methodRef.TypeName, out HashSet<MemberShape> members))
+            return false;
 
-            membersByType[typeName] = members;
-        }
+        if (members.Contains(new MemberShape(methodRef.MemberName, methodRef.ParameterCount)))
+            return false;
 
-        return new MemberSurface(membersByType);
+        gap = new MemberRefGap(
+            methodRef.AssemblyName,
+            methodRef.TypeName,
+            methodRef.MemberName,
+            methodRef.ParameterCount,
+            ConservativeMatchingTier,
+            consumer.Path,
+            provider.Path);
+        return true;
     }
 
     private static bool TryDecodeParamCount(MemberReference member, out int paramCount)
@@ -159,34 +179,6 @@ internal static class MemberSurfaceAnalyzer
         }
     }
 
-    private static bool TryOpenReader(string path, out MetadataReaderProvider provider)
-    {
-        provider = null!;
-        try
-        {
-            using var stream = File.OpenRead(path);
-            using var peReader = new PEReader(stream);
-            if (!peReader.HasMetadata)
-                return false;
-
-            PEMemoryBlock metadata = peReader.GetMetadata();
-            provider = MetadataReaderProvider.FromMetadataImage(metadata.GetContent());
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-        catch (BadImageFormatException)
-        {
-            return false;
-        }
-    }
-
     private static string TypeName(MetadataReader reader, StringHandle ns, StringHandle name)
     {
         string nsValue = reader.GetString(ns);
@@ -210,38 +202,5 @@ internal static class MemberSurfaceAnalyzer
         public int GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind) => 0;
         public int GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind) => 0;
         public int GetTypeFromSpecification(MetadataReader reader, object? genericContext, TypeSpecificationHandle handle, byte rawTypeKind) => 0;
-    }
-
-    private readonly record struct MemberShape(string Name, int ParameterCount);
-
-    private sealed class MemberSurface(Dictionary<string, HashSet<MemberShape>> membersByType)
-    {
-        public bool TryGetMembers(string typeName, out HashSet<MemberShape> members)
-        {
-            return membersByType.TryGetValue(typeName, out members!);
-        }
-    }
-
-    private sealed class SurfaceCache
-    {
-        private readonly Dictionary<string, MemberSurface?> byPath = [];
-
-        public bool TryGet(Inspection provider, out MemberSurface surface)
-        {
-            if (!byPath.TryGetValue(provider.Path, out MemberSurface? cached))
-            {
-                cached = ReadMemberSurface(provider);
-                byPath[provider.Path] = cached;
-            }
-
-            if (cached is null)
-            {
-                surface = null!;
-                return false;
-            }
-
-            surface = cached;
-            return true;
-        }
     }
 }

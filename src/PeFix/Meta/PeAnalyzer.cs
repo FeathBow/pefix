@@ -34,9 +34,10 @@ public static class PeAnalyzer
         {
             using var mmf = MemoryMappedFile.CreateFromFile(fullPath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             using MemoryMappedViewStream stream = mmf.CreateViewStream(0, fileInfo.Length, MemoryMappedFileAccess.Read);
-            using PEReader peReader = new(stream);
-            PeSnapshot snapshot = ReadSnapshot(fullPath, peReader, isBundle);
-            return Classifier.Classify(snapshot);
+            using var peReader = new PEReader(stream);
+            PeReadResult result = ReadSnapshot(fullPath, peReader, isBundle);
+            Inspection inspection = Classifier.Classify(result.Snapshot);
+            return inspection with { View = result.View };
         }
         catch (BadImageFormatException)
         {
@@ -78,13 +79,13 @@ public static class PeAnalyzer
         return tail.SequenceEqual(BundleSig);
     }
 
-    private static PeSnapshot ReadSnapshot(string path, PEReader peReader, bool isBundle = false)
+    private static PeReadResult ReadSnapshot(string path, PEReader peReader, bool isBundle = false)
     {
         PEHeaders headers = peReader.PEHeaders;
         PEHeader? peHeader = headers.PEHeader;
         if (peHeader is null)
         {
-            return new PeSnapshot(path, false, false, null, null, default, default);
+            return NoView(new PeSnapshot(path, false, false, null, null, default, default));
         }
 
         string peFormat = PeFormat(peHeader.Magic);
@@ -92,7 +93,7 @@ public static class PeAnalyzer
         CorHeader? corHeader = headers.CorHeader;
         if (corHeader is null)
         {
-            return new PeSnapshot(path, true, false, peFormat, machine, default, default);
+            return NoView(new PeSnapshot(path, true, false, peFormat, machine, default, default));
         }
 
         System.Reflection.PortableExecutable.CorFlags corFlags = corHeader.Flags;
@@ -121,11 +122,29 @@ public static class PeAnalyzer
         bool isSatellite = IsSatellite(reader);
         BepInExMetadata? bep = BepInExMetadataReader.Read(reader);
 
-        return new PeSnapshot(
+        PeSnapshot snapshot = new(
             path, true, true, peFormat, machine, flags, signals,
             pinvokeDeps, tfm, metaVersion, osPlatforms,
             assemblyRefs, assemblyDef, r2r, isTrimmable, moduleNest, moduleRefs,
             isBundle, isSatellite, bep);
+        return new PeReadResult(snapshot, ReadView(path, peReader, reader));
+    }
+
+    private static PeReadResult NoView(PeSnapshot snapshot)
+    {
+        return new PeReadResult(snapshot, null);
+    }
+
+    private static PeView ReadView(
+        string path,
+        PEReader peReader,
+        MetadataReader reader)
+    {
+        PeRead pe = new(path, peReader, reader);
+        return new PeView(
+            MemberSurfaceAnalyzer.ReadMethodRefs(reader),
+            MemberSurfaceAnalyzer.ReadSurface(reader),
+            ReflScanner.Read(pe));
     }
 
     private static bool IsSatellite(MetadataReader reader)
