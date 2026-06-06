@@ -33,24 +33,24 @@ internal static class Scan
             return CliErr.Io(ex);
         }
 
-        ScanResult scan = ScanBuild.Build(report, args.Json, profile);
+        ScanResult scan = ScanBuild.Build(report, args.Json, profile, args.References);
         ScanView view = scan.View;
 
         if (args.Json)
         {
-            ScanJsonParts json = scan.Json
+            ScanParts json = scan.Json
                 ?? throw new InvalidOperationException("Scan JSON context was not built.");
             JsonOut.Write(JsonWriter.Render(view, json));
         }
         else
         {
-            Console.WriteLine(ScanOut.Render(view));
+            Console.WriteLine(ScanOut.Render(view, args.References));
         }
 
         if (args.FailOnConflict && view.Stats.HasConflict)
             return CliExit.Issue;
 
-        if (args.FailOnIssue && HasBlockingIssue(view))
+        if (args.FailOnIssue && ShouldFailOnIssue(view))
             return CliExit.Issue;
 
         return threshold is { } t && view.Files.Any(file => GateEval.Meets(file.Status, t))
@@ -58,9 +58,9 @@ internal static class Scan
             : CliExit.Success;
     }
 
-    private static bool HasBlockingIssue(ScanView view)
+    internal static bool ShouldFailOnIssue(ScanView view)
     {
-        return view.HasIssues || view.HasBlockingFiles;
+        return view.HasGateIssues || view.HasBlockingFiles;
     }
 
     internal sealed class ScanArgs
@@ -71,5 +71,6 @@ internal static class Scan
         public required bool FailOnConflict { get; init; }
         public required bool FailOnIssue { get; init; }
         public required string? Profile { get; init; }
+        public required bool References { get; init; }
     }
 }

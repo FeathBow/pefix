@@ -16,7 +16,8 @@ internal static class ScanCmd
             FailOn = r.GetValue(opts.FailOnOpt),
             FailOnConflict = r.GetValue(opts.ConflictOpt),
             FailOnIssue = r.GetValue(opts.IssueOpt),
-            Profile = r.GetValue(opts.ProfileOpt)
+            Profile = r.GetValue(opts.ProfileOpt),
+            References = r.GetValue(opts.ReferencesOpt)
         }));
         return cmd;
     }
@@ -48,6 +49,11 @@ internal static class ScanCmd
             Description = "Static host/artifact profile assumptions. Supported: unity-bepinex, unity-bepinex5, unity-bepinex6-mono, unity-bepinex6-il2cpp, dotnet-plugin, publish-dir."
         };
 
+        public Option<bool> ReferencesOpt { get; } = new("--references")
+        {
+            Description = "Include a reference inventory in text output and JSON."
+        };
+
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
@@ -55,6 +61,7 @@ internal static class ScanCmd
             cmd.Options.Add(ConflictOpt);
             cmd.Options.Add(IssueOpt);
             cmd.Options.Add(ProfileOpt);
+            cmd.Options.Add(ReferencesOpt);
         }
     }
 }
