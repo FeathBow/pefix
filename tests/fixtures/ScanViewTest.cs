@@ -1,5 +1,6 @@
 using System.Text.Json;
 using PeFix.Cli;
+using PeFix.Commands;
 using PeFix.Meta;
 
 namespace PeFix.Tests;
@@ -20,7 +21,7 @@ public sealed class ScanViewTest
             []),
             withJson: true);
         ScanView view = scan.View;
-        ScanJsonParts json = scan.Json ?? throw new InvalidOperationException("JSON context was not built.");
+        ScanParts json = scan.Json ?? throw new InvalidOperationException("JSON context was not built.");
 
         Assert.True(view.Stats.HasFixable);
         Assert.True(view.Stats.HasConflict);
@@ -99,9 +100,51 @@ public sealed class ScanViewTest
         Assert.Contains("Blocking Issues: blocking file diagnostics are listed below.", text);
     }
 
+    [Fact]
+    public void Scan_AdvisoryIssueDoesNotFailIssueGate()
+    {
+        ScanResult scan = ScanBuild.Build(
+            new ScanReport(Root, [Compatible("mods/Ok.dll")], [], [], [], []),
+            withJson: true,
+            findings: [AdvisoryMissingReference()]);
+        ScanView view = scan.View;
+        ScanParts json = scan.Json ?? throw new InvalidOperationException("JSON context was not built.");
+
+        Assert.True(view.HasIssues);
+        Assert.False(view.HasGateIssues);
+        Assert.False(Scan.ShouldFailOnIssue(view));
+
+        using JsonDocument doc = JsonDocument.Parse(JsonWriter.Render(view, json));
+        JsonElement root = doc.RootElement;
+        JsonElement gate = root.GetProperty("gate");
+        Assert.Equal("pass", gate.GetProperty("integrity").GetString());
+        Assert.Equal(0, gate.GetProperty("issue_count").GetInt32());
+        Assert.Empty(JsonAssert.StringArray(gate.GetProperty("issue_codes")));
+        Assert.Equal(1, root.GetProperty("issues").GetArrayLength());
+        Assert.Equal(1, root.GetProperty("summary").GetProperty("issues").GetInt32());
+        Assert.Equal(1, root.GetProperty("summary").GetProperty("by_issue").GetProperty("missing_ref").GetInt32());
+    }
+
     private static Inspection Compatible(string path)
     {
         return NewInspect(path, Status.Compatible, "portable");
+    }
+
+    private static RefFinding AdvisoryMissingReference()
+    {
+        return new RefFinding(
+            Tier: RefTier.AssemblyRef,
+            Resolution: RefOutcome.Missing,
+            Confidence: Confidence.Advisory,
+            ConsumerPath: Abs("mods/Ok.dll"),
+            ReferenceName: "Optional.Plugin",
+            TypeName: null,
+            MemberName: null,
+            ParameterCount: null,
+            ExpectedVersion: "1.0.0.0",
+            ActualVersion: null,
+            ProviderPath: null,
+            ProviderPaths: null);
     }
 
     private static Inspection Fixable(string path)

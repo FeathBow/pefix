@@ -8,8 +8,19 @@ public sealed class DirectoryIssueBuilderTests
     [Fact]
     public void Build_ConflictIssue()
     {
-        DirectoryIssue issue = SingleIssue(
-            conflicts: [new DirectoryConflict("Dependency", "1.0.0.0", "2.0.0.0", "Plugin.dll", "Dependency.dll")]);
+        DirectoryIssue issue = SingleIssue(new RefFinding(
+            Tier: RefTier.AssemblyRef,
+            Resolution: RefOutcome.VersionConflict,
+            Confidence: Confidence.Gate,
+            ConsumerPath: Abs("Plugin.dll"),
+            ReferenceName: "Dependency",
+            TypeName: null,
+            MemberName: null,
+            ParameterCount: null,
+            ExpectedVersion: "1.0.0.0",
+            ActualVersion: "2.0.0.0",
+            ProviderPath: Abs("Dependency.dll"),
+            ProviderPaths: null));
 
         AssertIssue(
             issue,
@@ -25,8 +36,19 @@ public sealed class DirectoryIssueBuilderTests
     [Fact]
     public void Build_MissingRefIssue()
     {
-        DirectoryIssue issue = SingleIssue(
-            missingReferences: [new DirectoryMissingReference("Missing.Core", "3.0.0.0", "Plugin.dll")]);
+        DirectoryIssue issue = SingleIssue(new RefFinding(
+            Tier: RefTier.AssemblyRef,
+            Resolution: RefOutcome.Missing,
+            Confidence: Confidence.Gate,
+            ConsumerPath: Abs("Plugin.dll"),
+            ReferenceName: "Missing.Core",
+            TypeName: null,
+            MemberName: null,
+            ParameterCount: null,
+            "3.0.0.0",
+            ActualVersion: null,
+            ProviderPath: null,
+            ProviderPaths: null));
 
         AssertIssue(
             issue,
@@ -42,8 +64,19 @@ public sealed class DirectoryIssueBuilderTests
     [Fact]
     public void Build_DuplicateProviderIssue()
     {
-        DirectoryIssue issue = SingleIssue(
-            duplicateProviders: [new DirectoryDuplicateProvider("Shared.Core", ["a/Shared.Core.dll", "b/Shared.Core.dll"])]);
+        DirectoryIssue issue = SingleIssue(new RefFinding(
+            Tier: RefTier.Provider,
+            Resolution: RefOutcome.DuplicateProvider,
+            Confidence: Confidence.Gate,
+            ConsumerPath: string.Empty,
+            ReferenceName: "Shared.Core",
+            TypeName: null,
+            MemberName: null,
+            ParameterCount: null,
+            ExpectedVersion: null,
+            ActualVersion: null,
+            ProviderPath: null,
+            ProviderPaths: [Abs("a/Shared.Core.dll"), Abs("b/Shared.Core.dll")]));
 
         AssertIssue(
             issue,
@@ -58,19 +91,19 @@ public sealed class DirectoryIssueBuilderTests
     [Fact]
     public void Build_MissingMemberIssue()
     {
-        string root = Path.Combine(Path.GetTempPath(), "pefix-tests");
-        DirectoryIssue issue = SingleIssue(
-            memberRefGaps:
-            [
-                new MemberRefGap(
-                    "Shared.Core",
-                    "Shared.Api",
-                    "Foo",
-                    2,
-                    "name+parameter-count",
-                    Path.Combine(root, "Plugin.dll"),
-                    Path.Combine(root, "Shared.Core.dll"))
-            ]);
+        DirectoryIssue issue = SingleIssue(new RefFinding(
+            Tier: RefTier.MemSurface,
+            Resolution: RefOutcome.MemberGap,
+            Confidence: Confidence.Gate,
+            ConsumerPath: Abs("Plugin.dll"),
+            ReferenceName: "Shared.Core",
+            TypeName: "Shared.Api",
+            MemberName: "Foo",
+            ParameterCount: 2,
+            ExpectedVersion: null,
+            ActualVersion: null,
+            ProviderPath: Abs("Shared.Core.dll"),
+            ProviderPaths: null));
 
         AssertIssue(
             issue,
@@ -89,22 +122,17 @@ public sealed class DirectoryIssueBuilderTests
         Assert.Equal("Shared.Core.dll", issue.Evidence?.ProviderFile);
     }
 
-    private static DirectoryIssue SingleIssue(
-        DirectoryConflict[]? conflicts = null,
-        DirectoryMissingReference[]? missingReferences = null,
-        DirectoryDuplicateProvider[]? duplicateProviders = null,
-        MemberRefGap[]? memberRefGaps = null)
+    private static DirectoryIssue SingleIssue(RefFinding finding)
     {
-        DirectoryIssue[] issues = DirectoryIssueBuilder.Build(new IssueSources
-        {
-            Conflicts = conflicts ?? [],
-            MissingReferences = missingReferences ?? [],
-            DuplicateProviders = duplicateProviders ?? [],
-            MemberRefGaps = memberRefGaps ?? [],
-            Rel = new PathRelativizer(Path.Combine(Path.GetTempPath(), "pefix-tests"))
-        });
+        DirectoryIssue[] issues = DirectoryIssueBuilder.Build([finding], Rel());
         return Assert.Single(issues);
     }
+
+    private static PathRelativizer Rel() => new(Root);
+
+    private static string Abs(string path) => Path.Combine(Root, path);
+
+    private static string Root => Path.Combine(Path.GetTempPath(), "pefix-tests");
 
     private static void AssertIssue(
         DirectoryIssue issue,

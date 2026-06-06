@@ -122,6 +122,22 @@
       <Staged>F36_member_consumer.dll</Staged>
       <Assembly>MemberConsumer</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ReflectionTarget\ReflectionTarget.csproj">
+      <Staged>F37_reflection_target.dll</Staged>
+      <Assembly>ReflectionTarget</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ReflectionPresent\ReflectionPresent.csproj">
+      <Staged>F38_reflection_present.dll</Staged>
+      <Assembly>ReflectionPresent</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ReflectionMissing\ReflectionMissing.csproj">
+      <Staged>F39_reflection_missing.dll</Staged>
+      <Assembly>ReflectionMissing</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ReflectionResolver\ReflectionResolver.csproj">
+      <Staged>F40_reflection_resolver.dll</Staged>
+      <Assembly>ReflectionResolver</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>
