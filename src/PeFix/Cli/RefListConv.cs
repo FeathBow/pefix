@@ -40,6 +40,9 @@ internal sealed class RefListConv : JsonConverter<RefFinding[]>
             case RefOutcome.DuplicateProvider:
                 WriteDup(writer, find);
                 break;
+            case RefOutcome.TypeGap:
+                WriteType(writer, find);
+                break;
             default:
                 throw new InvalidOperationException($"Unsupported scan row outcome '{find.Resolution}'.");
         }
@@ -68,6 +71,14 @@ internal sealed class RefListConv : JsonConverter<RefFinding[]>
         writer.WriteString("assembly", find.ReferenceName);
         writer.WritePropertyName("files");
         WriteFiles(writer, find.ProviderPaths!);
+    }
+
+    private static void WriteType(Utf8JsonWriter writer, RefFinding find)
+    {
+        writer.WriteString("assembly", find.ReferenceName);
+        writer.WriteString("type", find.TypeName!);
+        writer.WriteString("referenced_by", find.ConsumerPath);
+        writer.WriteString("provided_by", find.ProviderPath!);
     }
 
     private static void WriteFiles(Utf8JsonWriter writer, string[] paths)

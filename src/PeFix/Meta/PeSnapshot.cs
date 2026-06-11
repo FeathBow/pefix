@@ -52,8 +52,15 @@ internal readonly record struct MethodRefUse(
 
 internal readonly record struct MemberShape(string Name, int ParameterCount);
 
-internal sealed class MemSurface(Dictionary<string, HashSet<MemberShape>> membersByType)
+internal sealed class MemSurface(
+    HashSet<string> typeNames,
+    Dictionary<string, HashSet<MemberShape>> membersByType)
 {
+    public bool ContainsType(string typeName)
+    {
+        return typeNames.Contains(typeName);
+    }
+
     public bool TryGetMembers(string typeName, out HashSet<MemberShape> members)
     {
         return membersByType.TryGetValue(typeName, out members!);

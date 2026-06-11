@@ -10,7 +10,8 @@ public static class Scanner
         MissingReference[] missingReferences = dependencies.FindMissingReferences(dir.Results);
         DuplicateProvider[] duplicateProviders = DependencyIndex.FindDuplicateProviders(dir.Results);
         MemberRefGap[] memberRefGaps = MemberSurfaceAnalyzer.FindMethodGaps(dir.Results, dependencies);
-        return new ScanReport(dir.Directory, dir.Results, conflicts, missingReferences, duplicateProviders, memberRefGaps);
+        TypeRefGap[] typeRefGaps = MemberSurfaceAnalyzer.FindTypeGaps(dir.Results, dependencies);
+        return new ScanReport(dir.Directory, dir.Results, conflicts, missingReferences, duplicateProviders, memberRefGaps, typeRefGaps);
     }
 
     public static DirectoryInspection InspectDir(string path)

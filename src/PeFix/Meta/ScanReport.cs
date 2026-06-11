@@ -6,4 +6,5 @@ public readonly record struct ScanReport(
     VersionConflict[] Conflicts,
     MissingReference[] MissingReferences,
     DuplicateProvider[] DuplicateProviders,
-    MemberRefGap[] MemberRefGaps);
+    MemberRefGap[] MemberRefGaps,
+    TypeRefGap[] TypeRefGaps);

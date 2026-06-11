@@ -277,16 +277,61 @@ public sealed class IssueTests : IDisposable
     }
 
     [Fact]
-    public void Scan_MissingMemberIgnoresMissingProviderType()
+    public void Scan_MissingTypeJson()
     {
         _temp.Copy("F36_member_consumer.dll");
-        File.Copy(Paths.Get("F01_compatible_anycpu.dll"), Path.Combine(_temp.DirPath, "MemberProvider.dll"), overwrite: true);
+        File.Copy(Paths.Get("F41_missing_type_provider.dll"), Path.Combine(_temp.DirPath, "MemberProvider.dll"), overwrite: true);
+
+        CliResult result = CliRunner.Run("scan", _temp.DirPath, "--profile", "publish-dir", "--json", "--fail-on-issue");
+
+        Assert.Equal(1, result.ExitCode);
+        JsonElement root = JsonAssert.ParseObject(result.Stdout);
+        JsonElement missing = Assert.Single(root.GetProperty("missing_types").EnumerateArray());
+        JsonElement issue = JsonAssert.SingleBy(root.GetProperty("issues"), "code", "missing_type");
+        JsonElement evidence = issue.GetProperty("evidence");
+
+        Assert.Equal("fail", root.GetProperty("gate").GetProperty("integrity").GetString());
+        Assert.Equal(["missing_type"], JsonAssert.StringArray(root.GetProperty("gate").GetProperty("issue_codes")));
+        Assert.Equal("MemberProvider", missing.GetProperty("assembly").GetString());
+        Assert.Equal("MemberProvider.Api", missing.GetProperty("type").GetString());
+        Assert.Equal("F36_member_consumer.dll", missing.GetProperty("referenced_by").GetString());
+        Assert.Equal("MemberProvider.dll", missing.GetProperty("provided_by").GetString());
+        Assert.Equal("MemberProvider", issue.GetProperty("subject").GetString());
+        Assert.Equal(["F36_member_consumer.dll", "MemberProvider.dll"], JsonAssert.StringArray(issue.GetProperty("files")));
+        Assert.Equal("MemberProvider.Api", evidence.GetProperty("type_name").GetString());
+        Assert.Equal("MemberProvider.dll", evidence.GetProperty("provided_by").GetString());
+        Assert.DoesNotContain(root.GetProperty("issues").EnumerateArray(), item => item.GetProperty("code").GetString() == "missing_member");
+    }
+
+    [Fact]
+    public void Scan_MissingTypeText()
+    {
+        _temp.Copy("F36_member_consumer.dll");
+        File.Copy(Paths.Get("F41_missing_type_provider.dll"), Path.Combine(_temp.DirPath, "MemberProvider.dll"), overwrite: true);
+
+        CliResult result = CliRunner.Run("scan", _temp.DirPath, "--profile", "publish-dir");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Missing Types (1):", result.Stdout);
+        Assert.Contains("MemberProvider: type MemberProvider.Api referenced by F36_member_consumer.dll", result.Stdout);
+        Assert.Contains("[missing_type] MemberProvider", result.Stdout);
+        Assert.Contains("Type 'MemberProvider.Api' not found in MemberProvider.dll", result.Stdout);
+    }
+
+    [Fact]
+    public void Scan_ForwardedTypeDoesNotReportTypeOrMemberGap()
+    {
+        _temp.Copy("F45_forwarded_consumer.dll");
+        File.Copy(Paths.Get("F43_forwarded_provider_fwd.dll"), Path.Combine(_temp.DirPath, "ForwardedProvider.dll"), overwrite: true);
+        File.Copy(Paths.Get("F44_forwarded_target.dll"), Path.Combine(_temp.DirPath, "ForwardedTarget.dll"), overwrite: true);
 
         CliResult result = CliRunner.Run("scan", _temp.DirPath, "--profile", "publish-dir", "--json");
 
         Assert.Equal(0, result.ExitCode);
         JsonElement root = JsonAssert.ParseObject(result.Stdout);
-        Assert.DoesNotContain(root.GetProperty("issues").EnumerateArray(), issue => issue.GetProperty("code").GetString() == "missing_member");
+        Assert.Empty(root.GetProperty("missing_types").EnumerateArray());
+        Assert.DoesNotContain(root.GetProperty("issues").EnumerateArray(), item => item.GetProperty("code").GetString() == "missing_type");
+        Assert.DoesNotContain(root.GetProperty("issues").EnumerateArray(), item => item.GetProperty("code").GetString() == "missing_member");
     }
 
     private void CopyDup()

@@ -1,5 +1,5 @@
-using PeFix.Meta;
 using System.Collections.ObjectModel;
+using PeFix.Meta;
 
 namespace PeFix.Cli;
 

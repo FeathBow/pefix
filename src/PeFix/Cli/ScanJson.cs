@@ -16,6 +16,9 @@ internal sealed record ScanJson(
     [property: JsonPropertyName("dup_providers")]
     [property: JsonConverter(typeof(RefListConv))]
     RefFinding[] Dups,
+    [property: JsonPropertyName("missing_types")]
+    [property: JsonConverter(typeof(RefListConv))]
+    RefFinding[] MissingTypes,
     [property: JsonPropertyName("issues")] ScanIssue[] Issues,
     [property: JsonPropertyName("profiles")] ProfileJson? Profile,
     [property: JsonPropertyName("gate")] ScanGate Gate,

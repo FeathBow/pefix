@@ -28,6 +28,9 @@ internal sealed record RefsJson(
     [property: JsonPropertyName("dup_providers")]
     [property: JsonConverter(typeof(RefListConv))]
     RefFinding[] Dups,
+    [property: JsonPropertyName("missing_types")]
+    [property: JsonConverter(typeof(RefListConv))]
+    RefFinding[] MissingTypes,
     [property: JsonPropertyName("references")] RefJson[] References,
     [property: JsonPropertyName("issues")] ScanIssue[] Issues,
     [property: JsonPropertyName("profiles")] ProfileJson? Profile,

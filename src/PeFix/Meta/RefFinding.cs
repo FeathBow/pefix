@@ -13,6 +13,7 @@ public enum RefOutcome
     Missing,
     VersionConflict,
     MemberGap,
+    TypeGap,
     DuplicateProvider,
     ReflectionMissing
 }

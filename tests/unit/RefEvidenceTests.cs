@@ -74,6 +74,25 @@ public sealed class RefEvidenceTests : IDisposable
         Assert.All(actual, item => Assert.Equal(Confidence.Gate, item.Confidence));
     }
 
+    [Fact]
+    public void Collect_MapsTypeGaps()
+    {
+        _temp.Copy("F36_member_consumer.dll");
+        File.Copy(Paths.Get("F41_missing_type_provider.dll"), Path.Combine(_temp.DirPath, "MemberProvider.dll"));
+        Inspection[] inspections = Inspect();
+        DependencyIndex dependencies = Dependencies(inspections);
+        TypeRefGap[] expected = MemberSurfaceAnalyzer.FindTypeGaps(inspections, dependencies);
+
+        RefFinding[] actual = Findings(inspections, RefOutcome.TypeGap);
+
+        Assert.Equal(expected.Length, actual.Length);
+        Assert.Equal(
+            expected.Select(item => (item.AssemblyName, item.TypeName, item.ConsumerPath, item.ProviderPath)),
+            actual.Select(item => (item.ReferenceName, item.TypeName!, item.ConsumerPath, item.ProviderPath!)));
+        Assert.All(actual, item => Assert.Equal(RefTier.MemSurface, item.Tier));
+        Assert.All(actual, item => Assert.Equal(Confidence.Gate, item.Confidence));
+    }
+
     public void Dispose() => _temp.Dispose();
 
     private Inspection[] Inspect()

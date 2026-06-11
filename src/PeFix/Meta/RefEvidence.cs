@@ -12,7 +12,8 @@ public static class RefEvidence
             dependencies.FindConflicts(inspections),
             dependencies.FindMissingReferences(inspections),
             DependencyIndex.FindDuplicateProviders(inspections),
-            MemberSurfaceAnalyzer.FindMethodGaps(inspections, dependencies));
+            MemberSurfaceAnalyzer.FindMethodGaps(inspections, dependencies),
+            MemberSurfaceAnalyzer.FindTypeGaps(inspections, dependencies));
     }
 
     public static RefFinding[] Collect(ScanReport report)
@@ -21,7 +22,8 @@ public static class RefEvidence
             report.Conflicts,
             report.MissingReferences,
             report.DuplicateProviders,
-            report.MemberRefGaps);
+            report.MemberRefGaps,
+            report.TypeRefGaps);
     }
 
     public static RefFinding[] Collect(
@@ -40,13 +42,15 @@ public static class RefEvidence
         VersionConflict[] conflicts,
         MissingReference[] missingReferences,
         DuplicateProvider[] duplicateProviders,
-        MemberRefGap[] memberGaps)
+        MemberRefGap[] memberGaps,
+        TypeRefGap[] typeGaps)
     {
         List<RefFinding> findings = [];
         findings.AddRange(MapConflicts(conflicts));
         findings.AddRange(MapMissingReferences(missingReferences));
         findings.AddRange(MapDuplicateProviders(duplicateProviders));
         findings.AddRange(MapMemberGaps(memberGaps));
+        findings.AddRange(MapTypeGaps(typeGaps));
         return [.. findings];
     }
 
@@ -112,6 +116,23 @@ public static class RefEvidence
             TypeName: gap.TypeName,
             MemberName: gap.MemberName,
             ParameterCount: gap.ParameterCount,
+            ExpectedVersion: null,
+            ActualVersion: null,
+            ProviderPath: gap.ProviderPath,
+            ProviderPaths: null));
+    }
+
+    private static IEnumerable<RefFinding> MapTypeGaps(TypeRefGap[] gaps)
+    {
+        return gaps.Select(gap => new RefFinding(
+            Tier: RefTier.MemSurface,
+            Resolution: RefOutcome.TypeGap,
+            Confidence: Confidence.Gate,
+            ConsumerPath: gap.ConsumerPath,
+            ReferenceName: gap.AssemblyName,
+            TypeName: gap.TypeName,
+            MemberName: null,
+            ParameterCount: null,
             ExpectedVersion: null,
             ActualVersion: null,
             ProviderPath: gap.ProviderPath,

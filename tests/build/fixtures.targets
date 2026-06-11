@@ -122,6 +122,26 @@
       <Staged>F36_member_consumer.dll</Staged>
       <Assembly>MemberConsumer</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\MissingTypeProvider\MissingTypeProvider.csproj">
+      <Staged>F41_missing_type_provider.dll</Staged>
+      <Assembly>MemberProvider</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ForwardedProviderDef\ForwardedProviderDef.csproj">
+      <Staged>F42_forwarded_provider_def.dll</Staged>
+      <Assembly>ForwardedProvider</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ForwardedProviderFwd\ForwardedProviderFwd.csproj">
+      <Staged>F43_forwarded_provider_fwd.dll</Staged>
+      <Assembly>ForwardedProvider</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ForwardedTarget\ForwardedTarget.csproj">
+      <Staged>F44_forwarded_target.dll</Staged>
+      <Assembly>ForwardedTarget</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ForwardedConsumer\ForwardedConsumer.csproj">
+      <Staged>F45_forwarded_consumer.dll</Staged>
+      <Assembly>ForwardedConsumer</Assembly>
+    </PeFixSource>
     <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ReflectionTarget\ReflectionTarget.csproj">
       <Staged>F37_reflection_target.dll</Staged>
       <Assembly>ReflectionTarget</Assembly>

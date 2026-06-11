@@ -13,6 +13,7 @@ internal static class ScanOut
         WriteGroups(writer, view);
         WriteConflicts(writer, view);
         WriteMissing(writer, view);
+        WriteMissingTypes(writer, view);
         WriteDuplicateProviders(writer, view);
         WriteReferences(writer, view, includeReferences);
         WriteBep(writer, view);
@@ -125,6 +126,18 @@ internal static class ScanOut
         writer.WriteLine($"  Duplicate providers ({rows.Length}):");
         foreach (RefFinding row in rows)
             writer.WriteLine($"    - {row.ReferenceName}: {string.Join(", ", row.ProviderPaths!)}");
+    }
+
+    private static void WriteMissingTypes(StringWriter writer, ScanView view)
+    {
+        RefFinding[] rows = RefRows.Of(view.Finds, RefOutcome.TypeGap);
+        if (rows.Length == 0)
+            return;
+
+        writer.WriteLine();
+        writer.WriteLine($"  Missing Types ({rows.Length}):");
+        foreach (RefFinding row in rows)
+            writer.WriteLine($"    - {row.ReferenceName}: type {row.TypeName} referenced by {row.ConsumerPath}, but not found in {row.ProviderPath}");
     }
 
     private static void WriteReferences(

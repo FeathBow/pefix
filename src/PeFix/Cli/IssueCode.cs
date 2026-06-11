@@ -4,6 +4,7 @@ internal static class IssueCode
 {
     public const string AsmConflict = "asm_conflict";
     public const string MissingRef = "missing_ref";
+    public const string MissingType = "missing_type";
     public const string MissingMember = "missing_member";
     public const string ReflectionMissing = "reflection_missing";
     public const string DupProvider = "dup_provider";

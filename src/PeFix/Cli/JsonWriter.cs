@@ -23,6 +23,7 @@ internal static class JsonWriter
             RefRows.Of(view.Finds, RefOutcome.VersionConflict),
             RefRows.Of(view.Finds, RefOutcome.Missing),
             RefRows.Of(view.Finds, RefOutcome.DuplicateProvider),
+            RefRows.Of(view.Finds, RefOutcome.TypeGap),
             [.. view.Issues.Select(MapIssue)],
             MapProfile(json.Profile),
             json.Gate);
@@ -41,6 +42,7 @@ internal static class JsonWriter
             RefRows.Of(view.Finds, RefOutcome.VersionConflict),
             RefRows.Of(view.Finds, RefOutcome.Missing),
             RefRows.Of(view.Finds, RefOutcome.DuplicateProvider),
+            RefRows.Of(view.Finds, RefOutcome.TypeGap),
             MapReferences(view.Directory, references),
             [.. view.Issues.Select(MapIssue)],
             MapProfile(json.Profile),

@@ -31,7 +31,8 @@ internal static class RefRows
         return find.Confidence == Confidence.Gate
             && find.Resolution is RefOutcome.VersionConflict
                 or RefOutcome.Missing
-                or RefOutcome.DuplicateProvider;
+                or RefOutcome.DuplicateProvider
+                or RefOutcome.TypeGap;
     }
 
     private static RefFinding Rel(RefFinding find, PathRelativizer rel)

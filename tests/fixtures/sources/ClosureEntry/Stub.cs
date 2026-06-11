@@ -1,5 +1,5 @@
-using ClosureMid;
 using System;
+using ClosureMid;
 
 namespace BepInEx
 {

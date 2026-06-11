@@ -1,10 +1,13 @@
 using System.Collections.Immutable;
+using System.Reflection;
 using System.Reflection.Metadata;
 
 namespace PeFix.Meta;
 
 internal static class MemberSurfaceAnalyzer
 {
+    private const TypeAttributes ForwarderAttr = (TypeAttributes)0x00200000;
+
     internal const string ConservativeMatchingTier = "name+parameter-count";
 
     public static MemberRefGap[] FindMethodGaps(IReadOnlyList<Inspection> inspections, DependencyIndex dependencies)
@@ -38,6 +41,31 @@ internal static class MemberSurfaceAnalyzer
             item.MatchingTier))];
     }
 
+    public static TypeRefGap[] FindTypeGaps(IReadOnlyList<Inspection> inspections, DependencyIndex dependencies)
+    {
+        ArgumentNullException.ThrowIfNull(inspections);
+        ArgumentNullException.ThrowIfNull(dependencies);
+
+        List<TypeRefGap> gaps = [];
+        foreach (Inspection consumer in inspections)
+        {
+            if (consumer.View is not { } view)
+                continue;
+
+            foreach (MethodRefUse methodRef in view.MethodRefs)
+            {
+                if (TryBuildTypeRefGap(methodRef, dependencies, consumer, out TypeRefGap gap))
+                    gaps.Add(gap);
+            }
+        }
+
+        return [.. gaps.DistinctBy(item => (
+            item.ConsumerPath,
+            item.ProviderPath,
+            item.AssemblyName,
+            item.TypeName))];
+    }
+
     internal static MethodRefUse[] ReadMethodRefs(MetadataReader reader)
     {
         List<MethodRefUse> methodRefs = [];
@@ -52,16 +80,31 @@ internal static class MemberSurfaceAnalyzer
 
     internal static MemSurface ReadSurface(MetadataReader reader)
     {
+        HashSet<string> typeNames = new(StringComparer.Ordinal);
         Dictionary<string, HashSet<MemberShape>> membersByType = new(StringComparer.Ordinal);
         foreach (TypeDefinitionHandle typeHandle in reader.TypeDefinitions)
         {
             TypeDefinition typeDef = reader.GetTypeDefinition(typeHandle);
             string typeName = TypeName(reader, typeDef.Namespace, typeDef.Name);
+            typeNames.Add(typeName);
             HashSet<MemberShape> members = ReadMethods(reader, typeDef);
             membersByType[typeName] = members;
         }
 
-        return new MemSurface(membersByType);
+        AddForwardedTypes(reader, typeNames);
+        return new MemSurface(typeNames, membersByType);
+    }
+
+    private static void AddForwardedTypes(MetadataReader reader, HashSet<string> typeNames)
+    {
+        foreach (ExportedTypeHandle handle in reader.ExportedTypes)
+        {
+            ExportedType type = reader.GetExportedType(handle);
+            if (!type.Attributes.HasFlag(ForwarderAttr))
+                continue;
+
+            typeNames.Add(TypeName(reader, type.Namespace, type.Name));
+        }
     }
 
     private static HashSet<MemberShape> ReadMethods(
@@ -125,6 +168,9 @@ internal static class MemberSurfaceAnalyzer
         if (provider.View is not { } providerView)
             return false;
 
+        if (!providerView.MemSurface.ContainsType(methodRef.TypeName))
+            return false;
+
         if (!providerView.MemSurface.TryGetMembers(methodRef.TypeName, out HashSet<MemberShape> members))
             return false;
 
@@ -137,6 +183,33 @@ internal static class MemberSurfaceAnalyzer
             methodRef.MemberName,
             methodRef.ParameterCount,
             ConservativeMatchingTier,
+            consumer.Path,
+            provider.Path);
+        return true;
+    }
+
+    private static bool TryBuildTypeRefGap(
+        MethodRefUse methodRef,
+        DependencyIndex dependencies,
+        Inspection consumer,
+        out TypeRefGap gap)
+    {
+        gap = default;
+        if (dependencies.ClassifyProvided(methodRef.AssemblyName) != ProvidedKind.None)
+            return false;
+
+        if (!dependencies.TryGetProvider(methodRef.AssemblyName, out Inspection provider))
+            return false;
+
+        if (provider.View is not { } providerView)
+            return false;
+
+        if (providerView.MemSurface.ContainsType(methodRef.TypeName))
+            return false;
+
+        gap = new TypeRefGap(
+            methodRef.AssemblyName,
+            methodRef.TypeName,
             consumer.Path,
             provider.Path);
         return true;

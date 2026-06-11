@@ -122,6 +122,36 @@ public sealed class DirectoryIssueBuilderTests
         Assert.Equal("Shared.Core.dll", issue.Evidence?.ProviderFile);
     }
 
+    [Fact]
+    public void Build_MissingTypeIssue()
+    {
+        DirectoryIssue issue = SingleIssue(new RefFinding(
+            Tier: RefTier.MemSurface,
+            Resolution: RefOutcome.TypeGap,
+            Confidence: Confidence.Gate,
+            ConsumerPath: Abs("Plugin.dll"),
+            ReferenceName: "Shared.Core",
+            TypeName: "Shared.Api",
+            MemberName: null,
+            ParameterCount: null,
+            ExpectedVersion: null,
+            ActualVersion: null,
+            ProviderPath: Abs("Shared.Core.dll"),
+            ProviderPaths: null));
+
+        AssertIssue(
+            issue,
+            IssueCode.MissingType,
+            "Shared.Core",
+            ["Plugin.dll", "Shared.Core.dll"],
+            "Align the referencing assembly and provider assembly",
+            "runtime load success");
+        Assert.Contains("Type 'Shared.Api' not found in Shared.Core.dll", issue.Summary);
+        Assert.Contains("consumed by Plugin.dll", issue.Summary);
+        Assert.Equal("Shared.Api", issue.Evidence?.TypeName);
+        Assert.Equal("Shared.Core.dll", issue.Evidence?.ProviderFile);
+    }
+
     private static DirectoryIssue SingleIssue(RefFinding finding)
     {
         DirectoryIssue[] issues = DirectoryIssueBuilder.Build([finding], Rel());

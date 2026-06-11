@@ -14,6 +14,7 @@ internal static class DirectoryIssueBuilder
         AddMissingReferences(issues, findings, rel);
         AddReflectionMissing(issues, findings, rel);
         AddDuplicates(issues, findings, rel);
+        AddMissingTypes(issues, findings, rel);
         AddMissingMembers(issues, findings, rel);
         return [.. issues];
     }
@@ -88,6 +89,29 @@ internal static class DirectoryIssueBuilder
         foreach (RefFinding gap in Ordered(findings, RefOutcome.MemberGap)
             .ThenBy(item => item.MemberName, StringComparer.Ordinal))
             issues.Add(CreateMissingMemberIssue(gap, rel));
+    }
+
+    private static void AddMissingTypes(
+        List<DirectoryIssue> issues,
+        RefFinding[] findings,
+        PathRelativizer rel)
+    {
+        foreach (RefFinding gap in Ordered(findings, RefOutcome.TypeGap)
+            .ThenBy(item => item.TypeName, StringComparer.Ordinal))
+            issues.Add(CreateMissingTypeIssue(gap, rel));
+    }
+
+    private static DirectoryIssue CreateMissingTypeIssue(RefFinding gap, PathRelativizer rel)
+    {
+        string requiredBy = rel.RelativePath(gap.ConsumerPath);
+        string providedBy = rel.RelativePath(Required(gap.ProviderPath, nameof(gap.ProviderPath)));
+        string typeName = Required(gap.TypeName, nameof(gap.TypeName));
+        return RepairGuide.ForIssue(
+            IssueCode.MissingType,
+            gap.ReferenceName,
+            $"Type '{typeName}' not found in {providedBy}; consumed by {requiredBy}.",
+            [requiredBy, providedBy],
+            IssueEvidence.ForMissingType(typeName, providedBy));
     }
 
     private static DirectoryIssue CreateMissingMemberIssue(RefFinding gap, PathRelativizer rel)
