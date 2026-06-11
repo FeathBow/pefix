@@ -20,9 +20,9 @@ internal static class JsonWriter
             view.Directory,
             json.Summary,
             json.Results,
-            [.. view.Conflicts.Select(MapConflict)],
-            [.. view.MissingReferences.Select(MapMissing)],
-            [.. view.DuplicateProviders.Select(MapDuplicate)],
+            RefRows.Of(view.Finds, RefOutcome.VersionConflict),
+            RefRows.Of(view.Finds, RefOutcome.Missing),
+            RefRows.Of(view.Finds, RefOutcome.DuplicateProvider),
             [.. view.Issues.Select(MapIssue)],
             MapProfile(json.Profile),
             json.Gate);
@@ -38,9 +38,9 @@ internal static class JsonWriter
             view.Directory,
             json.Summary,
             json.Results,
-            [.. view.Conflicts.Select(MapConflict)],
-            [.. view.MissingReferences.Select(MapMissing)],
-            [.. view.DuplicateProviders.Select(MapDuplicate)],
+            RefRows.Of(view.Finds, RefOutcome.VersionConflict),
+            RefRows.Of(view.Finds, RefOutcome.Missing),
+            RefRows.Of(view.Finds, RefOutcome.DuplicateProvider),
             MapReferences(view.Directory, references),
             [.. view.Issues.Select(MapIssue)],
             MapProfile(json.Profile),
@@ -142,29 +142,6 @@ internal static class JsonWriter
             verifyText,
             InspectMap.Map(result.Before),
             InspectMap.Map(result.After));
-    }
-
-    private static ScanConflict MapConflict(DirectoryConflict conflict)
-    {
-        return new ScanConflict(
-            conflict.Assembly,
-            conflict.Expected,
-            conflict.Actual,
-            conflict.ReferencedBy,
-            conflict.ProvidedBy);
-    }
-
-    private static ScanMissingReference MapMissing(DirectoryMissingReference missingRef)
-    {
-        return new ScanMissingReference(
-            missingRef.Assembly,
-            missingRef.Version,
-            missingRef.RequiredBy);
-    }
-
-    private static ScanDuplicateProvider MapDuplicate(DirectoryDuplicateProvider duplicateProvider)
-    {
-        return new ScanDuplicateProvider(duplicateProvider.Assembly, duplicateProvider.Files);
     }
 
     private static RefJson[] MapReferences(

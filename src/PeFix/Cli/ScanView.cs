@@ -6,9 +6,7 @@ internal sealed record ScanView(
     string Directory,
     ScanStats Stats,
     ScanFile[] Files,
-    DirectoryConflict[] Conflicts,
-    DirectoryMissingReference[] MissingReferences,
-    DirectoryDuplicateProvider[] DuplicateProviders,
+    RefFinding[] Finds,
     DirectoryIssue[] Issues,
     int GateIssueCount,
     RefEntry[] References)

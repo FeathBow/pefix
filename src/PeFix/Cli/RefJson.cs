@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using PeFix.Meta;
 
 namespace PeFix.Cli;
 
@@ -18,9 +19,15 @@ internal sealed record RefsJson(
     [property: JsonPropertyName("directory")] string Directory,
     [property: JsonPropertyName("summary")] ScanSummary Summary,
     [property: JsonPropertyName("results")] InspectJson[] Results,
-    [property: JsonPropertyName("conflicts")] ScanConflict[] Conflicts,
-    [property: JsonPropertyName("missing_refs")] ScanMissingReference[] MissingReferences,
-    [property: JsonPropertyName("dup_providers")] ScanDuplicateProvider[] DuplicateProviders,
+    [property: JsonPropertyName("conflicts")]
+    [property: JsonConverter(typeof(RefListConv))]
+    RefFinding[] Conflicts,
+    [property: JsonPropertyName("missing_refs")]
+    [property: JsonConverter(typeof(RefListConv))]
+    RefFinding[] Missing,
+    [property: JsonPropertyName("dup_providers")]
+    [property: JsonConverter(typeof(RefListConv))]
+    RefFinding[] Dups,
     [property: JsonPropertyName("references")] RefJson[] References,
     [property: JsonPropertyName("issues")] ScanIssue[] Issues,
     [property: JsonPropertyName("profiles")] ProfileJson? Profile,

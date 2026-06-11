@@ -36,25 +36,21 @@ internal static class ScanBuild
         RefEntry[]? jsonReferences = includeReferences ? references : null;
         BepInExExplainResult bepInExExplain = BuildBepInExExplain(ctx);
         ScanFile[] files = BuildFiles(report.Results, rel);
-        DirectoryConflict[] conflicts = BuildConflicts(report, rel);
-        DirectoryMissingReference[] missingReferences = BuildMissingRefs(report, rel);
-        DirectoryDuplicateProvider[] duplicateProviders = BuildDuplicates(report, rel);
+        RefFinding[] refs = RefRows.Build(findings, rel);
         IssueBuild issueBuild = BuildIssues(findings, ctx.Rel, bepInExExplain);
         ScanMetrics metrics = MetricBuild.Build(new MetricInput
         {
             Files = files,
             Issues = issueBuild.Issues,
             GateIssues = issueBuild.GateIssues,
-            HasConflict = conflicts.Length > 0,
-            DuplicateCount = duplicateProviders.Length
+            HasConflict = RefRows.Count(refs, RefOutcome.VersionConflict) > 0,
+            DuplicateCount = RefRows.Count(refs, RefOutcome.DuplicateProvider)
         });
         ScanView view = new(
             report.Directory,
             metrics.Stats,
             files,
-            conflicts,
-            missingReferences,
-            duplicateProviders,
+            refs,
             issueBuild.Issues,
             metrics.GateIssueCount,
             references);
@@ -152,36 +148,6 @@ internal static class ScanBuild
             InspectText.Summary(result),
             InspectMap.ActionCode(result),
             result.ReasonCode);
-    }
-
-    private static DirectoryConflict[] BuildConflicts(ScanReport report, PathRelativizer rel)
-    {
-        return [.. report.Conflicts
-            .OrderBy(item => item.AssemblyName, StringComparer.Ordinal)
-            .Select(conflict => new DirectoryConflict(
-                conflict.AssemblyName,
-                conflict.Expected,
-                conflict.Actual,
-                rel.RelativePath(conflict.ReferencedBy),
-                rel.RelativePath(conflict.ProvidedBy)))];
-    }
-
-    private static DirectoryMissingReference[] BuildMissingRefs(ScanReport report, PathRelativizer rel)
-    {
-        return [.. report.MissingReferences
-            .OrderBy(item => item.ReferenceName, StringComparer.Ordinal)
-            .Select(missingRef => new DirectoryMissingReference(
-                missingRef.ReferenceName,
-                missingRef.RequiredVersion,
-                rel.RelativePath(missingRef.RequiredBy)))];
-    }
-
-    private static DirectoryDuplicateProvider[] BuildDuplicates(ScanReport report, PathRelativizer rel)
-    {
-        return [.. report.DuplicateProviders
-            .Select(duplicateProvider => new DirectoryDuplicateProvider(
-                duplicateProvider.AssemblyName,
-                rel.RelativePaths(duplicateProvider.Files)))];
     }
 
     private static InspectJson[] BuildInspectJson(ScanInput input)

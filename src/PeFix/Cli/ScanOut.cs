@@ -93,35 +93,38 @@ internal static class ScanOut
 
     private static void WriteConflicts(StringWriter writer, ScanView view)
     {
-        if (view.Conflicts.Length == 0)
+        RefFinding[] rows = RefRows.Of(view.Finds, RefOutcome.VersionConflict);
+        if (rows.Length == 0)
             return;
 
         writer.WriteLine();
-        writer.WriteLine($"  Version Conflicts ({view.Conflicts.Length}):");
-        foreach (DirectoryConflict conflict in view.Conflicts)
-            writer.WriteLine($"    - {conflict.Assembly}: {conflict.ReferencedBy} expects v{conflict.Expected}, but v{conflict.Actual} is provided by {conflict.ProvidedBy}");
+        writer.WriteLine($"  Version Conflicts ({rows.Length}):");
+        foreach (RefFinding row in rows)
+            writer.WriteLine($"    - {row.ReferenceName}: {row.ConsumerPath} expects v{row.ExpectedVersion}, but v{row.ActualVersion} is provided by {row.ProviderPath}");
     }
 
     private static void WriteMissing(StringWriter writer, ScanView view)
     {
-        if (view.MissingReferences.Length == 0)
+        RefFinding[] rows = RefRows.Of(view.Finds, RefOutcome.Missing);
+        if (rows.Length == 0)
             return;
 
         writer.WriteLine();
-        writer.WriteLine($"  Missing references ({view.MissingReferences.Length}):");
-        foreach (DirectoryMissingReference missingRef in view.MissingReferences)
-            writer.WriteLine($"    - {missingRef.Assembly}: {missingRef.RequiredBy} expects v{missingRef.Version}, but no provider was found");
+        writer.WriteLine($"  Missing references ({rows.Length}):");
+        foreach (RefFinding row in rows)
+            writer.WriteLine($"    - {row.ReferenceName}: {row.ConsumerPath} expects v{row.ExpectedVersion}, but no provider was found");
     }
 
     private static void WriteDuplicateProviders(StringWriter writer, ScanView view)
     {
-        if (view.DuplicateProviders.Length == 0)
+        RefFinding[] rows = RefRows.Of(view.Finds, RefOutcome.DuplicateProvider);
+        if (rows.Length == 0)
             return;
 
         writer.WriteLine();
-        writer.WriteLine($"  Duplicate providers ({view.DuplicateProviders.Length}):");
-        foreach (DirectoryDuplicateProvider duplicateProvider in view.DuplicateProviders)
-            writer.WriteLine($"    - {duplicateProvider.Assembly}: {string.Join(", ", duplicateProvider.Files)}");
+        writer.WriteLine($"  Duplicate providers ({rows.Length}):");
+        foreach (RefFinding row in rows)
+            writer.WriteLine($"    - {row.ReferenceName}: {string.Join(", ", row.ProviderPaths!)}");
     }
 
     private static void WriteReferences(

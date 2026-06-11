@@ -26,8 +26,9 @@ public sealed class ScanViewTest
         Assert.True(view.Stats.HasFixable);
         Assert.True(view.Stats.HasConflict);
         Assert.Equal(4, view.Stats.NeedCount);
-        Assert.Equal("mods/Fix.dll", view.Conflicts[0].ReferencedBy);
-        Assert.Equal("providers/Dependency.dll", view.Conflicts[0].ProvidedBy);
+        RefFinding row = RefRows.Of(view.Finds, RefOutcome.VersionConflict)[0];
+        Assert.Equal("mods/Fix.dll", row.ConsumerPath);
+        Assert.Equal("providers/Dependency.dll", row.ProviderPath);
         Assert.Equal("mods/Fix.dll", view.Files[0].ViewPath);
         Assert.Equal("portability", view.Files[0].Category);
         Assert.Equal(Status.Fixable, view.Files[0].Status);
