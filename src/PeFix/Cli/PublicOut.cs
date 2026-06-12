@@ -19,20 +19,7 @@ internal static class PublicOut
             ("Not Proven:", PublicJson.UnverifiedRiskText)
         };
 
-        if (r.WasDryRun)
-        {
-            details.Add(("Backup:", "Would write " + Path.GetFileName(r.Path) + ".bak"));
-        }
-        else if (r.BackupPath is not null)
-        {
-            details.Add(("Backup:", r.BackupPath));
-        }
-
-        if (!r.WasDryRun && r.PlanPath is not null)
-        {
-            details.Add(("Plan:", r.PlanPath));
-        }
-
+        MutOut.AddWriteDetails(details, r.WasDryRun, r.Path, r.BackupPath, r.PlanPath);
         return new MutBlock(
             Path.GetFileName(r.Path),
             "publicize",
@@ -42,12 +29,7 @@ internal static class PublicOut
             details.ToArray()).Render();
     }
 
-    private static string Status(PublicResult r) => (r.WasDryRun, r.OpsCount > 0) switch
-    {
-        (true, _) => "DRY-RUN",
-        (false, true) => "PATCHED",
-        _ => "UNCHANGED",
-    };
+    private static string Status(PublicResult r) => MutOut.RunStatus(r.WasDryRun, r.OpsCount > 0);
 
     private static string SummaryOf(PublicResult r) => (r.WasDryRun, r.OpsCount > 0) switch
     {
@@ -59,14 +41,7 @@ internal static class PublicOut
     private static string ActionOf(PublicResult r) => (r.WasDryRun, r.OpsCount > 0) switch
     {
         (true, _) => $"Run: pefix publicize {Path.GetFileName(r.Path)} --apply",
-        (false, true) => BackupAction(r),
+        (false, true) => MutOut.BackupAction(r.BackupPath),
         _ => "No action needed.",
     };
-
-    private static string BackupAction(PublicResult r)
-    {
-        return r.BackupPath is not null
-            ? $"Backup written to {Path.GetFileName(r.BackupPath)}. Run pefix scan <dir> --json to re-check the folder."
-            : "Backup skipped (--no-backup). Run pefix scan <dir> --json to re-check the folder.";
-    }
 }

@@ -19,20 +19,7 @@ internal static class RedirOut
             ("Not Proven:", RedirJson.UnverifiedRiskText)
         };
 
-        if (r.WasDryRun)
-        {
-            details.Add(("Backup:", "Would write " + Path.GetFileName(r.Path) + ".bak"));
-        }
-        else if (r.BackupPath is not null)
-        {
-            details.Add(("Backup:", r.BackupPath));
-        }
-
-        if (!r.WasDryRun && r.PlanPath is not null)
-        {
-            details.Add(("Plan:", r.PlanPath));
-        }
-
+        MutOut.AddWriteDetails(details, r.WasDryRun, r.Path, r.BackupPath, r.PlanPath);
         return new MutBlock(
             Path.GetFileName(r.Path),
             "redir",
@@ -42,12 +29,7 @@ internal static class RedirOut
             details.ToArray()).Render();
     }
 
-    private static string Status(RedirResult r) => (r.WasDryRun, r.RowsPatched > 0) switch
-    {
-        (true, _) => "DRY-RUN",
-        (false, true) => "PATCHED",
-        _ => "UNCHANGED",
-    };
+    private static string Status(RedirResult r) => MutOut.RunStatus(r.WasDryRun, r.RowsPatched > 0);
 
     private static string SummaryOf(RedirResult r) => (r.WasDryRun, r.RowsPatched) switch
     {
@@ -60,14 +42,7 @@ internal static class RedirOut
     private static string ActionOf(RedirResult r) => (r.WasDryRun, r.RowsPatched > 0) switch
     {
         (true, _) => $"Run: pefix redir {Path.GetFileName(r.Path)} --from <name>:<ver> --to <ver> --apply",
-        (false, true) => BackupAction(r),
+        (false, true) => MutOut.BackupAction(r.BackupPath),
         _ => "No action needed.",
     };
-
-    private static string BackupAction(RedirResult r)
-    {
-        return r.BackupPath is not null
-            ? $"Backup written to {Path.GetFileName(r.BackupPath)}. Run pefix scan <dir> --json to re-check the folder."
-            : "Backup skipped (--no-backup). Run pefix scan <dir> --json to re-check the folder.";
-    }
 }

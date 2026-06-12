@@ -132,16 +132,16 @@ internal static class ClosureOut
         writer.WriteLine();
         if (orphans.Length == 0)
         {
-            writer.WriteLine("  Unreferenced: none found; every managed assembly is referenced, an entry point, a plugin, or a satellite.");
+            writer.WriteLine($"{Indent.Of(1)}Unreferenced: none found; every managed assembly is referenced, an entry point, a plugin, or a satellite.");
             return;
         }
 
-        writer.WriteLine($"  Unreferenced ({orphans.Length}):");
+        writer.WriteLine($"{Indent.Of(1)}Unreferenced ({orphans.Length}):");
         PathRelativizer rel = new(report.Directory);
         foreach (string orphan in orphans)
-            writer.WriteLine($"    - {rel.RelativePath(orphan)}");
+            writer.WriteLine($"{Indent.Of(2)}- {rel.RelativePath(orphan)}");
 
-        writer.WriteLine("  Note: unreferenced is advisory; host configuration or dynamic loading outside literal reflection is not observed.");
+        writer.WriteLine($"{Indent.Of(1)}Note: unreferenced is advisory; host configuration or dynamic loading outside literal reflection is not observed.");
     }
 
     private static string[] ChainLefts(ClosureChain chain)

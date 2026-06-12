@@ -20,20 +20,7 @@ internal static class SnStripOut
             ("Not Proven:", SnStripJson.UnverifiedRiskText)
         };
 
-        if (r.WasDryRun)
-        {
-            details.Add(("Backup:", "Would write " + Path.GetFileName(r.Path) + ".bak"));
-        }
-        else if (r.BackupPath is not null)
-        {
-            details.Add(("Backup:", r.BackupPath));
-        }
-
-        if (!r.WasDryRun && r.PlanPath is not null)
-        {
-            details.Add(("Plan:", r.PlanPath));
-        }
-
+        MutOut.AddWriteDetails(details, r.WasDryRun, r.Path, r.BackupPath, r.PlanPath);
         if (r.DepsPatched > 0)
         {
             string depLabel = r.WasDryRun ? "Dependencies:" : "Dependencies Patched:";
@@ -68,7 +55,7 @@ internal static class SnStripOut
     private static string ActionOf(SnStripResult r) => r.Outcome switch
     {
         SnStripOutcome.DryRun => $"Run: pefix snstrip {Path.GetFileName(r.Path)} --apply",
-        SnStripOutcome.Patched => BackupAction(r),
+        SnStripOutcome.Patched => MutOut.BackupAction(r.BackupPath),
         SnStripOutcome.DepRefused => "Resolve dependency refusal and rerun snstrip.",
         _ => "No action needed.",
     };
@@ -84,13 +71,6 @@ internal static class SnStripOut
     private static string RepairClassLabel(SnStripResult r) => r.Outcome == SnStripOutcome.Unsigned
         ? RepairClass.DiagnosticOnly
         : SnStripJson.RepairClassValue;
-
-    private static string BackupAction(SnStripResult r)
-    {
-        return r.BackupPath is not null
-            ? $"Backup written to {Path.GetFileName(r.BackupPath)}. Run pefix scan <dir> --json to re-check the folder."
-            : "Backup skipped (--no-backup). Run pefix scan <dir> --json to re-check the folder.";
-    }
 
     private static string FormatDependencyTargets(SnStripResult result)
     {
