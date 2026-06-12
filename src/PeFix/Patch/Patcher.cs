@@ -1,4 +1,3 @@
-using PeFix.Cli;
 using PeFix.Meta;
 
 namespace PeFix.Patch;

@@ -1,6 +1,4 @@
-using PeFix.Meta;
-
-namespace PeFix.Cli;
+namespace PeFix.Meta;
 
 internal static class Labels
 {
