@@ -32,6 +32,23 @@ internal sealed class DependencyIndex
         return _providers.TryGetValue(name, out inspection);
     }
 
+    public bool TryGetProviderView(string name, out Inspection provider, out PeView view)
+    {
+        view = null!;
+        provider = default;
+        if (ClassifyProvided(name) != ProvidedKind.None)
+            return false;
+
+        if (!TryGetProvider(name, out provider))
+            return false;
+
+        if (provider.View is not { } providerView)
+            return false;
+
+        view = providerView;
+        return true;
+    }
+
     public ProvidedKind ClassifyProvided(string name) => RefFilter.Classify(name, _hostProfile);
 
     public VersionConflict[] FindConflicts(IReadOnlyList<Inspection> inspections)

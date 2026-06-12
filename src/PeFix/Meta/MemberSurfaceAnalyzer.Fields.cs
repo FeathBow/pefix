@@ -92,13 +92,7 @@ internal static partial class MemberSurfaceAnalyzer
         out FieldRefGap gap)
     {
         gap = default;
-        if (deps.ClassifyProvided(fieldRef.AssemblyName) != ProvidedKind.None)
-            return false;
-
-        if (!deps.TryGetProvider(fieldRef.AssemblyName, out Inspection provider))
-            return false;
-
-        if (provider.View is not { } providerView)
+        if (!deps.TryGetProviderView(fieldRef.AssemblyName, out Inspection provider, out PeView providerView))
             return false;
 
         if (!providerView.MemSurface.ContainsType(fieldRef.TypeName))

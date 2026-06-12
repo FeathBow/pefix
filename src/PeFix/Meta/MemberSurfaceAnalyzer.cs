@@ -274,13 +274,7 @@ internal static partial class MemberSurfaceAnalyzer
         out MemberRefGap gap)
     {
         gap = default;
-        if (dependencies.ClassifyProvided(methodRef.AssemblyName) != ProvidedKind.None)
-            return false;
-
-        if (!dependencies.TryGetProvider(methodRef.AssemblyName, out Inspection provider))
-            return false;
-
-        if (provider.View is not { } providerView)
+        if (!dependencies.TryGetProviderView(methodRef.AssemblyName, out Inspection provider, out PeView providerView))
             return false;
 
         if (!providerView.MemSurface.ContainsType(methodRef.TypeName))
@@ -310,13 +304,7 @@ internal static partial class MemberSurfaceAnalyzer
         out TypeRefGap gap)
     {
         gap = default;
-        if (dependencies.ClassifyProvided(typeRef.AssemblyName) != ProvidedKind.None)
-            return false;
-
-        if (!dependencies.TryGetProvider(typeRef.AssemblyName, out Inspection provider))
-            return false;
-
-        if (provider.View is not { } providerView)
+        if (!dependencies.TryGetProviderView(typeRef.AssemblyName, out Inspection provider, out PeView providerView))
             return false;
 
         if (providerView.MemSurface.ContainsType(typeRef.TypeName))

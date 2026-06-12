@@ -176,13 +176,7 @@ internal static class AccessScan
         if (view.AccessInfo.SkipNames.Contains(assemblyName))
             return false;
 
-        if (dependencies.ClassifyProvided(assemblyName) != ProvidedKind.None)
-            return false;
-
-        if (!dependencies.TryGetProvider(assemblyName, out provider))
-            return false;
-
-        if (provider.View is not { } providerView)
+        if (!dependencies.TryGetProviderView(assemblyName, out provider, out PeView providerView))
             return false;
 
         if (providerView.AccessInfo.IvtNames.Contains(consumerName))

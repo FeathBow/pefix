@@ -142,14 +142,7 @@ internal static class ImplAnalyzer
         out IfaceSurface surface)
     {
         surface = null!;
-        provider = default!;
-        if (dependencies.ClassifyProvided(iface.AssemblyName) != ProvidedKind.None)
-            return false;
-
-        if (!dependencies.TryGetProvider(iface.AssemblyName, out provider))
-            return false;
-
-        if (provider.View is not { } providerView)
+        if (!dependencies.TryGetProviderView(iface.AssemblyName, out provider, out PeView providerView))
             return false;
 
         return providerView.MemSurface.TryGetIface(iface.InterfaceName, out surface);
