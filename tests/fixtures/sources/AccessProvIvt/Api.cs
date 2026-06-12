@@ -7,7 +7,7 @@ namespace AccessProvider;
 
 public class Api
 {
-    internal static int Count;
+    internal static int Count = 4;
 
     public static int Open() => 1;
 
