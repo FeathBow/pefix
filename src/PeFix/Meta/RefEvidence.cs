@@ -39,6 +39,7 @@ public static class RefEvidence
         findings.AddRange(MapFieldGaps(gaps.FieldRefGaps));
         findings.AddRange(MapImplGaps(gaps.ImplGaps));
         findings.AddRange(MapAccessGaps(gaps.AccessGaps, publishDirProfile));
+        findings.AddRange(MapNativeGaps(gaps.NativeGaps, publishDirProfile));
         return [.. findings];
     }
 
@@ -178,6 +179,25 @@ public static class RefEvidence
             ExpectedVersion: null,
             ActualVersion: null,
             ProviderPath: gap.ProviderPath,
+            ProviderPaths: null));
+    }
+
+    private static IEnumerable<RefFinding> MapNativeGaps(
+        NativeGap[] gaps,
+        bool publishDirProfile)
+    {
+        return gaps.Select(gap => new RefFinding(
+            Tier: RefTier.Native,
+            Resolution: RefOutcome.NativeGap,
+            Confidence: ConfPolicy.For(RefOutcome.NativeGap, publishDirProfile),
+            ConsumerPath: gap.ConsumerPath,
+            ReferenceName: gap.ModuleName,
+            TypeName: null,
+            MemberName: null,
+            ParameterCount: null,
+            ExpectedVersion: gap.RequiredMachine,
+            ActualVersion: gap.PresentMachine,
+            ProviderPath: gap.PresentPath,
             ProviderPaths: null));
     }
 

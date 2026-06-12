@@ -5,5 +5,6 @@ public enum RefTier
     AssemblyRef,
     MemSurface,
     Provider,
-    Reflection
+    Reflection,
+    Native
 }

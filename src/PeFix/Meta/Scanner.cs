@@ -6,10 +6,13 @@ public static class Scanner
     {
         DirectoryInspection dir = InspectDir(path);
         var dependencies = DependencyIndex.Build(dir.Results, hostProfile);
-        return new ScanReport(dir.Directory, dir.Results, FindGaps(dir.Results, dependencies));
+        return new ScanReport(dir.Directory, dir.Results, FindGaps(dir.Results, dependencies, dir.Directory));
     }
 
-    internal static GapSet FindGaps(IReadOnlyList<Inspection> results, DependencyIndex dependencies)
+    internal static GapSet FindGaps(
+        IReadOnlyList<Inspection> results,
+        DependencyIndex dependencies,
+        string? directory = null)
     {
         ArgumentNullException.ThrowIfNull(results);
         ArgumentNullException.ThrowIfNull(dependencies);
@@ -23,7 +26,8 @@ public static class Scanner
             TypeRefGaps = MemberSurfaceAnalyzer.FindTypeGaps(results, dependencies),
             FieldRefGaps = MemberSurfaceAnalyzer.FindFieldGaps(results, dependencies),
             ImplGaps = ImplAnalyzer.FindImplGaps(results, dependencies),
-            AccessGaps = AccessScan.FindAccessGaps(results, dependencies)
+            AccessGaps = AccessScan.FindAccessGaps(results, dependencies),
+            NativeGaps = directory is null ? [] : NativeScan.FindNativeGaps(results, directory)
         };
     }
 

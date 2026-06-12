@@ -5,6 +5,7 @@ internal static class ConfPolicy
     public static Confidence For(RefOutcome outcome, bool publishDirProfile) => outcome switch
     {
         RefOutcome.AccessGap => publishDirProfile ? Confidence.Gate : Confidence.Advisory,
+        RefOutcome.NativeGap => Confidence.Advisory,
         _ => Confidence.Gate
     };
 

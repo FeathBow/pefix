@@ -19,6 +19,7 @@ internal static class DirectoryIssueBuilder
         AddMissingFields(issues, findings, rel);
         AddMissingImpls(issues, findings, rel);
         AddInaccessible(issues, findings, rel);
+        AddMissingNatives(issues, findings, rel);
         return [.. issues];
     }
 
@@ -148,6 +149,36 @@ internal static class DirectoryIssueBuilder
                 paramCount,
                 MemberSurfaceAnalyzer.ConservativeMatchingTier,
                 providedBy));
+    }
+
+    private static void AddMissingNatives(
+        List<DirectoryIssue> issues,
+        RefFinding[] findings,
+        PathRelativizer rel)
+    {
+        foreach (RefFinding gap in Ordered(findings, RefOutcome.NativeGap)
+            .ThenBy(item => item.ConsumerPath, StringComparer.Ordinal))
+            issues.Add(CreateMissingNativeIssue(gap, rel));
+    }
+
+    private static DirectoryIssue CreateMissingNativeIssue(RefFinding gap, PathRelativizer rel)
+    {
+        string requiredBy = rel.RelativePath(gap.ConsumerPath);
+        if (gap.ProviderPath is not { } presentPath)
+        {
+            return RepairGuide.ForIssue(
+                IssueCode.MissingNative,
+                gap.ReferenceName,
+                $"Native library '{gap.ReferenceName}' is not present in the scanned directory; P/Invoked by {requiredBy}.",
+                [requiredBy]);
+        }
+
+        string providedBy = rel.RelativePath(presentPath);
+        return RepairGuide.ForIssue(
+            IssueCode.MissingNative,
+            gap.ReferenceName,
+            $"Native library '{providedBy}' is {gap.ActualVersion}, but {requiredBy} requires {gap.ExpectedVersion}.",
+            [requiredBy, providedBy]);
     }
 
     private static void AddInaccessible(

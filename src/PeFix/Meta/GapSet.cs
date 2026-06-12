@@ -19,4 +19,6 @@ public sealed class GapSet
     public ImplGap[] ImplGaps { get; init; } = [];
 
     public AccessGap[] AccessGaps { get; init; } = [];
+
+    public NativeGap[] NativeGaps { get; init; } = [];
 }

@@ -121,6 +121,10 @@ internal static class RepairGuide
                     "Use a public provider API, or ship a provider that grants InternalsVisibleTo to the consumer.",
                     "Rebuild the consumer against the provider's public API, install a provider that grants InternalsVisibleTo, or declare IgnoresAccessChecksTo deliberately.",
                     "Relaxed runtime access checks (Mono) and reflection-based access are not proven."),
+                IssueCode.MissingNative => Assisted(
+                    "Ship the P/Invoked native library next to the consumer, or rely on a host-installed copy deliberately.",
+                    "Install the native library (matching the consumer architecture) into the scanned directory, or confirm the host provides it on its library search path.",
+                    "Host library search paths, OS-provided copies, and runtime DllImport resolvers are not observed."),
                 IssueCode.ReflectionMissing => Assisted(
                     "Install or restore the assembly named by the reflection load string.",
                     "Install the reflected assembly into the scanned directory or remove the literal reflection load.",
