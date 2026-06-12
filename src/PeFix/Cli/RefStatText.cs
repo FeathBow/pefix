@@ -15,14 +15,10 @@ internal static class RefStatText
 
     public static RefStatus Highest(IEnumerable<RefEntry> entries)
     {
-        RefStatus highest = RefStatus.Present;
-        foreach (RefEntry entry in entries)
-        {
-            if (Rank(entry.Status) > Rank(highest))
-                highest = entry.Status;
-        }
-
-        return highest;
+        return entries
+            .Select(entry => entry.Status)
+            .OrderByDescending(status => Rank(status))
+            .FirstOrDefault(RefStatus.Present);
     }
 
     private static int Rank(RefStatus status) => status switch

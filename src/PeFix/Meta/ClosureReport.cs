@@ -8,9 +8,3 @@ public readonly record struct ClosureReport(
     int RefsWalked,
     ProvidedLeafCounts ProvidedLeaves,
     ClosureTree[]? Tree);
-
-public readonly record struct ProvidedLeafCounts(int Total, int Framework);
-
-public readonly record struct ClosureTree(
-    ClosureNode Node,
-    ClosureTree[] Children);

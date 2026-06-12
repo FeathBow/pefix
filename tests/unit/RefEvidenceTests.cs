@@ -119,7 +119,7 @@ public sealed class RefEvidenceTests : IDisposable
         return Scanner.InspectDir(_temp.DirPath).Results;
     }
 
-    private RefFinding[] Findings(Inspection[] inspections, RefOutcome resolution)
+    private static RefFinding[] Findings(Inspection[] inspections, RefOutcome resolution)
     {
         return [.. RefEvidence
             .Collect(inspections, HostProfile.DotNet)

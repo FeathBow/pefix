@@ -123,11 +123,3 @@ internal static class IlDecoder
     }
 
 }
-
-internal readonly record struct DecodeResult(
-    IlInstr[] Instructions,
-    bool Desynced);
-
-internal readonly record struct IlInstr(
-    int OpCode,
-    int Operand);

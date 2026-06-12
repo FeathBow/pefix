@@ -133,12 +133,3 @@ internal static class LoaderMismatchExplain
     }
 }
 
-internal readonly record struct MismatchCtx(
-    PathRelativizer Rel,
-    Inspection[] Results,
-    LoaderTarget? DeclaredHost,
-    IReadOnlyDictionary<string, LoaderTarget> LoaderByPath);
-
-internal readonly record struct MismatchResult(
-    DirectoryIssue[] Issues,
-    string[] BlockedPaths);

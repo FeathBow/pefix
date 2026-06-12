@@ -40,11 +40,9 @@ public static class LoaderTargetReader
                 monolithic5 ??= reference;
         }
 
-        // Precedence: a flavor-specific BepInEx 6 reference is the strongest
-        // signal; BepInEx.Core alone fixes the generation but not the flavor;
-        // the monolithic BepInEx assembly is BepInEx 5, which is Mono only.
-        // The build version is read from BepInEx.Core (the loader version) in
-        // preference to the flavor shim.
+        // Precedence: flavor-specific BepInEx 6 ref is strongest; BepInEx.Core alone fixes
+        // generation not flavor; monolithic BepInEx is BepInEx 5 (Mono only). Build version from
+        // BepInEx.Core in preference to flavor shim.
         if (il2cpp is { } il2cppRef)
             return Make(LoaderGeneration.BepInEx6, LoaderFlavor.Il2Cpp, core6 ?? il2cppRef);
         if (mono6 is { } mono6Ref)
@@ -57,8 +55,9 @@ public static class LoaderTargetReader
         return LoaderTarget.None;
     }
 
-    public static Dictionary<string, LoaderTarget> FromInspections(IReadOnlyList<Inspection> inspections)
+    public static IReadOnlyDictionary<string, LoaderTarget> FromInspections(IReadOnlyList<Inspection> inspections)
     {
+        ArgumentNullException.ThrowIfNull(inspections);
         Dictionary<string, LoaderTarget> byPath = new(StringComparer.Ordinal);
         foreach (Inspection inspection in inspections)
             byPath[inspection.Path] = FromReferences(inspection.AssemblyReferences);

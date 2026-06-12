@@ -1,30 +1,5 @@
 namespace PeFix.Meta;
 
-public enum RefTier
-{
-    AssemblyRef,
-    MemSurface,
-    Provider,
-    Reflection
-}
-
-public enum RefOutcome
-{
-    Missing,
-    VersionConflict,
-    MemberGap,
-    FieldGap,
-    TypeGap,
-    DuplicateProvider,
-    ReflectionMissing
-}
-
-public enum Confidence
-{
-    Gate,
-    Advisory
-}
-
 public readonly record struct RefFinding(
     RefTier Tier,
     RefOutcome Resolution,

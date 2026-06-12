@@ -1,32 +1,6 @@
 namespace PeFix.Meta;
 
 /// <summary>
-/// The BepInEx loader generation a plugin was built against. This is a
-/// structural partition, not a version bump: BepInEx 5 is the monolithic
-/// <c>BepInEx</c> assembly, BepInEx 6 is the componentized <c>BepInEx.Core</c>
-/// family. Detected from which loader assembly the plugin references, which
-/// survives repacked or wrong assembly versions.
-/// </summary>
-public enum LoaderGeneration
-{
-    Unknown,
-    BepInEx5,
-    BepInEx6,
-}
-
-/// <summary>
-/// The Unity scripting runtime a plugin was built against. BepInEx 5 is Mono
-/// only; BepInEx 6 splits into Mono and IL2CPP, which load mutually exclusive
-/// plugin sets. No version number encodes this, so it is name-derived only.
-/// </summary>
-public enum LoaderFlavor
-{
-    Unknown,
-    Mono,
-    Il2Cpp,
-}
-
-/// <summary>
 /// The loader a plugin targets: its structural generation, runtime flavor, and
 /// the parsed build <see cref="LoaderVersion"/> of the BepInEx loader assembly
 /// it links. Generation and flavor are the hard load-blocking partitions;
@@ -46,9 +20,15 @@ public readonly record struct LoaderTarget(
     public bool IsBepInExTarget => Generation != LoaderGeneration.Unknown;
 
     /// <summary>The loader assembly name and version that proved this target, e.g. "BepInEx.Core 6.0.0.0".</summary>
-    public string? Reference => ReferenceName is null
-        ? null
-        : LoaderVersion is null ? ReferenceName : $"{ReferenceName} {LoaderVersion}";
+    public string? Reference
+    {
+        get
+        {
+            if (ReferenceName is null)
+                return null;
+            return LoaderVersion is null ? ReferenceName : $"{ReferenceName} {LoaderVersion}";
+        }
+    }
 
     /// <summary>
     /// True unless two known generations or two known flavors disagree. An

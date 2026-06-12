@@ -70,19 +70,3 @@ public static class RefInventory
             providerVersion);
     }
 }
-
-public enum RefStatus
-{
-    Present,
-    Missing,
-    VersionConflict,
-    HostProvided
-}
-
-public readonly record struct RefEntry(
-    string ReferenceName,
-    string RequestedVersion,
-    string ConsumerPath,
-    RefStatus Status,
-    string? ProviderPath,
-    string? ProviderVersion);

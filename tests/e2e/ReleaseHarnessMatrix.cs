@@ -67,7 +67,7 @@ internal static class ReleaseHarnessMatrix
         return [.. gateRequirements.Concat(NonGateRequirementRows).OrderBy(item => RequirementNumber(item.Id))];
     }
 
-    private static IReadOnlyDictionary<string, Action<TempDir>> BuildScenarioAssertions()
+    private static Dictionary<string, Action<TempDir>> BuildScenarioAssertions()
     {
         Dictionary<string, Action<TempDir>> assertions = new(StringComparer.Ordinal);
         foreach (GateScenario scenario in GateScenarios.OrderBy(item => item.FirstRequirementNumber))

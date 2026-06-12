@@ -74,9 +74,8 @@ internal static partial class ReflScanner
         if (!ShouldReportReferences(inspection, dependencies))
             return;
 
-        foreach (ReflRef reference in reflection.References)
-            if (!IsProvided(reference.ReferenceName, dependencies))
-                references.Add(reference);
+        references.AddRange(reflection.References
+            .Where(reference => !IsProvided(reference.ReferenceName, dependencies)));
     }
 
     private static void ReadMethod(
@@ -96,7 +95,7 @@ internal static partial class ReflScanner
         }
 
         hasResolver |= ContainsResolverRegistration(reader, instructions);
-        bool staticCtor = reader.GetString(method.Name) == ".cctor";
+        bool staticCtor = string.Equals(reader.GetString(method.Name), ".cctor", StringComparison.Ordinal);
         AddReflectionReferences(consumerPath, references, reader, instructions, staticCtor);
     }
 
@@ -183,7 +182,7 @@ internal static partial class ReflScanner
         reference = new ReflRef(
             req.ConsumerPath,
             referenceName,
-            target.TypeName,
+            target.TargetTypeName,
             target.MethodName,
             advisoryOnly,
             staticCtor);
@@ -213,31 +212,31 @@ internal static partial class ReflScanner
 
     private static bool IsAssemblySink(MethodTarget target)
     {
-        return target.TypeName == AssemblyType
+        return string.Equals(target.TargetTypeName, AssemblyType, StringComparison.Ordinal)
             && target.MethodName is "Load" or "LoadFrom" or "LoadFile";
     }
 
     private static bool IsTypeSink(MethodTarget target)
     {
-        return target.TypeName == TypeType && target.MethodName == "GetType";
+        return string.Equals(target.TargetTypeName, TypeType, StringComparison.Ordinal) && string.Equals(target.MethodName, "GetType", StringComparison.Ordinal);
     }
 
     private static bool IsActivatorSink(MethodTarget target)
     {
-        return target.TypeName == ActivatorType && target.MethodName == "CreateInstance";
+        return string.Equals(target.TargetTypeName, ActivatorType, StringComparison.Ordinal) && string.Equals(target.MethodName, "CreateInstance", StringComparison.Ordinal);
     }
 
     private static bool IsHarmonySink(MethodTarget target)
     {
-        return target.TypeName == AccessToolsType
-            && (target.MethodName == "TypeByName"
+        return string.Equals(target.TargetTypeName, AccessToolsType, StringComparison.Ordinal)
+            && (string.Equals(target.MethodName, "TypeByName", StringComparison.Ordinal)
                 || target.MethodName.Contains("Method", StringComparison.Ordinal));
     }
 
     private static bool IsResolverRegistration(MethodTarget target)
     {
-        return (target.TypeName == AppDomainType && target.MethodName == "add_AssemblyResolve")
-            || (target.TypeName == AssemblyLoadContextType && target.MethodName == "add_Resolving");
+        return (string.Equals(target.TargetTypeName, AppDomainType, StringComparison.Ordinal) && string.Equals(target.MethodName, "add_AssemblyResolve", StringComparison.Ordinal))
+            || (string.Equals(target.TargetTypeName, AssemblyLoadContextType, StringComparison.Ordinal) && string.Equals(target.MethodName, "add_Resolving", StringComparison.Ordinal));
     }
 
     private static bool IsProvided(string referenceName, DependencyIndex dependencies)
@@ -262,23 +261,10 @@ internal static partial class ReflScanner
             reference.StaticCtor);
     }
 
-    private readonly record struct MethodTarget(string TypeName, string MethodName);
+    private readonly record struct MethodTarget(string TargetTypeName, string MethodName);
 
     private readonly record struct RefReq(
         MetadataReader Reader,
         int MethodToken,
         string ConsumerPath);
 }
-
-internal readonly record struct ReflScan(
-    ReflRef[] References,
-    bool HasCustomResolver,
-    int DesyncMethodCount);
-
-internal readonly record struct ReflRef(
-    string ConsumerPath,
-    string ReferenceName,
-    string SinkType,
-    string SinkMethod,
-    bool AdvisoryOnly,
-    bool StaticCtor);

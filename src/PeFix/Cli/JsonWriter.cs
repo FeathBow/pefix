@@ -6,11 +6,6 @@ namespace PeFix.Cli;
 
 internal static class JsonWriter
 {
-    public static string Render(Inspection result)
-    {
-        return JsonSerializer.Serialize(InspectMap.Map(result), JsonContext.Default.InspectJson);
-    }
-
     public static string Render(ScanView view, ScanParts json)
     {
         if (json.References is { } references)
@@ -30,24 +25,9 @@ internal static class JsonWriter
         return JsonSerializer.Serialize(output, JsonContext.Default.ScanJson);
     }
 
-    private static string RenderWithReferences(
-        ScanView view,
-        ScanParts json,
-        RefEntry[] references)
+    public static string Render(Inspection result)
     {
-        var output = new RefsJson(
-            view.Directory,
-            json.Summary,
-            json.Results,
-            RefRows.Of(view.Finds, RefOutcome.VersionConflict),
-            RefRows.Of(view.Finds, RefOutcome.Missing),
-            RefRows.Of(view.Finds, RefOutcome.DuplicateProvider),
-            RefRows.Of(view.Finds, RefOutcome.TypeGap),
-            MapReferences(view.Directory, references),
-            [.. view.Issues.Select(MapIssue)],
-            MapProfile(json.Profile),
-            json.Gate);
-        return JsonSerializer.Serialize(output, JsonContext.Default.RefsJson);
+        return JsonSerializer.Serialize(InspectMap.Map(result), JsonContext.Default.InspectJson);
     }
 
     public static string Render(PatchResult result)
@@ -119,6 +99,26 @@ internal static class JsonWriter
             [.. batch.Results.Select(MutationJsonMap.Map)],
             [.. batch.Refusals.Select(InspectMap.MapRefusal)]);
         return JsonSerializer.Serialize(batchJson, JsonContext.Default.PinBatchJson);
+    }
+
+    private static string RenderWithReferences(
+        ScanView view,
+        ScanParts json,
+        RefEntry[] references)
+    {
+        var output = new RefsJson(
+            view.Directory,
+            json.Summary,
+            json.Results,
+            RefRows.Of(view.Finds, RefOutcome.VersionConflict),
+            RefRows.Of(view.Finds, RefOutcome.Missing),
+            RefRows.Of(view.Finds, RefOutcome.DuplicateProvider),
+            RefRows.Of(view.Finds, RefOutcome.TypeGap),
+            MapReferences(view.Directory, references),
+            [.. view.Issues.Select(MapIssue)],
+            MapProfile(json.Profile),
+            json.Gate);
+        return JsonSerializer.Serialize(output, JsonContext.Default.RefsJson);
     }
 
     private static FixJson CreateFix(PatchResult result)

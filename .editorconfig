@@ -138,8 +138,13 @@ dotnet_diagnostic.CA1819.severity = none
 # MA0008: StructLayoutAttribute not required — readonly record structs are pure managed types, not interop
 dotnet_diagnostic.MA0008.severity = none
 
+# CA1711: 'BepInEx'/'UnityBepInEx' end in 'Ex' but are the BepInEx product name, not a reserved suffix
+dotnet_diagnostic.CA1711.severity = none
+
 [tests/**/*.cs]
 # CA1707: Test method naming convention uses Subject_Predicate pattern per SPEC
 dotnet_diagnostic.CA1707.severity = none
 # CA1307: Assert.Contains on CLI stdout needs no StringComparison — output is ASCII
 dotnet_diagnostic.CA1307.severity = none
+# CA1711: 'BepInEx' in test method names is the BepInEx product name, not a reserved suffix
+dotnet_diagnostic.CA1711.severity = none

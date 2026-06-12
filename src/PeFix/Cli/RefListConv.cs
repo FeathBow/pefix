@@ -8,8 +8,8 @@ internal sealed class RefListConv : JsonConverter<RefFinding[]>
 {
     public override RefFinding[] Read(
         ref Utf8JsonReader reader,
-        Type type,
-        JsonSerializerOptions opts)
+        Type typeToConvert,
+        JsonSerializerOptions options)
     {
         throw new NotSupportedException("Scan reference rows are write-only.");
     }
@@ -17,7 +17,7 @@ internal sealed class RefListConv : JsonConverter<RefFinding[]>
     public override void Write(
         Utf8JsonWriter writer,
         RefFinding[] value,
-        JsonSerializerOptions opts)
+        JsonSerializerOptions options)
     {
         writer.WriteStartArray();
         foreach (RefFinding find in value)
