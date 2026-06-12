@@ -2,12 +2,8 @@ namespace PeFix.Meta;
 
 internal sealed class MemSurface(
     HashSet<string> typeNames,
-    Dictionary<string, HashSet<MemberShape>> membersByType,
-    Dictionary<string, HashSet<string>> fieldsByType,
-    Dictionary<string, IfaceSurface> ifaceByType,
-    HashSet<string> hiddenTypes,
-    Dictionary<string, HashSet<MemberShape>> hiddenMembersByType,
-    Dictionary<string, HashSet<string>> hiddenFieldsByType)
+    Dictionary<string, TypeSurface> surfaceByType,
+    HashSet<string> hiddenTypes)
 {
     public bool ContainsType(string typeName)
     {
@@ -16,17 +12,32 @@ internal sealed class MemSurface(
 
     public bool TryGetMembers(string typeName, out HashSet<MemberShape> members)
     {
-        return membersByType.TryGetValue(typeName, out members!);
+        members = null!;
+        if (!surfaceByType.TryGetValue(typeName, out TypeSurface? surface))
+            return false;
+
+        members = surface.Members;
+        return true;
     }
 
     public bool TryGetFields(string typeName, out HashSet<string> fields)
     {
-        return fieldsByType.TryGetValue(typeName, out fields!);
+        fields = null!;
+        if (!surfaceByType.TryGetValue(typeName, out TypeSurface? surface))
+            return false;
+
+        fields = surface.Fields;
+        return true;
     }
 
     public bool TryGetIface(string typeName, out IfaceSurface surface)
     {
-        return ifaceByType.TryGetValue(typeName, out surface!);
+        surface = null!;
+        if (!surfaceByType.TryGetValue(typeName, out TypeSurface? typeSurface) || typeSurface.Iface is null)
+            return false;
+
+        surface = typeSurface.Iface;
+        return true;
     }
 
     public bool IsHiddenType(string typeName)
@@ -36,11 +47,21 @@ internal sealed class MemSurface(
 
     public bool TryGetHiddenMembers(string typeName, out HashSet<MemberShape> members)
     {
-        return hiddenMembersByType.TryGetValue(typeName, out members!);
+        members = null!;
+        if (!surfaceByType.TryGetValue(typeName, out TypeSurface? surface) || surface.HiddenMembers is null)
+            return false;
+
+        members = surface.HiddenMembers;
+        return true;
     }
 
     public bool TryGetHiddenFields(string typeName, out HashSet<string> fields)
     {
-        return hiddenFieldsByType.TryGetValue(typeName, out fields!);
+        fields = null!;
+        if (!surfaceByType.TryGetValue(typeName, out TypeSurface? surface) || surface.HiddenFields is null)
+            return false;
+
+        fields = surface.HiddenFields;
+        return true;
     }
 }

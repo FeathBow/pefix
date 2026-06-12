@@ -81,45 +81,37 @@ internal static partial class MemberSurfaceAnalyzer
     internal static MemSurface ReadSurface(MetadataReader reader)
     {
         HashSet<string> typeNames = new(StringComparer.Ordinal);
-        Dictionary<string, HashSet<MemberShape>> membersByType = new(StringComparer.Ordinal);
-        Dictionary<string, HashSet<string>> fieldsByType = new(StringComparer.Ordinal);
-        Dictionary<string, IfaceSurface> ifaceByType = new(StringComparer.Ordinal);
+        Dictionary<string, TypeSurface> surfaceByType = new(StringComparer.Ordinal);
         HashSet<string> hiddenTypes = new(StringComparer.Ordinal);
-        Dictionary<string, HashSet<MemberShape>> hiddenMembersByType = new(StringComparer.Ordinal);
-        Dictionary<string, HashSet<string>> hiddenFieldsByType = new(StringComparer.Ordinal);
         foreach (TypeDefinitionHandle typeHandle in reader.TypeDefinitions)
         {
             TypeDefinition typeDef = reader.GetTypeDefinition(typeHandle);
             string typeName = ReadTypeName(reader, typeDef.Namespace, typeDef.Name);
             typeNames.Add(typeName);
-            HashSet<MemberShape> members = ReadMethods(reader, typeDef);
-            membersByType[typeName] = members;
-            HashSet<MemberShape> hiddenMembers = HiddenMembers(reader, typeDef, members);
-            if (hiddenMembers.Count > 0)
-                hiddenMembersByType[typeName] = hiddenMembers;
-
-            HashSet<string> fields = ReadFields(reader, typeDef);
-            fieldsByType[typeName] = fields;
-            HashSet<string> hiddenFields = HiddenFields(reader, typeDef, fields);
-            if (hiddenFields.Count > 0)
-                hiddenFieldsByType[typeName] = hiddenFields;
-
+            surfaceByType[typeName] = ReadTypeSurface(reader, typeDef);
             if (IsHiddenTopLevel(typeDef))
                 hiddenTypes.Add(typeName);
-
-            if ((typeDef.Attributes & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface)
-                ifaceByType[typeName] = ReadIface(reader, typeDef);
         }
 
         AddForwardedTypes(reader, typeNames);
-        return new MemSurface(
-            typeNames,
-            membersByType,
-            fieldsByType,
-            ifaceByType,
-            hiddenTypes,
-            hiddenMembersByType,
-            hiddenFieldsByType);
+        return new MemSurface(typeNames, surfaceByType, hiddenTypes);
+    }
+
+    private static TypeSurface ReadTypeSurface(MetadataReader reader, TypeDefinition typeDef)
+    {
+        HashSet<MemberShape> members = ReadMethods(reader, typeDef);
+        HashSet<MemberShape> hiddenMembers = HiddenMembers(reader, typeDef, members);
+        HashSet<string> fields = ReadFields(reader, typeDef);
+        HashSet<string> hiddenFields = HiddenFields(reader, typeDef, fields);
+        bool isInterface = (typeDef.Attributes & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface;
+        return new TypeSurface
+        {
+            Members = members,
+            Fields = fields,
+            HiddenMembers = hiddenMembers.Count > 0 ? hiddenMembers : null,
+            HiddenFields = hiddenFields.Count > 0 ? hiddenFields : null,
+            Iface = isInterface ? ReadIface(reader, typeDef) : null
+        };
     }
 
     private static bool IsHiddenTopLevel(TypeDefinition typeDef)
