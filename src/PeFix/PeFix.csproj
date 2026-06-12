@@ -11,7 +11,7 @@
 
   <PropertyGroup>
     <PackageId>pefix</PackageId>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <Authors>FeathBow</Authors>
     <Description>Diagnose and fix PE header portability for .NET assemblies.</Description>
     <PackAsTool>true</PackAsTool>
