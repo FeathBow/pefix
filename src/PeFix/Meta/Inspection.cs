@@ -27,4 +27,6 @@ public readonly record struct Inspection(
     BepInExMetadata? BepInEx = null)
 {
     internal PeView? View { get; init; }
+
+    public bool HasEntryPoint { get; init; }
 }

@@ -15,6 +15,7 @@ internal static class ClosureOut
         WriteBlock(writer, report);
         WriteChains(writer, report);
         WriteTree(writer, report);
+        WriteOrphans(writer, report);
         return writer.ToString().TrimEnd();
     }
 
@@ -121,6 +122,26 @@ internal static class ClosureOut
         lines.Add(new TreeLine(TreeLeft(tree.Node, depth), TreeTag(tree.Node.Kind)));
         foreach (ClosureTree child in tree.Children)
             AddTreeLines(child, depth + 1, lines);
+    }
+
+    private static void WriteOrphans(StringWriter writer, ClosureReport report)
+    {
+        if (report.Orphans is not { } orphans)
+            return;
+
+        writer.WriteLine();
+        if (orphans.Length == 0)
+        {
+            writer.WriteLine("  Unreferenced: none found; every managed assembly is referenced, an entry point, a plugin, or a satellite.");
+            return;
+        }
+
+        writer.WriteLine($"  Unreferenced ({orphans.Length}):");
+        PathRelativizer rel = new(report.Directory);
+        foreach (string orphan in orphans)
+            writer.WriteLine($"    - {rel.RelativePath(orphan)}");
+
+        writer.WriteLine("  Note: unreferenced is advisory; host configuration or dynamic loading outside literal reflection is not observed.");
     }
 
     private static string[] ChainLefts(ClosureChain chain)

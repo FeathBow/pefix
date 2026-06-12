@@ -14,7 +14,17 @@ internal static class ClosureMap
             report.RefsWalked,
             report.ProvidedLeaves.Total,
             report.ProvidedLeaves.Framework,
-            report.Tree is null ? null : [.. report.Tree.Select(MapTree)]);
+            report.Tree is null ? null : [.. report.Tree.Select(MapTree)],
+            MapOrphans(report));
+    }
+
+    private static string[]? MapOrphans(ClosureReport report)
+    {
+        if (report.Orphans is not { } orphans)
+            return null;
+
+        PathRelativizer rel = new(report.Directory);
+        return [.. orphans.Select(rel.RelativePath)];
     }
 
     private static ChainJson MapChain(ClosureChain chain)

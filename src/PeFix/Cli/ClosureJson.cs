@@ -13,4 +13,7 @@ internal sealed record ClosureJson(
     [property: JsonPropertyName("tree")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     TreeJson[]? Tree = null,
+    [property: JsonPropertyName("orphans")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string[]? Orphans = null,
     [property: JsonPropertyName("schema_version"), JsonPropertyOrder(-1)] int SchemaVersion = 1);

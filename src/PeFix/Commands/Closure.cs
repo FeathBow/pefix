@@ -5,14 +5,14 @@ namespace PeFix.Commands;
 
 internal static class Closure
 {
-    internal static CliExit Run(string path, bool json, bool failOnMissing)
+    internal static CliExit Run(string path, bool json, bool failOnMissing, bool orphans = false)
     {
-        return RunCore(path, json, new RunOpts(failOnMissing, false));
+        return RunCore(path, json, new RunOpts(failOnMissing, false, orphans));
     }
 
-    internal static CliExit RunTree(string path, bool json, bool failOnMissing)
+    internal static CliExit RunTree(string path, bool json, bool failOnMissing, bool orphans = false)
     {
-        return RunCore(path, json, new RunOpts(failOnMissing, true));
+        return RunCore(path, json, new RunOpts(failOnMissing, true, orphans));
     }
 
     private static CliExit RunCore(string path, bool json, RunOpts opts)
@@ -40,6 +40,9 @@ internal static class Closure
             ? ClosureGraph.BuildTree(dir.Results, dir.Directory)
             : ClosureGraph.Build(dir.Results, dir.Directory);
 
+        if (opts.Orphans)
+            closure = closure with { Orphans = OrphanScan.FindOrphans(dir.Results) };
+
         if (json)
         {
             JsonOut.Write(JsonWriter.Render(closure));
@@ -55,5 +58,5 @@ internal static class Closure
         return CliExit.Success;
     }
 
-    private readonly record struct RunOpts(bool Fail, bool Tree);
+    private readonly record struct RunOpts(bool Fail, bool Tree, bool Orphans);
 }

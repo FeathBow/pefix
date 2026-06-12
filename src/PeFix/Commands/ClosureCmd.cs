@@ -14,9 +14,10 @@ internal static class ClosureCmd
             string path = r.GetValue(opts.PathArg)!;
             bool json = r.GetValue(RootCmd.JsonOpt);
             bool fail = r.GetValue(opts.MissingOpt);
+            bool orphans = r.GetValue(opts.OrphansOpt);
             return (int)(r.GetValue(opts.TreeOpt)
-                ? Closure.RunTree(path, json, fail)
-                : Closure.Run(path, json, fail));
+                ? Closure.RunTree(path, json, fail, orphans)
+                : Closure.Run(path, json, fail, orphans));
         });
         return cmd;
     }
@@ -38,11 +39,17 @@ internal static class ClosureCmd
             Description = "Include the full transitive dependency tree."
         };
 
+        public Option<bool> OrphansOpt { get; } = new("--orphans")
+        {
+            Description = "List managed assemblies that no other scanned assembly references. Advisory output for trimming deployment folders; entry points, BepInEx plugins, satellite assemblies, and reflection-named assemblies are not listed."
+        };
+
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
             cmd.Options.Add(MissingOpt);
             cmd.Options.Add(TreeOpt);
+            cmd.Options.Add(OrphansOpt);
         }
     }
 }

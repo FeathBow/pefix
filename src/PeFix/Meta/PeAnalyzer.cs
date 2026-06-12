@@ -37,7 +37,11 @@ public static class PeAnalyzer
             using var peReader = new PEReader(stream);
             PeReadResult result = ReadSnapshot(fullPath, peReader, isBundle);
             Inspection inspection = Classifier.Classify(result.Snapshot);
-            return inspection with { View = result.View };
+            return inspection with
+            {
+                View = result.View,
+                HasEntryPoint = result.Snapshot.HasEntryPoint
+            };
         }
         catch (BadImageFormatException)
         {
@@ -126,7 +130,8 @@ public static class PeAnalyzer
             path, true, true, peFormat, machine, flags, signals,
             pinvokeDeps, tfm, metaVersion, osPlatforms,
             assemblyRefs, assemblyDef, r2r, isTrimmable, moduleNest, moduleRefs,
-            isBundle, isSatellite, bep);
+            isBundle, isSatellite, bep,
+            HasEntryPoint: corHeader.EntryPointTokenOrRelativeVirtualAddress != 0);
         return new PeReadResult(snapshot, ReadView(path, peReader, reader));
     }
 

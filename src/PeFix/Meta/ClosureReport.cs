@@ -7,4 +7,5 @@ public readonly record struct ClosureReport(
     ClosureChain[] CycleChains,
     int RefsWalked,
     ProvidedLeafCounts ProvidedLeaves,
-    ClosureTree[]? Tree);
+    ClosureTree[]? Tree,
+    string[]? Orphans = null);
