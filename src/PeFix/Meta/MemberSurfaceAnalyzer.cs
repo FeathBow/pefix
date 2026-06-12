@@ -340,10 +340,6 @@ internal static partial class MemberSurfaceAnalyzer
         {
             return false;
         }
-        catch (InvalidOperationException)
-        {
-            return false;
-        }
     }
 
     internal static string ReadTypeName(MetadataReader reader, StringHandle ns, StringHandle name)
