@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Collections.Immutable;
 
 namespace PeFix.Meta;
 
@@ -11,23 +10,7 @@ internal static class IlDecoder
     private const int Prefix = 0xFE;
     private const int Switch = 0x45;
 
-    public static DecodeResult Decode(ImmutableArray<byte> content)
-    {
-        ReadOnlySpan<byte> il = content.AsSpan();
-        var instructions = new List<IlInstr>();
-        int offset = 0;
-        while (offset < il.Length)
-        {
-            if (!TryReadInstruction(il, ref offset, out IlInstr instruction))
-                return new DecodeResult([], Desynced: true);
-
-            instructions.Add(instruction);
-        }
-
-        return new DecodeResult([.. instructions], Desynced: false);
-    }
-
-    private static bool TryReadInstruction(
+    internal static bool TryReadInstruction(
         ReadOnlySpan<byte> il,
         ref int offset,
         out IlInstr instruction)

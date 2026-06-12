@@ -88,15 +88,63 @@ internal static partial class ReflScanner
         MethodDefinitionHandle handle)
     {
         MethodDefinition method = reader.GetMethodDefinition(handle);
-        if (!TryReadInstructions(peReader, method, out IlInstr[] instructions))
+        if (method.RelativeVirtualAddress == 0)
+            return;
+
+        ImmutableArray<byte> content;
+        try
+        {
+            content = peReader.GetMethodBody(method.RelativeVirtualAddress).GetILContent();
+        }
+        catch (BadImageFormatException)
         {
             desyncCount++;
             return;
         }
 
-        hasResolver |= ContainsResolverRegistration(reader, instructions);
-        bool staticCtor = string.Equals(reader.GetString(method.Name), ".cctor", StringComparison.Ordinal);
-        AddReflectionReferences(consumerPath, references, reader, instructions, staticCtor);
+        ReadOnlySpan<byte> il = content.AsSpan();
+        int offset = 0;
+        IlInstr previous = default;
+        bool hasPrevious = false;
+        bool methodResolver = false;
+        bool? staticCtor = null;
+        List<ReflRef>? pending = null;
+        while (offset < il.Length)
+        {
+            if (!IlDecoder.TryReadInstruction(il, ref offset, out IlInstr instruction))
+            {
+                desyncCount++;
+                return;
+            }
+
+            if (IsCall(instruction))
+            {
+                if (!methodResolver
+                    && TryReadMethodTarget(reader, instruction.Operand, out MethodTarget target)
+                    && IsResolverRegistration(target))
+                    methodResolver = true;
+
+                if (hasPrevious
+                    && previous.OpCode == IlDecoder.Ldstr
+                    && TryReadUserString(reader, previous.Operand, out string literal))
+                {
+                    staticCtor ??= string.Equals(reader.GetString(method.Name), ".cctor", StringComparison.Ordinal);
+                    if (TryCreateReference(
+                        new RefReq(reader, instruction.Operand, consumerPath),
+                        literal,
+                        staticCtor.Value,
+                        out ReflRef reference))
+                        (pending ??= []).Add(reference);
+                }
+            }
+
+            previous = instruction;
+            hasPrevious = true;
+        }
+
+        hasResolver |= methodResolver;
+        if (pending is not null)
+            references.AddRange(pending);
     }
 
     private static bool ShouldReportReferences(
@@ -106,64 +154,6 @@ internal static partial class ReflScanner
         AssemblyIdentity? identity = inspection.AssemblyDefinition;
         return identity is null
             || dependencies.ClassifyProvided(identity.Value.Name) == ProvidedKind.None;
-    }
-
-    private static bool TryReadInstructions(
-        PEReader peReader,
-        MethodDefinition method,
-        out IlInstr[] instructions)
-    {
-        instructions = [];
-        if (method.RelativeVirtualAddress == 0)
-            return true;
-
-        try
-        {
-            ImmutableArray<byte> il = peReader.GetMethodBody(method.RelativeVirtualAddress).GetILContent();
-            DecodeResult result = IlDecoder.Decode(il);
-            instructions = result.Instructions;
-            return !result.Desynced;
-        }
-        catch (BadImageFormatException)
-        {
-            return false;
-        }
-    }
-
-    private static void AddReflectionReferences(
-        string consumerPath,
-        List<ReflRef> references,
-        MetadataReader reader,
-        IlInstr[] instructions,
-        bool staticCtor)
-    {
-        for (int index = 0; index + 1 < instructions.Length; index++)
-        {
-            if (instructions[index].OpCode != IlDecoder.Ldstr || !IsCall(instructions[index + 1]))
-                continue;
-
-            if (!TryReadUserString(reader, instructions[index].Operand, out string literal))
-                continue;
-
-            if (!TryCreateReference(
-                new RefReq(reader, instructions[index + 1].Operand, consumerPath),
-                literal,
-                staticCtor,
-                out ReflRef reference))
-                continue;
-
-            references.Add(reference);
-        }
-    }
-
-    private static bool ContainsResolverRegistration(
-        MetadataReader reader,
-        IlInstr[] instructions)
-    {
-        return instructions.Any(item =>
-            IsCall(item)
-            && TryReadMethodTarget(reader, item.Operand, out MethodTarget target)
-            && IsResolverRegistration(target));
     }
 
     private static bool TryCreateReference(
