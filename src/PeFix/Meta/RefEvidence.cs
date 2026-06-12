@@ -169,7 +169,7 @@ public static class RefEvidence
         return gaps.Select(gap => new RefFinding(
             Tier: RefTier.MemSurface,
             Resolution: RefOutcome.AccessGap,
-            Confidence: publishDirProfile ? Confidence.Gate : Confidence.Advisory,
+            Confidence: ConfPolicy.For(RefOutcome.AccessGap, publishDirProfile),
             ConsumerPath: gap.ConsumerPath,
             ReferenceName: gap.AssemblyName,
             TypeName: gap.TypeName,
@@ -188,7 +188,7 @@ public static class RefEvidence
         return reflection.References.Select(reference => new RefFinding(
             Tier: RefTier.Reflection,
             Resolution: RefOutcome.ReflectionMissing,
-            Confidence: ReflectionConfidence(reference, reflection.HasCustomResolver, publishDirProfile),
+            Confidence: ConfPolicy.ForReflection(reference, reflection.HasCustomResolver, publishDirProfile),
             ConsumerPath: reference.ConsumerPath,
             ReferenceName: reference.ReferenceName,
             TypeName: reference.SinkType,
@@ -199,18 +199,5 @@ public static class RefEvidence
             ProviderPath: null,
             ProviderPaths: null,
             StaticCtor: reference.StaticCtor));
-    }
-
-    private static Confidence ReflectionConfidence(
-        ReflRef reference,
-        bool hasCustomResolver,
-        bool publishDirProfile)
-    {
-        return publishDirProfile
-            && !hasCustomResolver
-            && !reference.AdvisoryOnly
-            && !reference.StaticCtor
-            ? Confidence.Gate
-            : Confidence.Advisory;
     }
 }
