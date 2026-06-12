@@ -6,7 +6,9 @@ Dependency Doctor for .NET publish outputs, plugin folders, and Unity/BepInEx mo
 [![NuGet](https://img.shields.io/nuget/vpre/pefix.svg)](https://www.nuget.org/packages/pefix)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-`pefix` is a single-binary CLI that runs static loadability preflights over folders of .NET assemblies before a host tries to load them. It inspects PE header layout, target framework, ReadyToRun, trimming, single-file bundles, platform restrictions, mixed-mode native code, reference assemblies, managed dependency closure, duplicate providers, version conflicts, missing dependencies, BepInEx plugin metadata, and hard BepInEx plugin dependency rules.
+`pefix` is a single-binary CLI that runs static loadability preflights over folders of .NET assemblies before a host tries to load them. It inspects PE header layout, target framework, ReadyToRun, trimming, single-file bundles, platform restrictions, mixed-mode native code, reference assemblies, managed dependency closure, duplicate providers, version conflicts, missing dependencies, missing member references, missing fields, missing types, BepInEx plugin metadata, and hard BepInEx plugin dependency rules.
+
+The member, field, and type checks read assembly metadata statically, without calling `Assembly.Load` or `MetadataLoadContext`, so a reference to a method, field, or type that a present provider no longer ships is reported as a gate-grade `missing_member` (MissingMethodException), `missing_field` (MissingFieldException), or `missing_type` (TypeLoadException) preflight rather than a runtime crash. These checks carry zero false positives across the .NET shared framework.
 
 Use `publish-dir` with `--fail-on-issue` to gate a `dotnet publish` output or deployed `bin/` before a missing or wrong-kind assembly reaches runtime:
 
@@ -128,6 +130,10 @@ Output:
 
 Unity, BepInEx, Harmony, and other host- or loader-provided assemblies are filtered as provided leaves, so references such as `UnityEngine.CoreModule` do not appear as unresolved chains.
 
+Add `--tree` to print the full transitive dependency tree instead of only the unresolved chains; each node is tagged `[resolved]`, `[MISSING]`, `[cycle]`, or `[provided]`, and provided leaves are not expanded further. With `--json`, `--tree` adds a top-level `tree` array without changing the default closure shape:
+
+    pefix closure ./mods --tree
+
 Check a BepInEx plugin directory:
 
     pefix scan ./BepInEx/plugins --profile unity-bepinex
@@ -158,15 +164,17 @@ BepInEx support is static. `pefix` does not run the game, simulate the chainload
 
 Add `--json` to any command for machine-readable output. JSON responses include `schema_version`; file results carry stable `reason_code` values, and directory issues carry stable issue codes. By default, `scan --json` exits `0` after writing a report even when directory integrity fails; use explicit fail gates for CI.
 
+Add `--references` to `scan` to include a reference inventory. In text mode it prints grouped references; with `--json`, it adds a top-level `references` array without changing the default JSON shape.
+
 <details>
 <summary>Machine output details</summary>
 
-Embedded file results that can also be produced on their own keep their own `schema_version`, such as `scan.results[]`, `snstrip.results[]`, `fix.before`, `fix.after`, and refusal `before`. Directory scan issue codes include `missing_ref`, `missing_member`, `dup_provider`, `asm_conflict`, `bep_missing`, `bep_casing`, `bep_version_mismatch`, `bep_dup_guid`, `bep_loader_mismatch`, and `plugin_unresolved_chain`.
+Embedded file results that can also be produced on their own keep their own `schema_version`, such as `scan.results[]`, `snstrip.results[]`, `fix.before`, `fix.after`, and refusal `before`. Directory scan issue codes include `missing_ref`, `missing_member`, `missing_field`, `missing_type`, `dup_provider`, `asm_conflict`, `bep_missing`, `bep_casing`, `bep_version_mismatch`, `bep_dup_guid`, `bep_loader_mismatch`, and `plugin_unresolved_chain`.
 
 - `inspect` exits `0` only for `compatible` by default; non-compatible inspection results exit `1` after printing the report. Other report commands use `0` for command execution success unless an explicit gate or refusal applies.
 - JSON `gate` reports directory integrity through `gate.integrity`, `gate.issue_count`, `gate.issue_codes`, `gate.blocking_file_count`, and `gate.blocking_file_reasons`. Directory issues and unsafe/corrupt file diagnostics both fail integrity; issue codes and file reason codes stay separate.
-- `closure --json` reports `entry_assemblies`, `unresolved_chains`, `cycle_chains`, `total_refs_walked`, `provided_leaves`, and the compatible `framework_leaves`; `provided_leaves` counts all selected Host Profile provided leaves, while `framework_leaves` keeps the previous framework-only contract. `closure --fail-on-unresolved` is the explicit process gate for unresolved leaves.
-- `inspect` results expose `repair_class` and `repair_hint`; scan issues add `next_steps`, `verify_command`, and `unverified_risks`.
+- `closure --json` reports `entry_assemblies`, `unresolved_chains`, `cycle_chains`, `total_refs_walked`, `provided_leaves`, and the compatible `framework_leaves`; `provided_leaves` counts all selected Host Profile provided leaves, while `framework_leaves` keeps the previous framework-only contract. `closure --fail-on-unresolved` is the explicit process gate for unresolved leaves. `closure --tree` adds a top-level `tree` array of entry roots with recursive `children`; each node carries `assembly`, `version`, and `kind` (`resolved`, `missing`, `cycle`, or `provided`).
+- `inspect` results expose `repair_class` and `repair_hint`; scan issues add `next_steps`, `verify_command`, and `unverified_risks`. A `reflection_missing` issue raised from a static constructor carries `in_static_ctor: true`, marking it as a `TypeInitializationException` that makes the type unusable rather than a catchable per-call failure.
 - `scan --profile unity-bepinex --json` includes `profiles.host=unity-bepinex` and `profiles.artifact=plugin-folder`; per-file BepInEx states include `plugin`, `helper_library`, `blocked_missing_bep_dependency`, `blocked_guid_case_mismatch`, `blocked_bep_version_mismatch`, and `risk_unresolved_assembly_chain`.
 - `repair_class` separates automatic mutation from diagnostics: `auto_fix` is the `pefix fix` status contract, `guided_fix` requires explicit user-supplied mutation intent, `assisted_fix` emits evidence for external repair, and `diagnostic_only` never mutates artifacts.
 - ReadyToRun, trimmable, and single-file bundle findings are `diagnostic_only`; `--apply --force` does not turn them into fixes.
