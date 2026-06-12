@@ -39,7 +39,7 @@ internal static class LoaderMismatchExplain
         return new([], []);
     }
 
-    private static LoaderTarget DetectHost(Inspection[] results)
+    internal static LoaderTarget DetectHost(Inspection[] results)
     {
         List<AssemblyIdentity> hostDefinitions = [];
         foreach (Inspection result in results)

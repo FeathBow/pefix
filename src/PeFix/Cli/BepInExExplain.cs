@@ -41,6 +41,7 @@ internal static class BepInExExplain
         foreach (string path in loaderMismatch.BlockedPaths)
             fileStates[path] = BepStateCode.LoaderMismatch;
         reportIssues.AddRange(loaderMismatch.Issues);
+        reportIssues.AddRange(Il2CppApi.Explain(new MismatchCtx(rel, results, declaredHost, loaderByPath)));
 
         if (closure.HasValue)
             AddClosureIssues(ctx, closure.Value);

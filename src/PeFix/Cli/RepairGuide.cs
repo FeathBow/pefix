@@ -133,6 +133,14 @@ internal static class RepairGuide
                     "Keep one provider copy for this assembly name.",
                     "Remove or relocate duplicate provider copies in the scanned directory.",
                     "Package ownership and intended provider selection are not proven."),
+                _ => ForBep(code)
+            };
+        }
+
+        private static IssueRepair ForBep(string code)
+        {
+            return code switch
+            {
                 IssueCode.BepMissing => Assisted(
                     "Install or restore the missing BepInEx plugin dependency.",
                     "Install the missing BepInEx plugin dependency into the scanned plugins directory.",
@@ -157,6 +165,10 @@ internal static class RepairGuide
                     "Keep plugins for a single BepInEx generation and runtime flavor in this folder.",
                     "Install plugins built for one BepInEx generation (5 or 6) and one runtime flavor (Mono or IL2CPP) that matches your installed loader; move the others out of the plugins directory.",
                     "Runtime chainloader state is not observed; declared or scanned loader-target metadata does not prove runtime load success."),
+                IssueCode.BepIl2CppApi => Assisted(
+                    "Use an IL2CPP-compatible plugin build that avoids System.Reflection.Emit.",
+                    "Install the plugin variant built for IL2CPP, or ask the plugin author to replace dynamic code generation with IL2CPP-compatible interop.",
+                    "Whether the emitting code path executes at runtime is not observed."),
                 _ => throw new ArgumentOutOfRangeException(nameof(code), code, "Unsupported issue code.")
             };
         }

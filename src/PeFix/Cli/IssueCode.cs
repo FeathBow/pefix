@@ -18,4 +18,5 @@ internal static class IssueCode
     public const string BepVersionMismatch = "bep_version_mismatch";
     public const string PluginUnresolvedChain = "plugin_unresolved_chain";
     public const string BepLoaderMismatch = "bep_loader_mismatch";
+    public const string BepIl2CppApi = "bep_il2cpp_api";
 }

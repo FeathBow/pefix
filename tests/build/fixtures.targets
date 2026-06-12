@@ -202,6 +202,10 @@
       <Staged>F56_access_skipper.dll</Staged>
       <Assembly>AccessSkipper</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\EmitPlugin\EmitPlugin.csproj">
+      <Staged>F57_emit_plugin.dll</Staged>
+      <Assembly>EmitPlugin</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>
