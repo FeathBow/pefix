@@ -99,10 +99,38 @@ internal static partial class MemberSurfaceAnalyzer
 
     private static TypeSurface ReadTypeSurface(MetadataReader reader, TypeDefinition typeDef)
     {
-        HashSet<MemberShape> members = ReadMethods(reader, typeDef);
-        HashSet<MemberShape> hiddenMembers = HiddenMembers(reader, typeDef, members);
-        HashSet<string> fields = ReadFields(reader, typeDef);
-        HashSet<string> hiddenFields = HiddenFields(reader, typeDef, fields);
+        HashSet<MemberShape> members = [];
+        HashSet<MemberShape> visibleMembers = [];
+        foreach (MethodDefinitionHandle methodHandle in typeDef.GetMethods())
+        {
+            MethodDefinition method = reader.GetMethodDefinition(methodHandle);
+            string name = reader.GetString(method.Name);
+            if (name is ".cctor")
+                continue;
+
+            if (!TryDecodeParamCount(method, out int paramCount))
+                continue;
+
+            MemberShape shape = new(name, paramCount);
+            members.Add(shape);
+            if (IsVisible(method.Attributes & MethodAttributes.MemberAccessMask))
+                visibleMembers.Add(shape);
+        }
+
+        HashSet<string> fields = new(StringComparer.Ordinal);
+        HashSet<string> visibleFields = new(StringComparer.Ordinal);
+        foreach (FieldDefinitionHandle fieldHandle in typeDef.GetFields())
+        {
+            FieldDefinition field = reader.GetFieldDefinition(fieldHandle);
+            string name = reader.GetString(field.Name);
+            fields.Add(name);
+            if (IsVisible(field.Attributes & FieldAttributes.FieldAccessMask))
+                visibleFields.Add(name);
+        }
+
+        HashSet<MemberShape> hiddenMembers = [.. members.Where(member => !visibleMembers.Contains(member))];
+        HashSet<string> hiddenFields = new(StringComparer.Ordinal);
+        hiddenFields.UnionWith(fields.Where(field => !visibleFields.Contains(field)));
         bool isInterface = (typeDef.Attributes & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface;
         return new TypeSurface
         {
@@ -118,43 +146,6 @@ internal static partial class MemberSurfaceAnalyzer
     {
         return typeDef.GetDeclaringType().IsNil
             && (typeDef.Attributes & TypeAttributes.VisibilityMask) == TypeAttributes.NotPublic;
-    }
-
-    private static HashSet<MemberShape> HiddenMembers(
-        MetadataReader reader,
-        TypeDefinition typeDef,
-        HashSet<MemberShape> members)
-    {
-        HashSet<MemberShape> visible = [];
-        foreach (MethodDefinitionHandle methodHandle in typeDef.GetMethods())
-        {
-            MethodDefinition method = reader.GetMethodDefinition(methodHandle);
-            if (!IsVisible(method.Attributes & MethodAttributes.MemberAccessMask))
-                continue;
-
-            if (TryDecodeParamCount(method, out int paramCount))
-                visible.Add(new MemberShape(reader.GetString(method.Name), paramCount));
-        }
-
-        return [.. members.Where(member => !visible.Contains(member))];
-    }
-
-    private static HashSet<string> HiddenFields(
-        MetadataReader reader,
-        TypeDefinition typeDef,
-        HashSet<string> fields)
-    {
-        HashSet<string> visible = new(StringComparer.Ordinal);
-        foreach (FieldDefinitionHandle fieldHandle in typeDef.GetFields())
-        {
-            FieldDefinition field = reader.GetFieldDefinition(fieldHandle);
-            if (IsVisible(field.Attributes & FieldAttributes.FieldAccessMask))
-                visible.Add(reader.GetString(field.Name));
-        }
-
-        HashSet<string> hidden = new(StringComparer.Ordinal);
-        hidden.UnionWith(fields.Where(field => !visible.Contains(field)));
-        return hidden;
     }
 
     private static bool IsVisible(MethodAttributes access)
