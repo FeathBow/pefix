@@ -98,10 +98,10 @@ internal static partial class MemberSurfaceAnalyzer
         if (!providerView.MemSurface.ContainsType(fieldRef.TypeName))
             return false;
 
-        if (!providerView.MemSurface.TryGetFields(fieldRef.TypeName, out HashSet<string> fields))
+        if (!providerView.MemSurface.TryGetSurface(fieldRef.TypeName, out TypeSurface surface))
             return false;
 
-        if (fields.Contains(fieldRef.FieldName))
+        if (surface.ContainsField(fieldRef.FieldName))
             return false;
 
         gap = new FieldRefGap(

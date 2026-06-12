@@ -104,10 +104,10 @@ internal static class AccessScan
             return;
         }
 
-        if (!surface.TryGetHiddenMembers(methodRef.TypeName, out HashSet<MemberShape> hidden))
+        if (!surface.TryGetSurface(methodRef.TypeName, out TypeSurface typeSurface))
             return;
 
-        if (!hidden.Contains(new MemberShape(methodRef.MemberName, methodRef.ParameterCount)))
+        if (!typeSurface.IsHiddenMember(new MemberShape(methodRef.MemberName, methodRef.ParameterCount)))
             return;
 
         gaps.Add(new AccessGap(
@@ -136,10 +136,10 @@ internal static class AccessScan
             return;
         }
 
-        if (!surface.TryGetHiddenFields(fieldRef.TypeName, out HashSet<string> hidden))
+        if (!surface.TryGetSurface(fieldRef.TypeName, out TypeSurface typeSurface))
             return;
 
-        if (!hidden.Contains(fieldRef.FieldName))
+        if (!typeSurface.IsHiddenField(fieldRef.FieldName))
             return;
 
         gaps.Add(new AccessGap(

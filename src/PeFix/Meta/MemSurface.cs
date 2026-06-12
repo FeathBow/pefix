@@ -10,24 +10,9 @@ internal sealed class MemSurface(
         return typeNames.Contains(typeName);
     }
 
-    public bool TryGetMembers(string typeName, out HashSet<MemberShape> members)
+    public bool TryGetSurface(string typeName, out TypeSurface surface)
     {
-        members = null!;
-        if (!surfaceByType.TryGetValue(typeName, out TypeSurface? surface))
-            return false;
-
-        members = surface.Members;
-        return true;
-    }
-
-    public bool TryGetFields(string typeName, out HashSet<string> fields)
-    {
-        fields = null!;
-        if (!surfaceByType.TryGetValue(typeName, out TypeSurface? surface))
-            return false;
-
-        fields = surface.Fields;
-        return true;
+        return surfaceByType.TryGetValue(typeName, out surface!);
     }
 
     public bool TryGetIface(string typeName, out IfaceSurface surface)
@@ -43,25 +28,5 @@ internal sealed class MemSurface(
     public bool IsHiddenType(string typeName)
     {
         return hiddenTypes.Contains(typeName);
-    }
-
-    public bool TryGetHiddenMembers(string typeName, out HashSet<MemberShape> members)
-    {
-        members = null!;
-        if (!surfaceByType.TryGetValue(typeName, out TypeSurface? surface) || surface.HiddenMembers is null)
-            return false;
-
-        members = surface.HiddenMembers;
-        return true;
-    }
-
-    public bool TryGetHiddenFields(string typeName, out HashSet<string> fields)
-    {
-        fields = null!;
-        if (!surfaceByType.TryGetValue(typeName, out TypeSurface? surface) || surface.HiddenFields is null)
-            return false;
-
-        fields = surface.HiddenFields;
-        return true;
     }
 }

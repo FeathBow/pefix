@@ -99,8 +99,7 @@ internal static partial class MemberSurfaceAnalyzer
 
     private static TypeSurface ReadTypeSurface(MetadataReader reader, TypeDefinition typeDef)
     {
-        HashSet<MemberShape> members = [];
-        HashSet<MemberShape> visibleMembers = [];
+        Dictionary<MemberShape, bool> members = [];
         foreach (MethodDefinitionHandle methodHandle in typeDef.GetMethods())
         {
             MethodDefinition method = reader.GetMethodDefinition(methodHandle);
@@ -112,32 +111,24 @@ internal static partial class MemberSurfaceAnalyzer
                 continue;
 
             MemberShape shape = new(name, paramCount);
-            members.Add(shape);
-            if (IsVisible(method.Attributes & MethodAttributes.MemberAccessMask))
-                visibleMembers.Add(shape);
+            bool visible = IsVisible(method.Attributes & MethodAttributes.MemberAccessMask);
+            members[shape] = visible || (members.TryGetValue(shape, out bool seen) && seen);
         }
 
-        HashSet<string> fields = new(StringComparer.Ordinal);
-        HashSet<string> visibleFields = new(StringComparer.Ordinal);
+        Dictionary<string, bool> fields = new(StringComparer.Ordinal);
         foreach (FieldDefinitionHandle fieldHandle in typeDef.GetFields())
         {
             FieldDefinition field = reader.GetFieldDefinition(fieldHandle);
             string name = reader.GetString(field.Name);
-            fields.Add(name);
-            if (IsVisible(field.Attributes & FieldAttributes.FieldAccessMask))
-                visibleFields.Add(name);
+            bool visible = IsVisible(field.Attributes & FieldAttributes.FieldAccessMask);
+            fields[name] = visible || (fields.TryGetValue(name, out bool seen) && seen);
         }
 
-        HashSet<MemberShape> hiddenMembers = [.. members.Where(member => !visibleMembers.Contains(member))];
-        HashSet<string> hiddenFields = new(StringComparer.Ordinal);
-        hiddenFields.UnionWith(fields.Where(field => !visibleFields.Contains(field)));
         bool isInterface = (typeDef.Attributes & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface;
         return new TypeSurface
         {
             Members = members,
             Fields = fields,
-            HiddenMembers = hiddenMembers.Count > 0 ? hiddenMembers : null,
-            HiddenFields = hiddenFields.Count > 0 ? hiddenFields : null,
             Iface = isInterface ? ReadIface(reader, typeDef) : null
         };
     }
@@ -271,10 +262,10 @@ internal static partial class MemberSurfaceAnalyzer
         if (!providerView.MemSurface.ContainsType(methodRef.TypeName))
             return false;
 
-        if (!providerView.MemSurface.TryGetMembers(methodRef.TypeName, out HashSet<MemberShape> members))
+        if (!providerView.MemSurface.TryGetSurface(methodRef.TypeName, out TypeSurface surface))
             return false;
 
-        if (members.Contains(new MemberShape(methodRef.MemberName, methodRef.ParameterCount)))
+        if (surface.ContainsMember(new MemberShape(methodRef.MemberName, methodRef.ParameterCount)))
             return false;
 
         gap = new MemberRefGap(
