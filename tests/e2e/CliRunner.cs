@@ -1,11 +1,17 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 
 namespace PeFix.Tests;
 
 internal static class CliRunner
 {
+    // EAGAIN: transient fork exhaustion under parallel test process churn.
+    private const int RetryLimit = 5;
+    private const int RetryDelayMs = 200;
+
     public static CliResult Run(params string[] args)
     {
         var startInfo = new ProcessStartInfo("dotnet")
@@ -20,11 +26,26 @@ internal static class CliRunner
             startInfo.ArgumentList.Add(arg);
         }
 
-        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start pefix.");
+        using var process = StartWithRetry(startInfo);
         var stdout = process.StandardOutput.ReadToEnd();
         var stderr = process.StandardError.ReadToEnd();
         process.WaitForExit();
         return new CliResult(process.ExitCode, stdout, stderr);
+    }
+
+    private static Process StartWithRetry(ProcessStartInfo startInfo)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start pefix.");
+            }
+            catch (Win32Exception) when (attempt < RetryLimit)
+            {
+                Thread.Sleep(RetryDelayMs * attempt);
+            }
+        }
     }
 
     private static string GetPeFixPath()
