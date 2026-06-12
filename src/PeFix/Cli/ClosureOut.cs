@@ -14,6 +14,7 @@ internal static class ClosureOut
         using var writer = new StringWriter();
         WriteBlock(writer, report);
         WriteChains(writer, report);
+        WriteTree(writer, report);
         return writer.ToString().TrimEnd();
     }
 
@@ -90,6 +91,38 @@ internal static class ClosureOut
         writer.WriteLine();
     }
 
+    private static void WriteTree(StringWriter writer, ClosureReport report)
+    {
+        if (report.Tree is not { } tree)
+            return;
+
+        if (!HasChains(report))
+            writer.WriteLine();
+
+        writer.WriteLine("  Dependency tree:");
+        foreach (ClosureTree root in tree)
+            WriteTreeRoot(writer, root);
+    }
+
+    private static void WriteTreeRoot(StringWriter writer, ClosureTree root)
+    {
+        List<TreeLine> lines = [];
+        AddTreeLines(root, 0, lines);
+        int tagCol = lines.Max(line => line.Left.Length) + TagGap;
+
+        foreach (TreeLine line in lines)
+            writer.WriteLine($"{line.Left}{TagPad(line.Left, tagCol)}[{line.Tag}]");
+
+        writer.WriteLine();
+    }
+
+    private static void AddTreeLines(ClosureTree tree, int depth, List<TreeLine> lines)
+    {
+        lines.Add(new TreeLine(TreeLeft(tree.Node, depth), TreeTag(tree.Node.Kind)));
+        foreach (ClosureTree child in tree.Children)
+            AddTreeLines(child, depth + 1, lines);
+    }
+
     private static string[] ChainLefts(ClosureChain chain)
     {
         string[] lefts = new string[chain.Segments.Length];
@@ -110,4 +143,27 @@ internal static class ClosureOut
 
         return new string(' ', tagCol - left.Length);
     }
+
+    private static bool HasChains(ClosureReport report)
+    {
+        return report.Unresolved.Length > 0 || report.CycleChains.Length > 0;
+    }
+
+    private static string TreeLeft(ClosureNode node, int depth)
+    {
+        string indent = new(' ', ChainBaseIndent + depth * ChainIndentStep);
+        string text = $"{node.AssemblyName}.dll v{node.Version}";
+        return depth == 0 ? $"{indent}{text}" : $"{indent}\u2192 {text}";
+    }
+
+    private static string TreeTag(ChainKind kind) => kind switch
+    {
+        ChainKind.Entry or ChainKind.Resolved => "resolved",
+        ChainKind.Unresolved => "MISSING",
+        ChainKind.Cycle => "cycle",
+        ChainKind.Provided => "provided",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+    };
+
+    private readonly record struct TreeLine(string Left, string Tag);
 }

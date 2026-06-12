@@ -9,10 +9,15 @@ internal static class ClosureCmd
         var opts = new OptSet();
         var cmd = new Command("closure", "Walks the transitive AssemblyRef graph and reports unresolved dependency chains.");
         opts.AddTo(cmd);
-        cmd.SetAction(r => (int)Closure.Run(
-            r.GetValue(opts.PathArg)!,
-            r.GetValue(RootCmd.JsonOpt),
-            r.GetValue(opts.MissingOpt)));
+        cmd.SetAction(r =>
+        {
+            string path = r.GetValue(opts.PathArg)!;
+            bool json = r.GetValue(RootCmd.JsonOpt);
+            bool fail = r.GetValue(opts.MissingOpt);
+            return (int)(r.GetValue(opts.TreeOpt)
+                ? Closure.RunTree(path, json, fail)
+                : Closure.Run(path, json, fail));
+        });
         return cmd;
     }
 
@@ -28,10 +33,16 @@ internal static class ClosureCmd
             Description = "Exit with code 1 when any transitive dependency is unresolved."
         };
 
+        public Option<bool> TreeOpt { get; } = new("--tree")
+        {
+            Description = "Include the full transitive dependency tree."
+        };
+
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
             cmd.Options.Add(MissingOpt);
+            cmd.Options.Add(TreeOpt);
         }
     }
 }

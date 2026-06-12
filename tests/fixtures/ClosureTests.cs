@@ -97,6 +97,23 @@ public sealed class ClosureTests
     }
 
     [Fact]
+    public void TreeLeaf()
+    {
+        Inspection a = Make("A", "1.0", [Identity("B", "1.0"), Identity("UnityEngine", "0.0.0.0")]);
+        Inspection b = Make("B", "1.0", [Identity("Missing", "1.0")]);
+
+        ClosureReport report = ClosureGraph.BuildTree([a, b], "/test");
+
+        ClosureTree root = Assert.Single(report.Tree!, item => item.Node.AssemblyName == "A");
+        ClosureTree provider = Assert.Single(root.Children, item => item.Node.AssemblyName == "UnityEngine");
+        ClosureTree resolved = Assert.Single(root.Children, item => item.Node.AssemblyName == "B");
+        ClosureTree missing = Assert.Single(resolved.Children);
+        Assert.Equal(ChainKind.Provided, provider.Node.Kind);
+        Assert.Empty(provider.Children);
+        Assert.Equal(ChainKind.Unresolved, missing.Node.Kind);
+    }
+
+    [Fact]
     public void DiamondMissingDedupKeepsRepresentative()
     {
         Inspection a = Make("A", "1.0", [Identity("B", "1.0"), Identity("C", "1.0")]);

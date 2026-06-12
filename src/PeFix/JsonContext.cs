@@ -47,6 +47,8 @@ namespace PeFix;
 [JsonSerializable(typeof(ClosureJson))]
 [JsonSerializable(typeof(ChainJson))]
 [JsonSerializable(typeof(ChainJson[]))]
+[JsonSerializable(typeof(TreeJson))]
+[JsonSerializable(typeof(TreeJson[]))]
 [JsonSerializable(typeof(SegmentJson))]
 [JsonSerializable(typeof(SegmentJson[]))]
 [JsonSerializable(typeof(BatchFixJson))]

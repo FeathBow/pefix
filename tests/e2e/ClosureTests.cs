@@ -60,6 +60,7 @@ public sealed class ClosureE2E : IDisposable
         Assert.True(root.TryGetProperty("total_refs_walked", out _));
         Assert.True(root.TryGetProperty("provided_leaves", out _));
         Assert.True(root.TryGetProperty("framework_leaves", out _));
+        Assert.False(root.TryGetProperty("tree", out _));
 
         JsonElement unresolved = root.GetProperty("unresolved_chains");
         JsonElement chain = Assert.Single(
@@ -70,6 +71,47 @@ public sealed class ClosureE2E : IDisposable
         AssertSeg(segments[0], "ClosureMid", "resolved");
         AssertSeg(segments[1], "ClosureDeep", "resolved");
         AssertSeg(segments[2], "ClosureMissing", "unresolved");
+    }
+
+    [Fact]
+    public void TreeText()
+    {
+        _temp.CopyAll(
+            "F20_closure_entry.dll",
+            "F21_closure_mid.dll",
+            "F22_closure_deep.dll");
+
+        CliResult result = CliRunner.Run("closure", _temp.DirPath, "--tree");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Dependency tree:", result.Stdout);
+        Assert.Contains("ClosureEntry.dll v1.0.0.0", result.Stdout);
+        Assert.Contains("→ ClosureMid.dll v1.0.0.0", result.Stdout);
+        Assert.Contains("→ ClosureMissing.dll v1.0.0.0   [MISSING]", result.Stdout);
+        Assert.Contains("[provided]", result.Stdout);
+    }
+
+    [Fact]
+    public void TreeJson()
+    {
+        _temp.CopyAll(
+            "F20_closure_entry.dll",
+            "F21_closure_mid.dll",
+            "F22_closure_deep.dll");
+
+        CliResult result = CliRunner.Run("closure", _temp.DirPath, "--tree", "--json");
+
+        Assert.Equal(0, result.ExitCode);
+        JsonElement root = JsonAssert.ParseObject(result.Stdout);
+        JsonElement tree = root.GetProperty("tree");
+        JsonElement entry = Assert.Single(
+            tree.EnumerateArray(),
+            item => item.GetProperty("assembly").GetString() == "ClosureEntry");
+        Assert.Equal("resolved", entry.GetProperty("kind").GetString());
+        Assert.Contains(
+            entry.GetProperty("children").EnumerateArray(),
+            item => item.GetProperty("kind").GetString() == "provided");
+        AssertMiss(entry);
     }
 
     [Fact]
@@ -119,6 +161,14 @@ public sealed class ClosureE2E : IDisposable
         Assert.Equal(name, segment.GetProperty("name").GetString());
         Assert.Equal("1.0.0.0", segment.GetProperty("version").GetString());
         Assert.Equal(kind, segment.GetProperty("kind").GetString());
+    }
+
+    private static void AssertMiss(JsonElement entry)
+    {
+        JsonElement mid = JsonAssert.SingleBy(entry.GetProperty("children"), "assembly", "ClosureMid");
+        JsonElement deep = JsonAssert.SingleBy(mid.GetProperty("children"), "assembly", "ClosureDeep");
+        JsonElement leaf = JsonAssert.SingleBy(deep.GetProperty("children"), "assembly", "ClosureMissing");
+        Assert.Equal("missing", leaf.GetProperty("kind").GetString());
     }
 
     public void Dispose() => _temp.Dispose();

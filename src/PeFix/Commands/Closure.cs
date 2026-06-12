@@ -7,6 +7,16 @@ internal static class Closure
 {
     internal static CliExit Run(string path, bool json, bool failOnMissing)
     {
+        return RunCore(path, json, new RunOpts(failOnMissing, false));
+    }
+
+    internal static CliExit RunTree(string path, bool json, bool failOnMissing)
+    {
+        return RunCore(path, json, new RunOpts(failOnMissing, true));
+    }
+
+    private static CliExit RunCore(string path, bool json, RunOpts opts)
+    {
         string fullPath = Path.GetFullPath(path);
 
         if (!Directory.Exists(fullPath))
@@ -26,7 +36,9 @@ internal static class Closure
             return CliErr.Io(ex);
         }
 
-        ClosureReport closure = ClosureGraph.Build(dir.Results, dir.Directory);
+        ClosureReport closure = opts.Tree
+            ? ClosureGraph.BuildTree(dir.Results, dir.Directory)
+            : ClosureGraph.Build(dir.Results, dir.Directory);
 
         if (json)
         {
@@ -37,9 +49,11 @@ internal static class Closure
             Console.WriteLine(ClosureOut.Render(closure));
         }
 
-        if (failOnMissing && closure.Unresolved.Length > 0)
+        if (opts.Fail && closure.Unresolved.Length > 0)
             return CliExit.Issue;
 
         return CliExit.Success;
     }
+
+    private readonly record struct RunOpts(bool Fail, bool Tree);
 }

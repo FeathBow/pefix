@@ -6,6 +6,11 @@ public readonly record struct ClosureReport(
     ClosureChain[] Unresolved,
     ClosureChain[] CycleChains,
     int RefsWalked,
-    ProvidedLeafCounts ProvidedLeaves);
+    ProvidedLeafCounts ProvidedLeaves,
+    ClosureTree[]? Tree);
 
 public readonly record struct ProvidedLeafCounts(int Total, int Framework);
+
+public readonly record struct ClosureTree(
+    ClosureNode Node,
+    ClosureTree[] Children);

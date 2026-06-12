@@ -10,4 +10,13 @@ internal sealed record ClosureJson(
     [property: JsonPropertyName("total_refs_walked")] int RefsWalked,
     [property: JsonPropertyName("provided_leaves")] int ProvidedLeaves,
     [property: JsonPropertyName("framework_leaves")] int FrameworkLeaves,
+    [property: JsonPropertyName("tree")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    TreeJson[]? Tree = null,
     [property: JsonPropertyName("schema_version"), JsonPropertyOrder(-1)] int SchemaVersion = 1);
+
+internal sealed record TreeJson(
+    [property: JsonPropertyName("assembly")] string Assembly,
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("children")] TreeJson[] Children);
