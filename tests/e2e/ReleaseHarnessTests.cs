@@ -40,7 +40,7 @@ public sealed class ReleaseHarnessTests
         using var scanText = new TempDir();
         scanText.Copy("F27_bep_miss.dll");
         CliResult scanTextResult = HarnessAssertions.ScanUnityText(scanText);
-        Assert.Contains("Blocking Issues", scanTextResult.Stdout);
+        Assert.Contains("Issues", scanTextResult.Stdout);
 
         using var scanJson = new TempDir();
         scanJson.Copy("F27_bep_miss.dll");

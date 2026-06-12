@@ -116,7 +116,7 @@ public sealed class IssueTests : IDisposable
         const string fileA = "a/Plugin.dll";
         const string fileB = "b/Plugin.dll";
 
-        Assert.Contains("2 require attention.", text.Stdout);
+        Assert.Contains("0 need attention, 1 directory issue.", text.Stdout);
         Assert.Equal([fileA, fileB], JsonAssert.StringArray(dupFiles));
         Assert.Equal([fileA, fileB], JsonAssert.StringArray(issueFiles));
         Assert.Equal(1, summary.GetProperty("issues").GetInt32());

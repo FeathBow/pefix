@@ -17,7 +17,6 @@ internal static class ScanOut
         WriteDuplicateProviders(writer, view);
         WriteReferences(writer, view, includeReferences);
         WriteBep(writer, view);
-        WriteNexts(writer, view);
         WriteHint(writer, view);
         return writer.ToString().TrimEnd();
     }
@@ -26,7 +25,10 @@ internal static class ScanOut
     {
         writer.WriteLine($"pefix {Path.GetFileName(view.Directory)}");
         writer.WriteLine();
-        writer.WriteLine($"  Summary: Scanned {view.Files.Length} candidate files. {view.Stats.NeedCount} require attention.");
+        int fileNeed = view.Files.Length - view.Stats.Counts.Compatible;
+        int issueCount = view.Issues.Length;
+        string issueWord = issueCount == 1 ? "directory issue" : "directory issues";
+        writer.WriteLine($"  Summary: Scanned {view.Files.Length} candidate files. {fileNeed} need attention, {issueCount} {issueWord}.");
         writer.WriteLine($"  Action:  {ActionText(view)}");
     }
 
@@ -43,16 +45,17 @@ internal static class ScanOut
             string detail = view.HasBlockingFiles
                 ? "blocking file diagnostics are listed below."
                 : "none found under supported static checks.";
-            writer.WriteLine($"  Blocking Issues: {detail}");
+            writer.WriteLine($"  Issues: {detail}");
             writer.WriteLine("  Static Boundary: Runtime load success is not certified.");
             return;
         }
 
-        writer.WriteLine($"  Blocking Issues ({view.Issues.Length}):");
+        writer.WriteLine($"  Issues ({view.Issues.Length}):");
         foreach (DirectoryIssue issue in view.Issues)
             WriteIssue(writer, issue);
 
         writer.WriteLine("  Static Boundary: Findings are static evidence only; runtime load success is not certified.");
+        writer.WriteLine("  Exit:   scan exits 0 by default; add --fail-on-issue to fail CI on these.");
     }
 
     private static void WriteIssue(StringWriter writer, DirectoryIssue issue)
@@ -198,23 +201,6 @@ internal static class ScanOut
         writer.WriteLine($"  BepInEx deps ({issues.Length}):");
         foreach (DirectoryIssue issue in issues)
             writer.WriteLine($"    - {issue.Summary}");
-    }
-
-    private static void WriteNexts(StringWriter writer, ScanView view)
-    {
-        if (!view.HasIssues)
-            return;
-
-        string[] steps = [.. view.Issues
-            .SelectMany(issue => issue.NextSteps)
-            .Distinct(StringComparer.Ordinal)];
-        if (steps.Length == 0)
-            return;
-
-        writer.WriteLine();
-        writer.WriteLine("  Next Steps:");
-        foreach (string step in steps)
-            writer.WriteLine($"    - {step}");
     }
 
     private static void WriteHint(StringWriter writer, ScanView view)

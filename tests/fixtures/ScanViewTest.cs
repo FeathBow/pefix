@@ -56,13 +56,13 @@ public sealed class ScanViewTest
         string text = ScanOut.Render(view);
         Assert.Contains("mods/Fix.dll [fixable] reason=non_portable action=fix", text);
         Assert.Contains("Remove the mismatched copy or install the version required by the referencing assembly", text);
-        Assert.Contains("Blocking Issues (3):", text);
+        Assert.Contains("Issues (3):", text);
         Assert.Contains("[asm_conflict] Dependency", text);
         Assert.Contains("repair: assisted_fix", text);
         Assert.Contains("verify: pefix scan <path> --json", text);
         Assert.Contains("Static Boundary: Findings are static evidence only", text);
         Assert.True(
-            text.IndexOf("Blocking Issues", StringComparison.Ordinal) <
+            text.IndexOf("Issues", StringComparison.Ordinal) <
             text.IndexOf("Group: portability", StringComparison.Ordinal));
     }
 
@@ -83,7 +83,7 @@ public sealed class ScanViewTest
 
         string text = ScanOut.Render(view);
 
-        Assert.Contains("Blocking Issues: none found under supported static checks.", text);
+        Assert.Contains("Issues: none found under supported static checks.", text);
         Assert.Contains("Runtime load success is not certified.", text);
     }
 
@@ -104,7 +104,7 @@ public sealed class ScanViewTest
         string text = ScanOut.Render(scan.View);
 
         Assert.Contains("Action:  Resolve blocking file diagnostics below", text);
-        Assert.Contains("Blocking Issues: blocking file diagnostics are listed below.", text);
+        Assert.Contains("Issues: blocking file diagnostics are listed below.", text);
     }
 
     [Fact]

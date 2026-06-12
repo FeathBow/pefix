@@ -15,12 +15,12 @@ public sealed class BepScanTextTests : IDisposable
         CliResult result = CliRunner.Run("scan", _temp.DirPath);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Blocking Issues (1):", result.Stdout);
+        Assert.Contains("Issues (1):", result.Stdout);
         Assert.Contains("[bep_missing] need.hard", result.Stdout);
         Assert.Contains("repair: assisted_fix", result.Stdout);
         Assert.Contains("verify: pefix scan <path> --json", result.Stdout);
         Assert.True(
-            result.Stdout.IndexOf("Blocking Issues", StringComparison.Ordinal) <
+            result.Stdout.IndexOf("Issues", StringComparison.Ordinal) <
             result.Stdout.IndexOf("Group:", StringComparison.Ordinal));
         Assert.Contains("BepInEx deps (1):", result.Stdout);
         Assert.Contains("test.miss requires BepInEx plugin need.hard", result.Stdout);
