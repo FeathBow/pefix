@@ -12,6 +12,7 @@ public static class Scanner
         MemberRefGap[] memberRefGaps = MemberSurfaceAnalyzer.FindMethodGaps(dir.Results, dependencies);
         TypeRefGap[] typeRefGaps = MemberSurfaceAnalyzer.FindTypeGaps(dir.Results, dependencies);
         FieldRefGap[] fieldRefGaps = MemberSurfaceAnalyzer.FindFieldGaps(dir.Results, dependencies);
+        ImplGap[] implGaps = ImplAnalyzer.FindImplGaps(dir.Results, dependencies);
         return new ScanReport(
             dir.Directory,
             dir.Results,
@@ -20,7 +21,8 @@ public static class Scanner
             duplicateProviders,
             memberRefGaps,
             typeRefGaps,
-            fieldRefGaps);
+            fieldRefGaps,
+            implGaps);
     }
 
     public static DirectoryInspection InspectDir(string path)

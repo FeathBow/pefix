@@ -80,7 +80,7 @@ internal static partial class MemberSurfaceAnalyzer
         AssemblyReference asm = reader.GetAssemblyReference((AssemblyReferenceHandle)typeRef.ResolutionScope);
         fieldRef = new FieldRefUse(
             reader.GetString(asm.Name),
-            TypeName(reader, typeRef.Namespace, typeRef.Name),
+            ReadTypeName(reader, typeRef.Namespace, typeRef.Name),
             reader.GetString(member.Name));
         return true;
     }

@@ -8,4 +8,5 @@ public readonly record struct ScanReport(
     DuplicateProvider[] DuplicateProviders,
     MemberRefGap[] MemberRefGaps,
     TypeRefGap[] TypeRefGaps,
-    FieldRefGap[] FieldRefGaps);
+    FieldRefGap[] FieldRefGaps,
+    ImplGap[] ImplGaps);

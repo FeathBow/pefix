@@ -17,6 +17,7 @@ internal static class DirectoryIssueBuilder
         AddMissingTypes(issues, findings, rel);
         AddMissingMembers(issues, findings, rel);
         AddMissingFields(issues, findings, rel);
+        AddMissingImpls(issues, findings, rel);
         return [.. issues];
     }
 
@@ -146,6 +147,40 @@ internal static class DirectoryIssueBuilder
                 paramCount,
                 MemberSurfaceAnalyzer.ConservativeMatchingTier,
                 providedBy));
+    }
+
+    private static void AddMissingImpls(
+        List<DirectoryIssue> issues,
+        RefFinding[] findings,
+        PathRelativizer rel)
+    {
+        foreach (RefFinding gap in Ordered(findings, RefOutcome.ImplGap)
+            .ThenBy(item => item.ImplClass, StringComparer.Ordinal)
+            .ThenBy(item => item.MemberName, StringComparer.Ordinal))
+            issues.Add(CreateMissingImplIssue(gap, rel));
+    }
+
+    private static DirectoryIssue CreateMissingImplIssue(RefFinding gap, PathRelativizer rel)
+    {
+        string requiredBy = rel.RelativePath(gap.ConsumerPath);
+        string providedBy = rel.RelativePath(Required(gap.ProviderPath, nameof(gap.ProviderPath)));
+        string interfaceName = Required(gap.TypeName, nameof(gap.TypeName));
+        string memberName = Required(gap.MemberName, nameof(gap.MemberName));
+        string implClass = Required(gap.ImplClass, nameof(gap.ImplClass));
+        int paramCount = Required(gap.ParameterCount, nameof(gap.ParameterCount));
+        string args = paramCount == 1 ? "arg" : "args";
+        return RepairGuide.ForIssue(
+            IssueCode.MissingImpl,
+            gap.ReferenceName,
+            $"Class '{implClass}' in {requiredBy} does not implement '{interfaceName}.{memberName}' ({paramCount} {args}) required by {providedBy}.",
+            [requiredBy, providedBy],
+            IssueEvidence.ForMissingImpl(
+                interfaceName,
+                memberName,
+                paramCount,
+                MemberSurfaceAnalyzer.ConservativeMatchingTier,
+                providedBy,
+                implClass));
     }
 
     private static DirectoryIssue CreateMissingFieldIssue(RefFinding gap, PathRelativizer rel)

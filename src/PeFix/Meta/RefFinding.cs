@@ -13,4 +13,5 @@ public readonly record struct RefFinding(
     string? ActualVersion,
     string? ProviderPath,
     string[]? ProviderPaths,
-    bool StaticCtor = false);
+    bool StaticCtor = false,
+    string? ImplClass = null);

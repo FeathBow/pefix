@@ -13,7 +13,8 @@ internal sealed record IssueEvidence(
     [property: JsonPropertyName("member")] string? MemberName = null,
     [property: JsonPropertyName("parameter_count")] int? ParameterCount = null,
     [property: JsonPropertyName("matching_tier")] string? MatchingTier = null,
-    [property: JsonPropertyName("provided_by")] string? ProviderFile = null)
+    [property: JsonPropertyName("provided_by")] string? ProviderFile = null,
+    [property: JsonPropertyName("impl_class")] string? ImplClass = null)
 {
     public static IssueEvidence ForProviderFiles(string[] providerFiles)
     {
@@ -77,5 +78,22 @@ internal sealed record IssueEvidence(
         return new IssueEvidence(
             TypeName: typeName,
             ProviderFile: providedBy);
+    }
+
+    public static IssueEvidence ForMissingImpl(
+        string typeName,
+        string member,
+        int parameterCount,
+        string matchingTier,
+        string providedBy,
+        string implClass)
+    {
+        return new IssueEvidence(
+            TypeName: typeName,
+            MemberName: member,
+            ParameterCount: parameterCount,
+            MatchingTier: matchingTier,
+            ProviderFile: providedBy,
+            ImplClass: implClass);
     }
 }

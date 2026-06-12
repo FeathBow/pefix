@@ -83,18 +83,46 @@ internal static partial class MemberSurfaceAnalyzer
         HashSet<string> typeNames = new(StringComparer.Ordinal);
         Dictionary<string, HashSet<MemberShape>> membersByType = new(StringComparer.Ordinal);
         Dictionary<string, HashSet<string>> fieldsByType = new(StringComparer.Ordinal);
+        Dictionary<string, IfaceSurface> ifaceByType = new(StringComparer.Ordinal);
         foreach (TypeDefinitionHandle typeHandle in reader.TypeDefinitions)
         {
             TypeDefinition typeDef = reader.GetTypeDefinition(typeHandle);
-            string typeName = TypeName(reader, typeDef.Namespace, typeDef.Name);
+            string typeName = ReadTypeName(reader, typeDef.Namespace, typeDef.Name);
             typeNames.Add(typeName);
             HashSet<MemberShape> members = ReadMethods(reader, typeDef);
             membersByType[typeName] = members;
             fieldsByType[typeName] = ReadFields(reader, typeDef);
+            if ((typeDef.Attributes & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface)
+                ifaceByType[typeName] = ReadIface(reader, typeDef);
         }
 
         AddForwardedTypes(reader, typeNames);
-        return new MemSurface(typeNames, membersByType, fieldsByType);
+        return new MemSurface(typeNames, membersByType, fieldsByType, ifaceByType);
+    }
+
+    private static IfaceSurface ReadIface(MetadataReader reader, TypeDefinition typeDef)
+    {
+        HashSet<MemberShape> abstractShapes = [];
+        foreach (MethodDefinitionHandle methodHandle in typeDef.GetMethods())
+        {
+            MethodDefinition method = reader.GetMethodDefinition(methodHandle);
+            MethodAttributes attrs = method.Attributes;
+            if ((attrs & MethodAttributes.Abstract) == 0 || (attrs & MethodAttributes.Static) != 0)
+                continue;
+
+            if (TryDecodeParamCount(method, out int paramCount))
+                abstractShapes.Add(new MemberShape(reader.GetString(method.Name), paramCount));
+        }
+
+        HashSet<string> overrideKeys = new(StringComparer.Ordinal);
+        foreach (MethodImplementationHandle handle in typeDef.GetMethodImplementations())
+        {
+            MethodImplementation impl = reader.GetMethodImplementation(handle);
+            if (ImplAnalyzer.TryReadDeclKey(reader, impl.MethodDeclaration, out _, out string dimKey))
+                overrideKeys.Add(dimKey);
+        }
+
+        return new IfaceSurface(abstractShapes, overrideKeys);
     }
 
     private static void AddForwardedTypes(MetadataReader reader, HashSet<string> typeNames)
@@ -105,11 +133,11 @@ internal static partial class MemberSurfaceAnalyzer
             if (!type.Attributes.HasFlag(ForwarderAttr))
                 continue;
 
-            typeNames.Add(TypeName(reader, type.Namespace, type.Name));
+            typeNames.Add(ReadTypeName(reader, type.Namespace, type.Name));
         }
     }
 
-    private static HashSet<MemberShape> ReadMethods(
+    internal static HashSet<MemberShape> ReadMethods(
         MetadataReader reader,
         TypeDefinition typeDef)
     {
@@ -162,7 +190,7 @@ internal static partial class MemberSurfaceAnalyzer
         AssemblyReference assemblyReference = reader.GetAssemblyReference((AssemblyReferenceHandle)typeRef.ResolutionScope);
         methodRef = new MethodRefUse(
             reader.GetString(assemblyReference.Name),
-            TypeName(reader, typeRef.Namespace, typeRef.Name),
+            ReadTypeName(reader, typeRef.Namespace, typeRef.Name),
             reader.GetString(member.Name),
             paramCount);
         return true;
@@ -231,7 +259,7 @@ internal static partial class MemberSurfaceAnalyzer
         return true;
     }
 
-    private static bool TryDecodeParamCount(MemberReference member, out int paramCount)
+    internal static bool TryDecodeParamCount(MemberReference member, out int paramCount)
     {
         paramCount = 0;
         if (member.GetKind() != MemberReferenceKind.Method)
@@ -242,7 +270,7 @@ internal static partial class MemberSurfaceAnalyzer
             out paramCount);
     }
 
-    private static bool TryDecodeParamCount(MethodDefinition method, out int paramCount)
+    internal static bool TryDecodeParamCount(MethodDefinition method, out int paramCount)
     {
         return TryDecodeParamCount(
             () => method.DecodeSignature(new ParamCounter(), null),
@@ -268,7 +296,7 @@ internal static partial class MemberSurfaceAnalyzer
         }
     }
 
-    private static string TypeName(MetadataReader reader, StringHandle ns, StringHandle name)
+    internal static string ReadTypeName(MetadataReader reader, StringHandle ns, StringHandle name)
     {
         string nsValue = reader.GetString(ns);
         string typeName = reader.GetString(name);

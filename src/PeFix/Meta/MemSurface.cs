@@ -3,7 +3,8 @@ namespace PeFix.Meta;
 internal sealed class MemSurface(
     HashSet<string> typeNames,
     Dictionary<string, HashSet<MemberShape>> membersByType,
-    Dictionary<string, HashSet<string>> fieldsByType)
+    Dictionary<string, HashSet<string>> fieldsByType,
+    Dictionary<string, IfaceSurface> ifaceByType)
 {
     public bool ContainsType(string typeName)
     {
@@ -18,5 +19,10 @@ internal sealed class MemSurface(
     public bool TryGetFields(string typeName, out HashSet<string> fields)
     {
         return fieldsByType.TryGetValue(typeName, out fields!);
+    }
+
+    public bool TryGetIface(string typeName, out IfaceSurface surface)
+    {
+        return ifaceByType.TryGetValue(typeName, out surface!);
     }
 }

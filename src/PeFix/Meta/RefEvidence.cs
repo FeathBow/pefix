@@ -14,7 +14,8 @@ public static class RefEvidence
             DependencyIndex.FindDuplicateProviders(inspections),
             MemberSurfaceAnalyzer.FindMethodGaps(inspections, dependencies),
             MemberSurfaceAnalyzer.FindTypeGaps(inspections, dependencies),
-            MemberSurfaceAnalyzer.FindFieldGaps(inspections, dependencies));
+            MemberSurfaceAnalyzer.FindFieldGaps(inspections, dependencies),
+            ImplAnalyzer.FindImplGaps(inspections, dependencies));
     }
 
     public static RefFinding[] Collect(ScanReport report)
@@ -25,7 +26,8 @@ public static class RefEvidence
             report.DuplicateProviders,
             report.MemberRefGaps,
             report.TypeRefGaps,
-            report.FieldRefGaps);
+            report.FieldRefGaps,
+            report.ImplGaps);
     }
 
     public static RefFinding[] Collect(
@@ -46,7 +48,8 @@ public static class RefEvidence
         DuplicateProvider[] duplicateProviders,
         MemberRefGap[] memberGaps,
         TypeRefGap[] typeGaps,
-        FieldRefGap[] fieldGaps)
+        FieldRefGap[] fieldGaps,
+        ImplGap[] implGaps)
     {
         List<RefFinding> findings = [];
         findings.AddRange(MapConflicts(conflicts));
@@ -55,6 +58,7 @@ public static class RefEvidence
         findings.AddRange(MapMemberGaps(memberGaps));
         findings.AddRange(MapTypeGaps(typeGaps));
         findings.AddRange(MapFieldGaps(fieldGaps));
+        findings.AddRange(MapImplGaps(implGaps));
         return [.. findings];
     }
 
@@ -158,6 +162,24 @@ public static class RefEvidence
             ActualVersion: null,
             ProviderPath: gap.ProviderPath,
             ProviderPaths: null));
+    }
+
+    private static IEnumerable<RefFinding> MapImplGaps(ImplGap[] gaps)
+    {
+        return gaps.Select(gap => new RefFinding(
+            Tier: RefTier.MemSurface,
+            Resolution: RefOutcome.ImplGap,
+            Confidence: Confidence.Gate,
+            ConsumerPath: gap.ConsumerPath,
+            ReferenceName: gap.AssemblyName,
+            TypeName: gap.InterfaceName,
+            MemberName: gap.MemberName,
+            ParameterCount: gap.ParameterCount,
+            ExpectedVersion: null,
+            ActualVersion: null,
+            ProviderPath: gap.ProviderPath,
+            ProviderPaths: null,
+            ImplClass: gap.ClassName));
     }
 
     private static IEnumerable<RefFinding> MapReflection(
