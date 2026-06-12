@@ -49,7 +49,7 @@ internal static class ImplAnalyzer
             item.ParameterCount))];
     }
 
-    internal static ImplUse[] ReadImplUses(MetadataReader reader)
+    internal static ImplUse[] ReadImplUses(MetadataReader reader, MemSurface surface)
     {
         List<ImplUse> uses = [];
         foreach (TypeDefinitionHandle typeHandle in reader.TypeDefinitions)
@@ -62,11 +62,11 @@ internal static class ImplAnalyzer
             if (interfaces.Length == 0)
                 continue;
 
-            if (!TryCollectShapes(reader, typeDef, out HashSet<MemberShape> shapes, out HashSet<string> explicitKeys))
+            if (!TryCollectChain(reader, typeDef, surface, out List<TypeSurface> chain, out HashSet<MemberShape>? nested, out HashSet<string> explicitKeys))
                 continue;
 
             string className = MemberSurfaceAnalyzer.ReadTypeName(reader, typeDef.Namespace, typeDef.Name);
-            uses.Add(new ImplUse(className, shapes, explicitKeys, interfaces));
+            uses.Add(new ImplUse(className, chain, nested, explicitKeys, interfaces));
         }
 
         return [.. uses];
@@ -117,10 +117,21 @@ internal static class ImplAnalyzer
         MemberShape shape,
         HashSet<string> dimCovered)
     {
-        return use.ClassShapes.Contains(shape)
+        return HasChainMember(use, shape)
             || ObjectShapes.Contains(shape)
             || use.ExplicitKeys.Contains(ExplicitKey(iface.AssemblyName, iface.InterfaceName, shape))
             || dimCovered.Contains(DimKey(iface.InterfaceName, shape));
+    }
+
+    private static bool HasChainMember(ImplUse use, MemberShape shape)
+    {
+        foreach (TypeSurface surface in use.Chain)
+        {
+            if (surface.ContainsMember(shape))
+                return true;
+        }
+
+        return use.NestedShapes is { } nested && nested.Contains(shape);
     }
 
     private static HashSet<string> CollectDimKeys(ImplUse use, DependencyIndex dependencies)
@@ -177,14 +188,18 @@ internal static class ImplAnalyzer
         return [.. interfaces];
     }
 
-    private static bool TryCollectShapes(
+    private static bool TryCollectChain(
         MetadataReader reader,
         TypeDefinition typeDef,
-        out HashSet<MemberShape> shapes,
+        MemSurface surface,
+        out List<TypeSurface> chain,
+        out HashSet<MemberShape>? nested,
         out HashSet<string> explicitKeys)
     {
-        shapes = MemberSurfaceAnalyzer.ReadMethods(reader, typeDef);
+        chain = [];
+        nested = null;
         explicitKeys = ReadExplicitKeys(reader, typeDef);
+        AddChainShapes(reader, typeDef, surface, chain, ref nested);
         EntityHandle baseType = typeDef.BaseType;
         while (!baseType.IsNil)
         {
@@ -199,12 +214,35 @@ internal static class ImplAnalyzer
                 return false;
 
             TypeDefinition baseDef = reader.GetTypeDefinition((TypeDefinitionHandle)baseType);
-            shapes.UnionWith(MemberSurfaceAnalyzer.ReadMethods(reader, baseDef));
+            AddChainShapes(reader, baseDef, surface, chain, ref nested);
             explicitKeys.UnionWith(ReadExplicitKeys(reader, baseDef));
             baseType = baseDef.BaseType;
         }
 
         return true;
+    }
+
+    private static void AddChainShapes(
+        MetadataReader reader,
+        TypeDefinition typeDef,
+        MemSurface surface,
+        List<TypeSurface> chain,
+        ref HashSet<MemberShape>? nested)
+    {
+        // Nested type names collide across declaring types in the name-keyed
+        // surface, so nested chain levels fall back to a direct member read.
+        if (typeDef.GetDeclaringType().IsNil)
+        {
+            string typeName = MemberSurfaceAnalyzer.ReadTypeName(reader, typeDef.Namespace, typeDef.Name);
+            if (surface.TryGetSurface(typeName, out TypeSurface typeSurface))
+            {
+                chain.Add(typeSurface);
+                return;
+            }
+        }
+
+        nested ??= [];
+        nested.UnionWith(MemberSurfaceAnalyzer.ReadMethods(reader, typeDef));
     }
 
     internal static HashSet<string> ReadExplicitKeys(MetadataReader reader, TypeDefinition typeDef)

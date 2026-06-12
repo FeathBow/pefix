@@ -2,6 +2,7 @@ namespace PeFix.Meta;
 
 internal sealed record ImplUse(
     string ClassName,
-    HashSet<MemberShape> ClassShapes,
+    IReadOnlyList<TypeSurface> Chain,
+    HashSet<MemberShape>? NestedShapes,
     HashSet<string> ExplicitKeys,
     IfaceRef[] Interfaces);

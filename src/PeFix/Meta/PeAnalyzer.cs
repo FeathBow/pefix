@@ -146,11 +146,12 @@ public static class PeAnalyzer
         MetadataReader reader)
     {
         PeRead pe = new(path, peReader, reader);
+        MemSurface surface = MemberSurfaceAnalyzer.ReadSurface(reader);
         return new PeView(
             MemberSurfaceAnalyzer.ReadMethodRefs(reader),
             MemberSurfaceAnalyzer.ReadFieldRefs(reader),
-            MemberSurfaceAnalyzer.ReadSurface(reader),
-            ImplAnalyzer.ReadImplUses(reader),
+            surface,
+            ImplAnalyzer.ReadImplUses(reader, surface),
             AccessScan.ReadAccessInfo(reader),
             ReflScanner.Read(pe));
     }
