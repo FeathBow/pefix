@@ -50,9 +50,8 @@ public sealed class MissingFieldIssueTests : IDisposable
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("[missing_field] FieldProvider", result.Stdout);
-        Assert.Contains("references field FieldProvider.Api.Value", result.Stdout);
-        Assert.Contains("tier name", result.Stdout);
-        Assert.Contains("does not expose a matching field", result.Stdout);
+        Assert.Contains("Field 'FieldProvider.Api.Value' not found in FieldProvider.dll", result.Stdout);
+        Assert.Contains("consumed by F49_field_consumer.dll", result.Stdout);
         Assert.DoesNotContain("[missing_member]", result.Stdout);
         Assert.DoesNotContain("[missing_type]", result.Stdout);
     }

@@ -131,15 +131,19 @@ internal static class DirectoryIssueBuilder
     {
         string requiredBy = rel.RelativePath(gap.ConsumerPath);
         string providedBy = rel.RelativePath(Required(gap.ProviderPath, nameof(gap.ProviderPath)));
+        string typeName = Required(gap.TypeName, nameof(gap.TypeName));
+        string memberName = Required(gap.MemberName, nameof(gap.MemberName));
+        int paramCount = Required(gap.ParameterCount, nameof(gap.ParameterCount));
+        string args = paramCount == 1 ? "arg" : "args";
         return RepairGuide.ForIssue(
             IssueCode.MissingMember,
             gap.ReferenceName,
-            $"{requiredBy} references {Required(gap.TypeName, nameof(gap.TypeName))}.{Required(gap.MemberName, nameof(gap.MemberName))}/{Required(gap.ParameterCount, nameof(gap.ParameterCount))} on {gap.ReferenceName}, but {providedBy} does not expose a matching member at tier {MemberSurfaceAnalyzer.ConservativeMatchingTier}.",
+            $"Method '{typeName}.{memberName}' ({paramCount} {args}) not found in {providedBy}; consumed by {requiredBy}.",
             [requiredBy, providedBy],
             IssueEvidence.ForMissingMember(
-                Required(gap.TypeName, nameof(gap.TypeName)),
-                Required(gap.MemberName, nameof(gap.MemberName)),
-                Required(gap.ParameterCount, nameof(gap.ParameterCount)),
+                typeName,
+                memberName,
+                paramCount,
                 MemberSurfaceAnalyzer.ConservativeMatchingTier,
                 providedBy));
     }
@@ -148,14 +152,16 @@ internal static class DirectoryIssueBuilder
     {
         string requiredBy = rel.RelativePath(gap.ConsumerPath);
         string providedBy = rel.RelativePath(Required(gap.ProviderPath, nameof(gap.ProviderPath)));
+        string typeName = Required(gap.TypeName, nameof(gap.TypeName));
+        string fieldName = Required(gap.MemberName, nameof(gap.MemberName));
         return RepairGuide.ForIssue(
             IssueCode.MissingField,
             gap.ReferenceName,
-            $"{requiredBy} references field {Required(gap.TypeName, nameof(gap.TypeName))}.{Required(gap.MemberName, nameof(gap.MemberName))} on {gap.ReferenceName}, but {providedBy} does not expose a matching field at tier {MemberSurfaceAnalyzer.FieldTier}.",
+            $"Field '{typeName}.{fieldName}' not found in {providedBy}; consumed by {requiredBy}.",
             [requiredBy, providedBy],
             IssueEvidence.ForMissingField(
-                Required(gap.TypeName, nameof(gap.TypeName)),
-                Required(gap.MemberName, nameof(gap.MemberName)),
+                typeName,
+                fieldName,
                 MemberSurfaceAnalyzer.FieldTier,
                 providedBy));
     }

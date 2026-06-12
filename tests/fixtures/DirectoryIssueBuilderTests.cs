@@ -112,9 +112,8 @@ public sealed class DirectoryIssueBuilderTests
             ["Plugin.dll", "Shared.Core.dll"],
             "Align the referencing assembly and provider assembly",
             "runtime load success");
-        Assert.Contains("Shared.Api.Foo/2", issue.Summary);
-        Assert.Contains("name+parameter-count", issue.Summary);
-        Assert.Contains("does not expose a matching member", issue.Summary);
+        Assert.Contains("Method 'Shared.Api.Foo' (2 args) not found in Shared.Core.dll", issue.Summary);
+        Assert.Contains("consumed by Plugin.dll", issue.Summary);
         Assert.Equal("Shared.Api", issue.Evidence?.TypeName);
         Assert.Equal("Foo", issue.Evidence?.MemberName);
         Assert.Equal(2, issue.Evidence?.ParameterCount);
@@ -146,9 +145,8 @@ public sealed class DirectoryIssueBuilderTests
             ["Plugin.dll", "Shared.Core.dll"],
             "Align the referencing assembly and provider assembly",
             "runtime load success");
-        Assert.Contains("Shared.Api.Value", issue.Summary);
-        Assert.Contains("tier name", issue.Summary);
-        Assert.Contains("does not expose a matching field", issue.Summary);
+        Assert.Contains("Field 'Shared.Api.Value' not found in Shared.Core.dll", issue.Summary);
+        Assert.Contains("consumed by Plugin.dll", issue.Summary);
         Assert.Equal("Shared.Api", issue.Evidence?.TypeName);
         Assert.Equal("Value", issue.Evidence?.MemberName);
         Assert.Null(issue.Evidence?.ParameterCount);

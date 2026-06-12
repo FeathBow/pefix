@@ -271,9 +271,8 @@ public sealed class IssueTests : IDisposable
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("[missing_member] MemberProvider", result.Stdout);
-        Assert.Contains("references MemberProvider.Api.Foo/2", result.Stdout);
-        Assert.Contains("tier name+parameter-count", result.Stdout);
-        Assert.Contains("does not expose a matching member", result.Stdout);
+        Assert.Contains("Method 'MemberProvider.Api.Foo' (2 args) not found in MemberProvider.dll", result.Stdout);
+        Assert.Contains("consumed by F36_member_consumer.dll", result.Stdout);
     }
 
     [Fact]
