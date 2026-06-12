@@ -21,6 +21,7 @@ public sealed class ScanViewTest
             [],
             [],
             [],
+            [],
             []),
             withJson: true);
         ScanView view = scan.View;
@@ -79,6 +80,7 @@ public sealed class ScanViewTest
             [],
             [],
             [],
+            [],
             []),
             withJson: false);
         ScanView view = scan.View;
@@ -101,6 +103,7 @@ public sealed class ScanViewTest
             [],
             [],
             [],
+            [],
             []),
             withJson: false);
 
@@ -114,7 +117,7 @@ public sealed class ScanViewTest
     public void Scan_AdvisoryIssueDoesNotFailIssueGate()
     {
         ScanResult scan = ScanBuild.Build(
-            new ScanReport(Root, [Compatible("mods/Ok.dll")], [], [], [], [], [], [], []),
+            new ScanReport(Root, [Compatible("mods/Ok.dll")], [], [], [], [], [], [], [], []),
             withJson: true,
             findings: [AdvisoryMissingReference()]);
         ScanView view = scan.View;

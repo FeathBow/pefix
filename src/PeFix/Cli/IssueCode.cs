@@ -8,6 +8,7 @@ internal static class IssueCode
     public const string MissingMember = "missing_member";
     public const string MissingField = "missing_field";
     public const string MissingImpl = "missing_impl";
+    public const string Inaccessible = "inaccessible_member";
     public const string ReflectionMissing = "reflection_missing";
     public const string DupProvider = "dup_provider";
     public const string BepMissing = "bep_missing";

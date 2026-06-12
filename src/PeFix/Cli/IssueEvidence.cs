@@ -80,6 +80,19 @@ internal sealed record IssueEvidence(
             ProviderFile: providedBy);
     }
 
+    public static IssueEvidence ForInaccessible(
+        string typeName,
+        string? member,
+        int? parameterCount,
+        string providedBy)
+    {
+        return new IssueEvidence(
+            TypeName: typeName,
+            MemberName: member,
+            ParameterCount: parameterCount,
+            ProviderFile: providedBy);
+    }
+
     public static IssueEvidence ForMissingImpl(
         string typeName,
         string member,

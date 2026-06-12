@@ -15,19 +15,14 @@ public static class RefEvidence
             MemberSurfaceAnalyzer.FindMethodGaps(inspections, dependencies),
             MemberSurfaceAnalyzer.FindTypeGaps(inspections, dependencies),
             MemberSurfaceAnalyzer.FindFieldGaps(inspections, dependencies),
-            ImplAnalyzer.FindImplGaps(inspections, dependencies));
+            ImplAnalyzer.FindImplGaps(inspections, dependencies),
+            AccessScan.FindAccessGaps(inspections, dependencies),
+            publishDirProfile: false);
     }
 
     public static RefFinding[] Collect(ScanReport report)
     {
-        return Collect(
-            report.Conflicts,
-            report.MissingReferences,
-            report.DuplicateProviders,
-            report.MemberRefGaps,
-            report.TypeRefGaps,
-            report.FieldRefGaps,
-            report.ImplGaps);
+        return Collect(report, publishDirProfile: false);
     }
 
     public static RefFinding[] Collect(
@@ -37,9 +32,23 @@ public static class RefEvidence
     {
         ArgumentNullException.ThrowIfNull(hostProfile);
 
-        RefFinding[] staticFindings = Collect(report);
+        RefFinding[] staticFindings = Collect(report, publishDirProfile);
         ReflScan reflection = ReflScanner.Scan(report.Results, hostProfile);
         return [.. staticFindings, .. MapReflection(reflection, publishDirProfile)];
+    }
+
+    private static RefFinding[] Collect(ScanReport report, bool publishDirProfile)
+    {
+        return Collect(
+            report.Conflicts,
+            report.MissingReferences,
+            report.DuplicateProviders,
+            report.MemberRefGaps,
+            report.TypeRefGaps,
+            report.FieldRefGaps,
+            report.ImplGaps,
+            report.AccessGaps,
+            publishDirProfile);
     }
 
     private static RefFinding[] Collect(
@@ -49,7 +58,9 @@ public static class RefEvidence
         MemberRefGap[] memberGaps,
         TypeRefGap[] typeGaps,
         FieldRefGap[] fieldGaps,
-        ImplGap[] implGaps)
+        ImplGap[] implGaps,
+        AccessGap[] accessGaps,
+        bool publishDirProfile)
     {
         List<RefFinding> findings = [];
         findings.AddRange(MapConflicts(conflicts));
@@ -59,6 +70,7 @@ public static class RefEvidence
         findings.AddRange(MapTypeGaps(typeGaps));
         findings.AddRange(MapFieldGaps(fieldGaps));
         findings.AddRange(MapImplGaps(implGaps));
+        findings.AddRange(MapAccessGaps(accessGaps, publishDirProfile));
         return [.. findings];
     }
 
@@ -180,6 +192,25 @@ public static class RefEvidence
             ProviderPath: gap.ProviderPath,
             ProviderPaths: null,
             ImplClass: gap.ClassName));
+    }
+
+    private static IEnumerable<RefFinding> MapAccessGaps(
+        AccessGap[] gaps,
+        bool publishDirProfile)
+    {
+        return gaps.Select(gap => new RefFinding(
+            Tier: RefTier.MemSurface,
+            Resolution: RefOutcome.AccessGap,
+            Confidence: publishDirProfile ? Confidence.Gate : Confidence.Advisory,
+            ConsumerPath: gap.ConsumerPath,
+            ReferenceName: gap.AssemblyName,
+            TypeName: gap.TypeName,
+            MemberName: gap.MemberName,
+            ParameterCount: gap.ParameterCount,
+            ExpectedVersion: null,
+            ActualVersion: null,
+            ProviderPath: gap.ProviderPath,
+            ProviderPaths: null));
     }
 
     private static IEnumerable<RefFinding> MapReflection(

@@ -13,6 +13,7 @@ public static class Scanner
         TypeRefGap[] typeRefGaps = MemberSurfaceAnalyzer.FindTypeGaps(dir.Results, dependencies);
         FieldRefGap[] fieldRefGaps = MemberSurfaceAnalyzer.FindFieldGaps(dir.Results, dependencies);
         ImplGap[] implGaps = ImplAnalyzer.FindImplGaps(dir.Results, dependencies);
+        AccessGap[] accessGaps = AccessScan.FindAccessGaps(dir.Results, dependencies);
         return new ScanReport(
             dir.Directory,
             dir.Results,
@@ -22,7 +23,8 @@ public static class Scanner
             memberRefGaps,
             typeRefGaps,
             fieldRefGaps,
-            implGaps);
+            implGaps,
+            accessGaps);
     }
 
     public static DirectoryInspection InspectDir(string path)

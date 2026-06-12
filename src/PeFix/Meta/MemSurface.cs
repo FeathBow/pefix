@@ -4,7 +4,10 @@ internal sealed class MemSurface(
     HashSet<string> typeNames,
     Dictionary<string, HashSet<MemberShape>> membersByType,
     Dictionary<string, HashSet<string>> fieldsByType,
-    Dictionary<string, IfaceSurface> ifaceByType)
+    Dictionary<string, IfaceSurface> ifaceByType,
+    HashSet<string> hiddenTypes,
+    Dictionary<string, HashSet<MemberShape>> hiddenMembersByType,
+    Dictionary<string, HashSet<string>> hiddenFieldsByType)
 {
     public bool ContainsType(string typeName)
     {
@@ -24,5 +27,20 @@ internal sealed class MemSurface(
     public bool TryGetIface(string typeName, out IfaceSurface surface)
     {
         return ifaceByType.TryGetValue(typeName, out surface!);
+    }
+
+    public bool IsHiddenType(string typeName)
+    {
+        return hiddenTypes.Contains(typeName);
+    }
+
+    public bool TryGetHiddenMembers(string typeName, out HashSet<MemberShape> members)
+    {
+        return hiddenMembersByType.TryGetValue(typeName, out members!);
+    }
+
+    public bool TryGetHiddenFields(string typeName, out HashSet<string> fields)
+    {
+        return hiddenFieldsByType.TryGetValue(typeName, out fields!);
     }
 }

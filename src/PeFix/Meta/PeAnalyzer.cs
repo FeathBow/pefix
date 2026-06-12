@@ -146,6 +146,7 @@ public static class PeAnalyzer
             MemberSurfaceAnalyzer.ReadFieldRefs(reader),
             MemberSurfaceAnalyzer.ReadSurface(reader),
             ImplAnalyzer.ReadImplUses(reader),
+            AccessScan.ReadAccessInfo(reader),
             ReflScanner.Read(pe));
     }
 

@@ -18,6 +18,7 @@ internal static class DirectoryIssueBuilder
         AddMissingMembers(issues, findings, rel);
         AddMissingFields(issues, findings, rel);
         AddMissingImpls(issues, findings, rel);
+        AddInaccessible(issues, findings, rel);
         return [.. issues];
     }
 
@@ -146,6 +147,37 @@ internal static class DirectoryIssueBuilder
                 memberName,
                 paramCount,
                 MemberSurfaceAnalyzer.ConservativeMatchingTier,
+                providedBy));
+    }
+
+    private static void AddInaccessible(
+        List<DirectoryIssue> issues,
+        RefFinding[] findings,
+        PathRelativizer rel)
+    {
+        foreach (RefFinding gap in Ordered(findings, RefOutcome.AccessGap)
+            .ThenBy(item => item.TypeName, StringComparer.Ordinal)
+            .ThenBy(item => item.MemberName, StringComparer.Ordinal))
+            issues.Add(CreateInaccessibleIssue(gap, rel));
+    }
+
+    private static DirectoryIssue CreateInaccessibleIssue(RefFinding gap, PathRelativizer rel)
+    {
+        string requiredBy = rel.RelativePath(gap.ConsumerPath);
+        string providedBy = rel.RelativePath(Required(gap.ProviderPath, nameof(gap.ProviderPath)));
+        string typeName = Required(gap.TypeName, nameof(gap.TypeName));
+        string summary = gap.MemberName is { } memberName
+            ? $"Member '{typeName}.{memberName}' in {providedBy} is internal or private and not visible to {requiredBy}."
+            : $"Type '{typeName}' in {providedBy} is internal and not visible to {requiredBy}.";
+        return RepairGuide.ForIssue(
+            IssueCode.Inaccessible,
+            gap.ReferenceName,
+            summary,
+            [requiredBy, providedBy],
+            IssueEvidence.ForInaccessible(
+                typeName,
+                gap.MemberName,
+                gap.ParameterCount,
                 providedBy));
     }
 

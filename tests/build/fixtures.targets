@@ -186,6 +186,22 @@
       <Staged>F52_impl_consumer.dll</Staged>
       <Assembly>ImplConsumer</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\AccessProvIvt\AccessProvIvt.csproj">
+      <Staged>F53_access_provider_ivt.dll</Staged>
+      <Assembly>AccessProvider</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\AccessProvBare\AccessProvBare.csproj">
+      <Staged>F54_access_provider_bare.dll</Staged>
+      <Assembly>AccessProvider</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\AccessConsumer\AccessConsumer.csproj">
+      <Staged>F55_access_consumer.dll</Staged>
+      <Assembly>AccessConsumer</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\AccessSkipper\AccessSkipper.csproj">
+      <Staged>F56_access_skipper.dll</Staged>
+      <Assembly>AccessSkipper</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>

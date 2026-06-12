@@ -8,6 +8,7 @@ public enum RefOutcome
     FieldGap,
     TypeGap,
     ImplGap,
+    AccessGap,
     DuplicateProvider,
     ReflectionMissing
 }

@@ -9,4 +9,5 @@ public readonly record struct ScanReport(
     MemberRefGap[] MemberRefGaps,
     TypeRefGap[] TypeRefGaps,
     FieldRefGap[] FieldRefGaps,
-    ImplGap[] ImplGaps);
+    ImplGap[] ImplGaps,
+    AccessGap[] AccessGaps);

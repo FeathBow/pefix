@@ -84,6 +84,9 @@ internal static partial class MemberSurfaceAnalyzer
         Dictionary<string, HashSet<MemberShape>> membersByType = new(StringComparer.Ordinal);
         Dictionary<string, HashSet<string>> fieldsByType = new(StringComparer.Ordinal);
         Dictionary<string, IfaceSurface> ifaceByType = new(StringComparer.Ordinal);
+        HashSet<string> hiddenTypes = new(StringComparer.Ordinal);
+        Dictionary<string, HashSet<MemberShape>> hiddenMembersByType = new(StringComparer.Ordinal);
+        Dictionary<string, HashSet<string>> hiddenFieldsByType = new(StringComparer.Ordinal);
         foreach (TypeDefinitionHandle typeHandle in reader.TypeDefinitions)
         {
             TypeDefinition typeDef = reader.GetTypeDefinition(typeHandle);
@@ -91,13 +94,89 @@ internal static partial class MemberSurfaceAnalyzer
             typeNames.Add(typeName);
             HashSet<MemberShape> members = ReadMethods(reader, typeDef);
             membersByType[typeName] = members;
-            fieldsByType[typeName] = ReadFields(reader, typeDef);
+            HashSet<MemberShape> hiddenMembers = HiddenMembers(reader, typeDef, members);
+            if (hiddenMembers.Count > 0)
+                hiddenMembersByType[typeName] = hiddenMembers;
+
+            HashSet<string> fields = ReadFields(reader, typeDef);
+            fieldsByType[typeName] = fields;
+            HashSet<string> hiddenFields = HiddenFields(reader, typeDef, fields);
+            if (hiddenFields.Count > 0)
+                hiddenFieldsByType[typeName] = hiddenFields;
+
+            if (IsHiddenTopLevel(typeDef))
+                hiddenTypes.Add(typeName);
+
             if ((typeDef.Attributes & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface)
                 ifaceByType[typeName] = ReadIface(reader, typeDef);
         }
 
         AddForwardedTypes(reader, typeNames);
-        return new MemSurface(typeNames, membersByType, fieldsByType, ifaceByType);
+        return new MemSurface(
+            typeNames,
+            membersByType,
+            fieldsByType,
+            ifaceByType,
+            hiddenTypes,
+            hiddenMembersByType,
+            hiddenFieldsByType);
+    }
+
+    private static bool IsHiddenTopLevel(TypeDefinition typeDef)
+    {
+        return typeDef.GetDeclaringType().IsNil
+            && (typeDef.Attributes & TypeAttributes.VisibilityMask) == TypeAttributes.NotPublic;
+    }
+
+    private static HashSet<MemberShape> HiddenMembers(
+        MetadataReader reader,
+        TypeDefinition typeDef,
+        HashSet<MemberShape> members)
+    {
+        HashSet<MemberShape> visible = [];
+        foreach (MethodDefinitionHandle methodHandle in typeDef.GetMethods())
+        {
+            MethodDefinition method = reader.GetMethodDefinition(methodHandle);
+            if (!IsVisible(method.Attributes & MethodAttributes.MemberAccessMask))
+                continue;
+
+            if (TryDecodeParamCount(method, out int paramCount))
+                visible.Add(new MemberShape(reader.GetString(method.Name), paramCount));
+        }
+
+        return [.. members.Where(member => !visible.Contains(member))];
+    }
+
+    private static HashSet<string> HiddenFields(
+        MetadataReader reader,
+        TypeDefinition typeDef,
+        HashSet<string> fields)
+    {
+        HashSet<string> visible = new(StringComparer.Ordinal);
+        foreach (FieldDefinitionHandle fieldHandle in typeDef.GetFields())
+        {
+            FieldDefinition field = reader.GetFieldDefinition(fieldHandle);
+            if (IsVisible(field.Attributes & FieldAttributes.FieldAccessMask))
+                visible.Add(reader.GetString(field.Name));
+        }
+
+        HashSet<string> hidden = new(StringComparer.Ordinal);
+        hidden.UnionWith(fields.Where(field => !visible.Contains(field)));
+        return hidden;
+    }
+
+    private static bool IsVisible(MethodAttributes access)
+    {
+        return access is MethodAttributes.Public
+            or MethodAttributes.Family
+            or MethodAttributes.FamORAssem;
+    }
+
+    private static bool IsVisible(FieldAttributes access)
+    {
+        return access is FieldAttributes.Public
+            or FieldAttributes.Family
+            or FieldAttributes.FamORAssem;
     }
 
     private static IfaceSurface ReadIface(MetadataReader reader, TypeDefinition typeDef)

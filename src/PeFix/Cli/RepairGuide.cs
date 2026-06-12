@@ -117,6 +117,10 @@ internal static class RepairGuide
                     "Rebuild the implementing assembly against the interface surface shipped by the provider.",
                     "Install provider and consumer assemblies built against the same interface surface, or rebuild the implementing class so it implements every interface member.",
                     "Default interface implementations outside the scanned directory and runtime load success are not proven."),
+                IssueCode.Inaccessible => Assisted(
+                    "Use a public provider API, or ship a provider that grants InternalsVisibleTo to the consumer.",
+                    "Rebuild the consumer against the provider's public API, install a provider that grants InternalsVisibleTo, or declare IgnoresAccessChecksTo deliberately.",
+                    "Relaxed runtime access checks (Mono) and reflection-based access are not proven."),
                 IssueCode.ReflectionMissing => Assisted(
                     "Install or restore the assembly named by the reflection load string.",
                     "Install the reflected assembly into the scanned directory or remove the literal reflection load.",
