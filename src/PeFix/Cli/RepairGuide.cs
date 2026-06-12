@@ -109,6 +109,10 @@ internal static class RepairGuide
                     "Align the referencing assembly and provider assembly so the referenced member exists.",
                     "Install provider and consumer assemblies built against the same API surface, or restore the package version that exposes the referenced member.",
                     "Full signature compatibility, reflection usage, and runtime load success are not proven."),
+                IssueCode.MissingField => Assisted(
+                    "Align the referencing assembly and provider assembly so the referenced field exists.",
+                    "Install provider and consumer assemblies built against the same field surface, or restore the package version that exposes the referenced field.",
+                    "Field compatibility, reflection usage, and runtime load success are not proven."),
                 IssueCode.ReflectionMissing => Assisted(
                     "Install or restore the assembly named by the reflection load string.",
                     "Install the reflected assembly into the scanned directory or remove the literal reflection load.",

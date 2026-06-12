@@ -16,6 +16,7 @@ internal static class DirectoryIssueBuilder
         AddDuplicates(issues, findings, rel);
         AddMissingTypes(issues, findings, rel);
         AddMissingMembers(issues, findings, rel);
+        AddMissingFields(issues, findings, rel);
         return [.. issues];
     }
 
@@ -92,6 +93,17 @@ internal static class DirectoryIssueBuilder
             issues.Add(CreateMissingMemberIssue(gap, rel));
     }
 
+    private static void AddMissingFields(
+        List<DirectoryIssue> issues,
+        RefFinding[] findings,
+        PathRelativizer rel)
+    {
+        foreach (RefFinding gap in Ordered(findings, RefOutcome.FieldGap)
+            .ThenBy(item => item.TypeName, StringComparer.Ordinal)
+            .ThenBy(item => item.MemberName, StringComparer.Ordinal))
+            issues.Add(CreateMissingFieldIssue(gap, rel));
+    }
+
     private static void AddMissingTypes(
         List<DirectoryIssue> issues,
         RefFinding[] findings,
@@ -129,6 +141,22 @@ internal static class DirectoryIssueBuilder
                 Required(gap.MemberName, nameof(gap.MemberName)),
                 Required(gap.ParameterCount, nameof(gap.ParameterCount)),
                 MemberSurfaceAnalyzer.ConservativeMatchingTier,
+                providedBy));
+    }
+
+    private static DirectoryIssue CreateMissingFieldIssue(RefFinding gap, PathRelativizer rel)
+    {
+        string requiredBy = rel.RelativePath(gap.ConsumerPath);
+        string providedBy = rel.RelativePath(Required(gap.ProviderPath, nameof(gap.ProviderPath)));
+        return RepairGuide.ForIssue(
+            IssueCode.MissingField,
+            gap.ReferenceName,
+            $"{requiredBy} references field {Required(gap.TypeName, nameof(gap.TypeName))}.{Required(gap.MemberName, nameof(gap.MemberName))} on {gap.ReferenceName}, but {providedBy} does not expose a matching field at tier {MemberSurfaceAnalyzer.FieldTier}.",
+            [requiredBy, providedBy],
+            IssueEvidence.ForMissingField(
+                Required(gap.TypeName, nameof(gap.TypeName)),
+                Required(gap.MemberName, nameof(gap.MemberName)),
+                MemberSurfaceAnalyzer.FieldTier,
                 providedBy));
     }
 

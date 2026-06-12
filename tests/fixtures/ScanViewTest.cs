@@ -19,6 +19,7 @@ public sealed class ScanViewTest
             [new MissingReference("System.Text.Json", "8.0.0.0", Abs("mods/Fix.dll"))],
             [new DuplicateProvider("Newtonsoft.Json", [Abs("plugins/A/Newtonsoft.Json.dll"), Abs("plugins/B/Newtonsoft.Json.dll")])],
             [],
+            [],
             []),
             withJson: true);
         ScanView view = scan.View;
@@ -75,6 +76,7 @@ public sealed class ScanViewTest
             [],
             [],
             [],
+            [],
             []),
             withJson: false);
         ScanView view = scan.View;
@@ -95,6 +97,7 @@ public sealed class ScanViewTest
             [],
             [],
             [],
+            [],
             []),
             withJson: false);
 
@@ -108,7 +111,7 @@ public sealed class ScanViewTest
     public void Scan_AdvisoryIssueDoesNotFailIssueGate()
     {
         ScanResult scan = ScanBuild.Build(
-            new ScanReport(Root, [Compatible("mods/Ok.dll")], [], [], [], [], []),
+            new ScanReport(Root, [Compatible("mods/Ok.dll")], [], [], [], [], [], []),
             withJson: true,
             findings: [AdvisoryMissingReference()]);
         ScanView view = scan.View;

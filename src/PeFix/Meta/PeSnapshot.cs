@@ -36,10 +36,12 @@ internal readonly record struct PeReadResult(
 
 internal sealed class PeView(
     MethodRefUse[] methodRefs,
+    FieldRefUse[] fieldRefs,
     MemSurface memberSurface,
     ReflScan reflection)
 {
     public MethodRefUse[] MethodRefs { get; } = methodRefs;
+    public FieldRefUse[] FieldRefs { get; } = fieldRefs;
     public MemSurface MemSurface { get; } = memberSurface;
     public ReflScan Reflection { get; } = reflection;
 }
@@ -50,11 +52,21 @@ internal readonly record struct MethodRefUse(
     string MemberName,
     int ParameterCount);
 
+internal readonly record struct FieldRefUse(
+    string AssemblyName,
+    string TypeName,
+    string FieldName);
+
+internal readonly record struct TypeRefUse(
+    string AssemblyName,
+    string TypeName);
+
 internal readonly record struct MemberShape(string Name, int ParameterCount);
 
 internal sealed class MemSurface(
     HashSet<string> typeNames,
-    Dictionary<string, HashSet<MemberShape>> membersByType)
+    Dictionary<string, HashSet<MemberShape>> membersByType,
+    Dictionary<string, HashSet<string>> fieldsByType)
 {
     public bool ContainsType(string typeName)
     {
@@ -64,5 +76,10 @@ internal sealed class MemSurface(
     public bool TryGetMembers(string typeName, out HashSet<MemberShape> members)
     {
         return membersByType.TryGetValue(typeName, out members!);
+    }
+
+    public bool TryGetFields(string typeName, out HashSet<string> fields)
+    {
+        return fieldsByType.TryGetValue(typeName, out fields!);
     }
 }

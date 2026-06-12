@@ -162,6 +162,18 @@
       <Staged>F46_reflection_cctor.dll</Staged>
       <Assembly>ReflCctor</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\FieldProviderThin\FieldProviderThin.csproj">
+      <Staged>F47_field_provider_thin.dll</Staged>
+      <Assembly>FieldProvider</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\FieldProviderFull\FieldProviderFull.csproj">
+      <Staged>F48_field_provider_full.dll</Staged>
+      <Assembly>FieldProvider</Assembly>
+    </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\FieldConsumer\FieldConsumer.csproj">
+      <Staged>F49_field_consumer.dll</Staged>
+      <Assembly>FieldConsumer</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>

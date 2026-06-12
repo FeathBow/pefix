@@ -123,6 +123,40 @@ public sealed class DirectoryIssueBuilderTests
     }
 
     [Fact]
+    public void Build_MissingFieldIssue()
+    {
+        DirectoryIssue issue = SingleIssue(new RefFinding(
+            Tier: RefTier.MemSurface,
+            Resolution: RefOutcome.FieldGap,
+            Confidence: Confidence.Gate,
+            ConsumerPath: Abs("Plugin.dll"),
+            ReferenceName: "Shared.Core",
+            TypeName: "Shared.Api",
+            MemberName: "Value",
+            ParameterCount: null,
+            ExpectedVersion: null,
+            ActualVersion: null,
+            ProviderPath: Abs("Shared.Core.dll"),
+            ProviderPaths: null));
+
+        AssertIssue(
+            issue,
+            IssueCode.MissingField,
+            "Shared.Core",
+            ["Plugin.dll", "Shared.Core.dll"],
+            "Align the referencing assembly and provider assembly",
+            "runtime load success");
+        Assert.Contains("Shared.Api.Value", issue.Summary);
+        Assert.Contains("tier name", issue.Summary);
+        Assert.Contains("does not expose a matching field", issue.Summary);
+        Assert.Equal("Shared.Api", issue.Evidence?.TypeName);
+        Assert.Equal("Value", issue.Evidence?.MemberName);
+        Assert.Null(issue.Evidence?.ParameterCount);
+        Assert.Equal("name", issue.Evidence?.MatchingTier);
+        Assert.Equal("Shared.Core.dll", issue.Evidence?.ProviderFile);
+    }
+
+    [Fact]
     public void Build_MissingTypeIssue()
     {
         DirectoryIssue issue = SingleIssue(new RefFinding(

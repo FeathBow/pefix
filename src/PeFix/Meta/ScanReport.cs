@@ -7,4 +7,5 @@ public readonly record struct ScanReport(
     MissingReference[] MissingReferences,
     DuplicateProvider[] DuplicateProviders,
     MemberRefGap[] MemberRefGaps,
-    TypeRefGap[] TypeRefGaps);
+    TypeRefGap[] TypeRefGaps,
+    FieldRefGap[] FieldRefGaps);

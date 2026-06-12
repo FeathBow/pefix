@@ -1,14 +1,14 @@
-using System.Collections.Immutable;
 using System.Reflection;
 using System.Reflection.Metadata;
 
 namespace PeFix.Meta;
 
-internal static class MemberSurfaceAnalyzer
+internal static partial class MemberSurfaceAnalyzer
 {
     private const TypeAttributes ForwarderAttr = (TypeAttributes)0x00200000;
 
     internal const string ConservativeMatchingTier = "name+parameter-count";
+    internal const string FieldTier = "name";
 
     public static MemberRefGap[] FindMethodGaps(IReadOnlyList<Inspection> inspections, DependencyIndex dependencies)
     {
@@ -52,9 +52,9 @@ internal static class MemberSurfaceAnalyzer
             if (consumer.View is not { } view)
                 continue;
 
-            foreach (MethodRefUse methodRef in view.MethodRefs)
+            foreach (TypeRefUse typeRef in TypeRefs(view))
             {
-                if (TryBuildTypeRefGap(methodRef, dependencies, consumer, out TypeRefGap gap))
+                if (TryBuildTypeRefGap(typeRef, dependencies, consumer, out TypeRefGap gap))
                     gaps.Add(gap);
             }
         }
@@ -82,6 +82,7 @@ internal static class MemberSurfaceAnalyzer
     {
         HashSet<string> typeNames = new(StringComparer.Ordinal);
         Dictionary<string, HashSet<MemberShape>> membersByType = new(StringComparer.Ordinal);
+        Dictionary<string, HashSet<string>> fieldsByType = new(StringComparer.Ordinal);
         foreach (TypeDefinitionHandle typeHandle in reader.TypeDefinitions)
         {
             TypeDefinition typeDef = reader.GetTypeDefinition(typeHandle);
@@ -89,10 +90,11 @@ internal static class MemberSurfaceAnalyzer
             typeNames.Add(typeName);
             HashSet<MemberShape> members = ReadMethods(reader, typeDef);
             membersByType[typeName] = members;
+            fieldsByType[typeName] = ReadFields(reader, typeDef);
         }
 
         AddForwardedTypes(reader, typeNames);
-        return new MemSurface(typeNames, membersByType);
+        return new MemSurface(typeNames, membersByType, fieldsByType);
     }
 
     private static void AddForwardedTypes(MetadataReader reader, HashSet<string> typeNames)
@@ -124,6 +126,20 @@ internal static class MemberSurfaceAnalyzer
         }
 
         return members;
+    }
+
+    private static HashSet<string> ReadFields(
+        MetadataReader reader,
+        TypeDefinition typeDef)
+    {
+        HashSet<string> fields = new(StringComparer.Ordinal);
+        foreach (FieldDefinitionHandle fieldHandle in typeDef.GetFields())
+        {
+            FieldDefinition field = reader.GetFieldDefinition(fieldHandle);
+            fields.Add(reader.GetString(field.Name));
+        }
+
+        return fields;
     }
 
     private static bool TryReadMethodRef(
@@ -189,27 +205,27 @@ internal static class MemberSurfaceAnalyzer
     }
 
     private static bool TryBuildTypeRefGap(
-        MethodRefUse methodRef,
+        TypeRefUse typeRef,
         DependencyIndex dependencies,
         Inspection consumer,
         out TypeRefGap gap)
     {
         gap = default;
-        if (dependencies.ClassifyProvided(methodRef.AssemblyName) != ProvidedKind.None)
+        if (dependencies.ClassifyProvided(typeRef.AssemblyName) != ProvidedKind.None)
             return false;
 
-        if (!dependencies.TryGetProvider(methodRef.AssemblyName, out Inspection provider))
+        if (!dependencies.TryGetProvider(typeRef.AssemblyName, out Inspection provider))
             return false;
 
         if (provider.View is not { } providerView)
             return false;
 
-        if (providerView.MemSurface.ContainsType(methodRef.TypeName))
+        if (providerView.MemSurface.ContainsType(typeRef.TypeName))
             return false;
 
         gap = new TypeRefGap(
-            methodRef.AssemblyName,
-            methodRef.TypeName,
+            typeRef.AssemblyName,
+            typeRef.TypeName,
             consumer.Path,
             provider.Path);
         return true;
@@ -259,21 +275,4 @@ internal static class MemberSurfaceAnalyzer
         return nsValue.Length == 0 ? typeName : $"{nsValue}.{typeName}";
     }
 
-    private sealed class ParamCounter : ISignatureTypeProvider<int, object?>
-    {
-        public int GetArrayType(int elementType, ArrayShape shape) => elementType;
-        public int GetByReferenceType(int elementType) => elementType;
-        public int GetFunctionPointerType(MethodSignature<int> signature) => signature.ParameterTypes.Length;
-        public int GetGenericInstantiation(int genericType, ImmutableArray<int> typeArguments) => genericType;
-        public int GetGenericMethodParameter(object? genericContext, int index) => index;
-        public int GetGenericTypeParameter(object? genericContext, int index) => index;
-        public int GetModifiedType(int modifierType, int unmodifiedType, bool isRequired) => unmodifiedType;
-        public int GetPinnedType(int elementType) => elementType;
-        public int GetPointerType(int elementType) => elementType;
-        public int GetPrimitiveType(PrimitiveTypeCode typeCode) => 0;
-        public int GetSZArrayType(int elementType) => elementType;
-        public int GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind) => 0;
-        public int GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind) => 0;
-        public int GetTypeFromSpecification(MetadataReader reader, object? genericContext, TypeSpecificationHandle handle, byte rawTypeKind) => 0;
-    }
 }

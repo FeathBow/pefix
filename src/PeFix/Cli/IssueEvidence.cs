@@ -57,6 +57,19 @@ internal sealed record IssueEvidence(
             ProviderFile: providedBy);
     }
 
+    public static IssueEvidence ForMissingField(
+        string typeName,
+        string member,
+        string matchingTier,
+        string providedBy)
+    {
+        return new IssueEvidence(
+            TypeName: typeName,
+            MemberName: member,
+            MatchingTier: matchingTier,
+            ProviderFile: providedBy);
+    }
+
     public static IssueEvidence ForMissingType(
         string typeName,
         string providedBy)

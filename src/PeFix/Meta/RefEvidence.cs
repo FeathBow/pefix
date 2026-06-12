@@ -13,7 +13,8 @@ public static class RefEvidence
             dependencies.FindMissingReferences(inspections),
             DependencyIndex.FindDuplicateProviders(inspections),
             MemberSurfaceAnalyzer.FindMethodGaps(inspections, dependencies),
-            MemberSurfaceAnalyzer.FindTypeGaps(inspections, dependencies));
+            MemberSurfaceAnalyzer.FindTypeGaps(inspections, dependencies),
+            MemberSurfaceAnalyzer.FindFieldGaps(inspections, dependencies));
     }
 
     public static RefFinding[] Collect(ScanReport report)
@@ -23,7 +24,8 @@ public static class RefEvidence
             report.MissingReferences,
             report.DuplicateProviders,
             report.MemberRefGaps,
-            report.TypeRefGaps);
+            report.TypeRefGaps,
+            report.FieldRefGaps);
     }
 
     public static RefFinding[] Collect(
@@ -43,7 +45,8 @@ public static class RefEvidence
         MissingReference[] missingReferences,
         DuplicateProvider[] duplicateProviders,
         MemberRefGap[] memberGaps,
-        TypeRefGap[] typeGaps)
+        TypeRefGap[] typeGaps,
+        FieldRefGap[] fieldGaps)
     {
         List<RefFinding> findings = [];
         findings.AddRange(MapConflicts(conflicts));
@@ -51,6 +54,7 @@ public static class RefEvidence
         findings.AddRange(MapDuplicateProviders(duplicateProviders));
         findings.AddRange(MapMemberGaps(memberGaps));
         findings.AddRange(MapTypeGaps(typeGaps));
+        findings.AddRange(MapFieldGaps(fieldGaps));
         return [.. findings];
     }
 
@@ -132,6 +136,23 @@ public static class RefEvidence
             ReferenceName: gap.AssemblyName,
             TypeName: gap.TypeName,
             MemberName: null,
+            ParameterCount: null,
+            ExpectedVersion: null,
+            ActualVersion: null,
+            ProviderPath: gap.ProviderPath,
+            ProviderPaths: null));
+    }
+
+    private static IEnumerable<RefFinding> MapFieldGaps(FieldRefGap[] gaps)
+    {
+        return gaps.Select(gap => new RefFinding(
+            Tier: RefTier.MemSurface,
+            Resolution: RefOutcome.FieldGap,
+            Confidence: Confidence.Gate,
+            ConsumerPath: gap.ConsumerPath,
+            ReferenceName: gap.AssemblyName,
+            TypeName: gap.TypeName,
+            MemberName: gap.FieldName,
             ParameterCount: null,
             ExpectedVersion: null,
             ActualVersion: null,

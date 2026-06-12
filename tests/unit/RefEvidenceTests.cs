@@ -75,6 +75,25 @@ public sealed class RefEvidenceTests : IDisposable
     }
 
     [Fact]
+    public void Collect_MapsFieldGaps()
+    {
+        _temp.Copy("F49_field_consumer.dll");
+        File.Copy(Paths.Get("F47_field_provider_thin.dll"), Path.Combine(_temp.DirPath, "FieldProvider.dll"));
+        Inspection[] inspections = Inspect();
+        DependencyIndex dependencies = Dependencies(inspections);
+        FieldRefGap[] expected = MemberSurfaceAnalyzer.FindFieldGaps(inspections, dependencies);
+
+        RefFinding[] actual = Findings(inspections, RefOutcome.FieldGap);
+
+        Assert.Equal(expected.Length, actual.Length);
+        Assert.Equal(
+            expected.Select(item => (item.AssemblyName, item.TypeName, item.FieldName, item.ConsumerPath, item.ProviderPath)),
+            actual.Select(item => (item.ReferenceName, item.TypeName!, item.MemberName!, item.ConsumerPath, item.ProviderPath!)));
+        Assert.All(actual, item => Assert.Equal(RefTier.MemSurface, item.Tier));
+        Assert.All(actual, item => Assert.Equal(Confidence.Gate, item.Confidence));
+    }
+
+    [Fact]
     public void Collect_MapsTypeGaps()
     {
         _temp.Copy("F36_member_consumer.dll");

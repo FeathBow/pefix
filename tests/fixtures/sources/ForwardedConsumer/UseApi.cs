@@ -2,5 +2,5 @@ namespace ForwardedConsumer;
 
 public sealed class UseApi
 {
-    public int Run() => ForwardedProvider.Api.Foo(3);
+    public int Run() => ForwardedProvider.Api.Foo(3) + ForwardedProvider.Api.Value;
 }

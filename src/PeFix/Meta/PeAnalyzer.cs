@@ -143,6 +143,7 @@ public static class PeAnalyzer
         PeRead pe = new(path, peReader, reader);
         return new PeView(
             MemberSurfaceAnalyzer.ReadMethodRefs(reader),
+            MemberSurfaceAnalyzer.ReadFieldRefs(reader),
             MemberSurfaceAnalyzer.ReadSurface(reader),
             ReflScanner.Read(pe));
     }
