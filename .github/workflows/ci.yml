@@ -51,7 +51,7 @@ jobs:
           --
           --coverlet
           --coverlet-output-format cobertura
-          --coverlet-include "[PeFix]*"
+          --coverlet-include "[pefix]*"
           --coverlet-exclude-by-file "**/obj/**"
           --report-xunit-trx
 
