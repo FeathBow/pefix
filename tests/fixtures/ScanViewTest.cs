@@ -15,14 +15,12 @@ public sealed class ScanViewTest
         ScanResult scan = ScanBuild.Build(new ScanReport(
             Root,
             [Fixable("mods/Fix.dll"), Compatible("mods/Ok.dll")],
-            [new VersionConflict("Dependency", "1.0.0.0", "2.0.0.0", Abs("mods/Fix.dll"), Abs("providers/Dependency.dll"))],
-            [new MissingReference("System.Text.Json", "8.0.0.0", Abs("mods/Fix.dll"))],
-            [new DuplicateProvider("Newtonsoft.Json", [Abs("plugins/A/Newtonsoft.Json.dll"), Abs("plugins/B/Newtonsoft.Json.dll")])],
-            [],
-            [],
-            [],
-            [],
-            []),
+            new GapSet
+            {
+                Conflicts = [new VersionConflict("Dependency", "1.0.0.0", "2.0.0.0", Abs("mods/Fix.dll"), Abs("providers/Dependency.dll"))],
+                MissingReferences = [new MissingReference("System.Text.Json", "8.0.0.0", Abs("mods/Fix.dll"))],
+                DuplicateProviders = [new DuplicateProvider("Newtonsoft.Json", [Abs("plugins/A/Newtonsoft.Json.dll"), Abs("plugins/B/Newtonsoft.Json.dll")])]
+            }),
             withJson: true);
         ScanView view = scan.View;
         ScanParts json = scan.Json ?? throw new InvalidOperationException("JSON context was not built.");
@@ -71,17 +69,8 @@ public sealed class ScanViewTest
     [Fact]
     public void Scan_TextStatesPassingStaticBoundary()
     {
-        ScanResult scan = ScanBuild.Build(new ScanReport(
-            Root,
-            [Compatible("mods/Ok.dll")],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            []),
+        ScanResult scan = ScanBuild.Build(
+            new ScanReport(Root, [Compatible("mods/Ok.dll")], GapSet.Empty),
             withJson: false);
         ScanView view = scan.View;
 
@@ -94,17 +83,8 @@ public sealed class ScanViewTest
     [Fact]
     public void Scan_TextCallsOutBlockingFileDiagnostics()
     {
-        ScanResult scan = ScanBuild.Build(new ScanReport(
-            Root,
-            [NewInspect("mods/Ref.dll", Status.Unsafe, "ref_assembly")],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            []),
+        ScanResult scan = ScanBuild.Build(
+            new ScanReport(Root, [NewInspect("mods/Ref.dll", Status.Unsafe, "ref_assembly")], GapSet.Empty),
             withJson: false);
 
         string text = ScanOut.Render(scan.View);
@@ -117,7 +97,7 @@ public sealed class ScanViewTest
     public void Scan_AdvisoryIssueDoesNotFailIssueGate()
     {
         ScanResult scan = ScanBuild.Build(
-            new ScanReport(Root, [Compatible("mods/Ok.dll")], [], [], [], [], [], [], [], []),
+            new ScanReport(Root, [Compatible("mods/Ok.dll")], GapSet.Empty),
             withJson: true,
             findings: [AdvisoryMissingReference()]);
         ScanView view = scan.View;

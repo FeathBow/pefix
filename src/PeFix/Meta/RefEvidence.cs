@@ -8,21 +8,12 @@ public static class RefEvidence
         ArgumentNullException.ThrowIfNull(hostProfile);
 
         var dependencies = DependencyIndex.Build(inspections, hostProfile);
-        return Collect(
-            dependencies.FindConflicts(inspections),
-            dependencies.FindMissingReferences(inspections),
-            DependencyIndex.FindDuplicateProviders(inspections),
-            MemberSurfaceAnalyzer.FindMethodGaps(inspections, dependencies),
-            MemberSurfaceAnalyzer.FindTypeGaps(inspections, dependencies),
-            MemberSurfaceAnalyzer.FindFieldGaps(inspections, dependencies),
-            ImplAnalyzer.FindImplGaps(inspections, dependencies),
-            AccessScan.FindAccessGaps(inspections, dependencies),
-            publishDirProfile: false);
+        return Collect(Scanner.FindGaps(inspections, dependencies), publishDirProfile: false);
     }
 
     public static RefFinding[] Collect(ScanReport report)
     {
-        return Collect(report, publishDirProfile: false);
+        return Collect(report.Gaps, publishDirProfile: false);
     }
 
     public static RefFinding[] Collect(
@@ -32,45 +23,22 @@ public static class RefEvidence
     {
         ArgumentNullException.ThrowIfNull(hostProfile);
 
-        RefFinding[] staticFindings = Collect(report, publishDirProfile);
+        RefFinding[] staticFindings = Collect(report.Gaps, publishDirProfile);
         ReflScan reflection = ReflScanner.Scan(report.Results, hostProfile);
         return [.. staticFindings, .. MapReflection(reflection, publishDirProfile)];
     }
 
-    private static RefFinding[] Collect(ScanReport report, bool publishDirProfile)
-    {
-        return Collect(
-            report.Conflicts,
-            report.MissingReferences,
-            report.DuplicateProviders,
-            report.MemberRefGaps,
-            report.TypeRefGaps,
-            report.FieldRefGaps,
-            report.ImplGaps,
-            report.AccessGaps,
-            publishDirProfile);
-    }
-
-    private static RefFinding[] Collect(
-        VersionConflict[] conflicts,
-        MissingReference[] missingReferences,
-        DuplicateProvider[] duplicateProviders,
-        MemberRefGap[] memberGaps,
-        TypeRefGap[] typeGaps,
-        FieldRefGap[] fieldGaps,
-        ImplGap[] implGaps,
-        AccessGap[] accessGaps,
-        bool publishDirProfile)
+    private static RefFinding[] Collect(GapSet gaps, bool publishDirProfile)
     {
         List<RefFinding> findings = [];
-        findings.AddRange(MapConflicts(conflicts));
-        findings.AddRange(MapMissingReferences(missingReferences));
-        findings.AddRange(MapDuplicateProviders(duplicateProviders));
-        findings.AddRange(MapMemberGaps(memberGaps));
-        findings.AddRange(MapTypeGaps(typeGaps));
-        findings.AddRange(MapFieldGaps(fieldGaps));
-        findings.AddRange(MapImplGaps(implGaps));
-        findings.AddRange(MapAccessGaps(accessGaps, publishDirProfile));
+        findings.AddRange(MapConflicts(gaps.Conflicts));
+        findings.AddRange(MapMissingReferences(gaps.MissingReferences));
+        findings.AddRange(MapDuplicateProviders(gaps.DuplicateProviders));
+        findings.AddRange(MapMemberGaps(gaps.MemberRefGaps));
+        findings.AddRange(MapTypeGaps(gaps.TypeRefGaps));
+        findings.AddRange(MapFieldGaps(gaps.FieldRefGaps));
+        findings.AddRange(MapImplGaps(gaps.ImplGaps));
+        findings.AddRange(MapAccessGaps(gaps.AccessGaps, publishDirProfile));
         return [.. findings];
     }
 

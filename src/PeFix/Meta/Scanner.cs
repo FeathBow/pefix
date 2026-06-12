@@ -6,25 +6,25 @@ public static class Scanner
     {
         DirectoryInspection dir = InspectDir(path);
         var dependencies = DependencyIndex.Build(dir.Results, hostProfile);
-        VersionConflict[] conflicts = dependencies.FindConflicts(dir.Results);
-        MissingReference[] missingReferences = dependencies.FindMissingReferences(dir.Results);
-        DuplicateProvider[] duplicateProviders = DependencyIndex.FindDuplicateProviders(dir.Results);
-        MemberRefGap[] memberRefGaps = MemberSurfaceAnalyzer.FindMethodGaps(dir.Results, dependencies);
-        TypeRefGap[] typeRefGaps = MemberSurfaceAnalyzer.FindTypeGaps(dir.Results, dependencies);
-        FieldRefGap[] fieldRefGaps = MemberSurfaceAnalyzer.FindFieldGaps(dir.Results, dependencies);
-        ImplGap[] implGaps = ImplAnalyzer.FindImplGaps(dir.Results, dependencies);
-        AccessGap[] accessGaps = AccessScan.FindAccessGaps(dir.Results, dependencies);
-        return new ScanReport(
-            dir.Directory,
-            dir.Results,
-            conflicts,
-            missingReferences,
-            duplicateProviders,
-            memberRefGaps,
-            typeRefGaps,
-            fieldRefGaps,
-            implGaps,
-            accessGaps);
+        return new ScanReport(dir.Directory, dir.Results, FindGaps(dir.Results, dependencies));
+    }
+
+    internal static GapSet FindGaps(IReadOnlyList<Inspection> results, DependencyIndex dependencies)
+    {
+        ArgumentNullException.ThrowIfNull(results);
+        ArgumentNullException.ThrowIfNull(dependencies);
+
+        return new GapSet
+        {
+            Conflicts = dependencies.FindConflicts(results),
+            MissingReferences = dependencies.FindMissingReferences(results),
+            DuplicateProviders = DependencyIndex.FindDuplicateProviders(results),
+            MemberRefGaps = MemberSurfaceAnalyzer.FindMethodGaps(results, dependencies),
+            TypeRefGaps = MemberSurfaceAnalyzer.FindTypeGaps(results, dependencies),
+            FieldRefGaps = MemberSurfaceAnalyzer.FindFieldGaps(results, dependencies),
+            ImplGaps = ImplAnalyzer.FindImplGaps(results, dependencies),
+            AccessGaps = AccessScan.FindAccessGaps(results, dependencies)
+        };
     }
 
     public static DirectoryInspection InspectDir(string path)

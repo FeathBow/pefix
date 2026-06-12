@@ -132,7 +132,7 @@ public sealed class ClassTests
         string fixturesDir = Path.GetDirectoryName(Paths.Get("F01_compatible_anycpu.dll"))!;
         ScanReport report = Scanner.Scan(fixturesDir);
         Assert.NotNull(report.Results);
-        Assert.NotNull(report.Conflicts);
+        Assert.NotNull(report.Gaps.Conflicts);
     }
 
     [Fact]
