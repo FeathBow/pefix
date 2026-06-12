@@ -7,12 +7,12 @@ internal static class MetricBuild
     public static ScanMetrics Build(MetricInput input)
     {
         FileMetrics files = CountFiles(input.Files);
-        IssueMetrics issues = CountIssues(input.Issues, files.Need);
+        IssueMetrics issues = CountIssues(input.Issues);
         return new ScanMetrics
         {
             FileCount = input.Files.Length,
             DuplicateCount = input.DuplicateCount,
-            Stats = new ScanStats(files.Counts, issues.Need.Count, files.HasFixable, input.HasConflict),
+            Stats = new ScanStats(files.Counts, files.HasFixable, input.HasConflict),
             ByCategory = files.ByCategory,
             ByAction = files.ByAction,
             ByIssue = issues.ByIssue,
@@ -25,7 +25,6 @@ internal static class MetricBuild
 
     private static FileMetrics CountFiles(ScanFile[] files)
     {
-        var need = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         ScanCounts counts = new(0, 0, 0, 0, 0);
         bool hasFixable = false;
         int blockingFileCount = 0;
@@ -38,9 +37,6 @@ internal static class MetricBuild
             counts = CountStatus(counts, file.Status);
             AddCount(byCategory, file.Category);
             AddCount(byAction, file.ActionText);
-            if (file.NeedsWork)
-                need.Add(file.ViewPath);
-
             if (file.CanPatch)
                 hasFixable = true;
 
@@ -53,7 +49,6 @@ internal static class MetricBuild
 
         return new FileMetrics(
             counts,
-            need,
             hasFixable,
             blockingFileCount,
             blockingReasons,
@@ -61,18 +56,13 @@ internal static class MetricBuild
             byAction);
     }
 
-    private static IssueMetrics CountIssues(DirectoryIssue[] issues, HashSet<string> existingNeed)
+    private static IssueMetrics CountIssues(DirectoryIssue[] issues)
     {
-        var need = new HashSet<string>(existingNeed, StringComparer.OrdinalIgnoreCase);
         var byIssue = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (DirectoryIssue issue in issues)
-        {
             AddCount(byIssue, issue.Code);
-            foreach (string file in issue.Files)
-                need.Add(file);
-        }
 
-        return new IssueMetrics(need, byIssue);
+        return new IssueMetrics(byIssue);
     }
 
     private static string[] GateIssueCodes(DirectoryIssue[] gateIssues)
@@ -103,7 +93,6 @@ internal static class MetricBuild
 
     private sealed record FileMetrics(
         ScanCounts Counts,
-        HashSet<string> Need,
         bool HasFixable,
         int BlockingFileCount,
         HashSet<string> BlockingReasons,
@@ -111,6 +100,5 @@ internal static class MetricBuild
         Dictionary<string, int> ByAction);
 
     private sealed record IssueMetrics(
-        HashSet<string> Need,
         Dictionary<string, int> ByIssue);
 }

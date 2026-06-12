@@ -27,7 +27,6 @@ public sealed class ScanViewTest
 
         Assert.True(view.Stats.HasFixable);
         Assert.True(view.Stats.HasConflict);
-        Assert.Equal(4, view.Stats.NeedCount);
         RefFinding row = RefRows.Of(view.Finds, RefOutcome.VersionConflict)[0];
         Assert.Equal("mods/Fix.dll", row.ConsumerPath);
         Assert.Equal("providers/Dependency.dll", row.ProviderPath);
