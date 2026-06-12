@@ -208,23 +208,9 @@ internal static class JsonWriter
         return new ProfileJson(
             profile.Host.Name,
             profile.Artifact,
-            target.HasValue ? GenerationToken(target.Value.Generation) : null,
-            target.HasValue ? FlavorToken(target.Value.Flavor) : null);
+            target.HasValue ? LoaderText.GenerationToken(target.Value.Generation) : null,
+            target.HasValue ? LoaderText.FlavorToken(target.Value.Flavor) : null);
     }
-
-    private static string? GenerationToken(LoaderGeneration generation) => generation switch
-    {
-        LoaderGeneration.BepInEx5 => "bepinex5",
-        LoaderGeneration.BepInEx6 => "bepinex6",
-        _ => null
-    };
-
-    private static string? FlavorToken(LoaderFlavor flavor) => flavor switch
-    {
-        LoaderFlavor.Mono => "mono",
-        LoaderFlavor.Il2Cpp => "il2cpp",
-        _ => null
-    };
 
     private static BatchFixJson CreateBatch(BatchResult result)
     {

@@ -71,8 +71,8 @@ internal static class InspectMap
                 [.. plugin.Deps.Select(dependency => MapDependency(
                     dependency,
                     input.BepInExProviderIndex.MatchFor(dependency.Guid)))]))],
-            GenerationToken(input.LoaderTarget.Generation),
-            FlavorToken(input.LoaderTarget.Flavor),
+            LoaderText.GenerationToken(input.LoaderTarget.Generation),
+            LoaderText.FlavorToken(input.LoaderTarget.Flavor),
             input.LoaderTarget.LoaderVersion?.ToString(),
             input.LoaderTarget.Reference);
     }
@@ -81,20 +81,6 @@ internal static class InspectMap
     {
         return plugins.Length > 0 ? BepStateCode.Plugin : BepStateCode.Helper;
     }
-
-    private static string? GenerationToken(LoaderGeneration generation) => generation switch
-    {
-        LoaderGeneration.BepInEx5 => "bepinex5",
-        LoaderGeneration.BepInEx6 => "bepinex6",
-        _ => null
-    };
-
-    private static string? FlavorToken(LoaderFlavor flavor) => flavor switch
-    {
-        LoaderFlavor.Mono => "mono",
-        LoaderFlavor.Il2Cpp => "il2cpp",
-        _ => null
-    };
 
     private static BepInExDependencyJson MapDependency(
         BepInExDependencyMetadata dependency,
