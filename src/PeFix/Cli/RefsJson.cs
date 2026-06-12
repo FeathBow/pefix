@@ -23,4 +23,7 @@ internal sealed record RefsJson(
     [property: JsonPropertyName("issues")] ScanIssue[] Issues,
     [property: JsonPropertyName("profiles")] ProfileJson? Profile,
     [property: JsonPropertyName("gate")] ScanGate Gate,
+    [property: JsonPropertyName("baseline")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    BaselineJson? Baseline = null,
     [property: JsonPropertyName("schema_version"), JsonPropertyOrder(-1)] int SchemaVersion = 1);

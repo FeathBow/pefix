@@ -19,6 +19,12 @@ internal static class Scan
         if (!ProfileParser.TryParse(args.Profile, out ScanProfile? profile))
             return CliErr.Usage($"Unsupported scan profile: {args.Profile}");
 
+        if (args.WriteBaseline && args.Baseline is null)
+            return CliErr.Usage("--write-baseline requires --baseline <path>.");
+
+        if (args.Baseline is { } knownPath && !args.WriteBaseline && !File.Exists(knownPath))
+            return CliErr.Usage($"Baseline file not found: {knownPath}. Add --write-baseline to create it.");
+
         ScanReport report;
         try
         {
@@ -36,15 +42,44 @@ internal static class Scan
         ScanResult scan = ScanBuild.Build(report, args.Json, profile, args.References);
         ScanView view = scan.View;
 
+        BaselineDiff? diff = null;
+        string? baselineNote = null;
+        if (args.Baseline is { } baselinePath)
+        {
+            string[] current = Baseline.Lines(view.GateIssues);
+            if (args.WriteBaseline)
+            {
+                if (WriteBaselineFile(baselinePath, current) is { } error)
+                    return error;
+
+                baselineNote = BaselineOut.RenderWritten(baselinePath, current.Length);
+            }
+            else
+            {
+                if (!TryReadBaseline(baselinePath, out string[] known, out CliExit readError))
+                    return readError;
+
+                diff = Baseline.Diff(current, Baseline.Parse(known));
+                baselineNote = BaselineOut.Render(baselinePath, diff);
+            }
+        }
+
         if (args.Json)
         {
             ScanParts json = scan.Json
                 ?? throw new InvalidOperationException("Scan JSON context was not built.");
-            JsonOut.Write(JsonWriter.Render(view, json));
+            BaselineJson? baselineJson = diff is { } d && args.Baseline is { } path
+                ? new BaselineJson(path, d.Matched, d.Fresh, d.Stale)
+                : null;
+            JsonOut.Write(JsonWriter.Render(view, json, baselineJson));
         }
         else
         {
-            Console.WriteLine(ScanOut.Render(view, args.References));
+            string text = ScanOut.Render(view, args.References);
+            if (baselineNote is not null)
+                text = $"{text}{Environment.NewLine}{Environment.NewLine}{baselineNote}";
+
+            Console.WriteLine(text);
         }
 
         if (args.FailOnConflict && view.Stats.HasConflict)
@@ -53,9 +88,51 @@ internal static class Scan
         if (args.FailOnIssue && ShouldFailOnIssue(view))
             return CliExit.Issue;
 
+        if (diff is { } gateDiff && gateDiff.Fresh.Length > 0)
+            return CliExit.Issue;
+
         return threshold is { } t && view.Files.Any(file => GateEval.Meets(file.Status, t))
             ? CliExit.Issue
             : CliExit.Success;
+    }
+
+    private static CliExit? WriteBaselineFile(string path, string[] lines)
+    {
+        try
+        {
+            File.WriteAllLines(path, lines);
+            return null;
+        }
+        catch (IOException ex)
+        {
+            return CliErr.Io(ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return CliErr.Io(ex);
+        }
+    }
+
+    private static bool TryReadBaseline(string path, out string[] known, out CliExit error)
+    {
+        try
+        {
+            known = File.ReadAllLines(path);
+            error = CliExit.Success;
+            return true;
+        }
+        catch (IOException ex)
+        {
+            known = [];
+            error = CliErr.Io(ex);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            known = [];
+            error = CliErr.Io(ex);
+            return false;
+        }
     }
 
     internal static bool ShouldFailOnIssue(ScanView view)
@@ -72,5 +149,7 @@ internal static class Scan
         public required bool FailOnIssue { get; init; }
         public required string? Profile { get; init; }
         public required bool References { get; init; }
+        public required string? Baseline { get; init; }
+        public required bool WriteBaseline { get; init; }
     }
 }

@@ -6,10 +6,10 @@ namespace PeFix.Cli;
 
 internal static class JsonWriter
 {
-    public static string Render(ScanView view, ScanParts json)
+    public static string Render(ScanView view, ScanParts json, BaselineJson? baseline = null)
     {
         if (json.References is { } references)
-            return RenderWithReferences(view, json, references);
+            return RenderWithReferences(view, json, references, baseline);
 
         var output = new ScanJson(
             view.Directory,
@@ -21,7 +21,8 @@ internal static class JsonWriter
             RefRows.Of(view.Finds, RefOutcome.TypeGap),
             [.. view.Issues.Select(MapIssue)],
             MapProfile(json.Profile),
-            json.Gate);
+            json.Gate,
+            baseline);
         return JsonSerializer.Serialize(output, JsonContext.Default.ScanJson);
     }
 
@@ -104,7 +105,8 @@ internal static class JsonWriter
     private static string RenderWithReferences(
         ScanView view,
         ScanParts json,
-        RefEntry[] references)
+        RefEntry[] references,
+        BaselineJson? baseline)
     {
         var output = new RefsJson(
             view.Directory,
@@ -117,7 +119,8 @@ internal static class JsonWriter
             MapReferences(view.Directory, references),
             [.. view.Issues.Select(MapIssue)],
             MapProfile(json.Profile),
-            json.Gate);
+            json.Gate,
+            baseline);
         return JsonSerializer.Serialize(output, JsonContext.Default.RefsJson);
     }
 

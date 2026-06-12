@@ -52,7 +52,7 @@ internal static class ScanBuild
             files,
             refs,
             issueBuild.Issues,
-            metrics.GateIssueCount,
+            issueBuild.GateIssues,
             references);
         ScanParts? json = withJson ? BuildJson(ctx, bepInExExplain, metrics, jsonReferences) : null;
         return new ScanResult(view, json);

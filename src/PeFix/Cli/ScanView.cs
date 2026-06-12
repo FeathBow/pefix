@@ -8,12 +8,12 @@ internal sealed record ScanView(
     ScanFile[] Files,
     RefFinding[] Finds,
     DirectoryIssue[] Issues,
-    int GateIssueCount,
+    DirectoryIssue[] GateIssues,
     RefEntry[] References)
 {
     public bool HasIssues => Issues.Length > 0;
 
-    public bool HasGateIssues => GateIssueCount > 0;
+    public bool HasGateIssues => GateIssues.Length > 0;
 
     public bool HasBlockingFiles => Files.Any(file => file.Status is PeFix.Meta.Status.Unsafe or PeFix.Meta.Status.Corrupt);
 }

@@ -17,7 +17,9 @@ internal static class ScanCmd
             FailOnConflict = r.GetValue(opts.ConflictOpt),
             FailOnIssue = r.GetValue(opts.IssueOpt),
             Profile = r.GetValue(opts.ProfileOpt),
-            References = r.GetValue(opts.ReferencesOpt)
+            References = r.GetValue(opts.ReferencesOpt),
+            Baseline = r.GetValue(opts.BaselineOpt),
+            WriteBaseline = r.GetValue(opts.WriteBaselineOpt)
         }));
         return cmd;
     }
@@ -54,6 +56,16 @@ internal static class ScanCmd
             Description = "Include a reference inventory in text output and JSON."
         };
 
+        public Option<string?> BaselineOpt { get; } = new("--baseline")
+        {
+            Description = "Baseline file of accepted issue lines. Exit with code 1 when a blocking issue is not in the baseline; baselined issues are still reported but do not fail the gate."
+        };
+
+        public Option<bool> WriteBaselineOpt { get; } = new("--write-baseline")
+        {
+            Description = "Write the current blocking issue lines to the --baseline path instead of gating, then exit 0."
+        };
+
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
@@ -62,6 +74,8 @@ internal static class ScanCmd
             cmd.Options.Add(IssueOpt);
             cmd.Options.Add(ProfileOpt);
             cmd.Options.Add(ReferencesOpt);
+            cmd.Options.Add(BaselineOpt);
+            cmd.Options.Add(WriteBaselineOpt);
         }
     }
 }
