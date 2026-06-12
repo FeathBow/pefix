@@ -59,6 +59,9 @@ internal static class ScanOut
     {
         writer.WriteLine($"    - [{issue.Code}] {issue.Subject}: {issue.Summary}");
         writer.WriteLine($"      files: {string.Join(", ", issue.Files)}");
+        if (issue.StaticCtor)
+            writer.WriteLine("      note: static constructor: TypeInitializationException, type becomes unusable");
+
         writer.WriteLine($"      repair: {issue.RepairClass}");
         foreach (string step in issue.NextSteps)
             writer.WriteLine($"      next: {step}");

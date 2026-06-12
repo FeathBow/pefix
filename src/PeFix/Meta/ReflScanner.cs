@@ -88,14 +88,16 @@ internal static partial class ReflScanner
         PEReader peReader,
         MethodDefinitionHandle handle)
     {
-        if (!TryReadInstructions(peReader, reader.GetMethodDefinition(handle), out IlInstr[] instructions))
+        MethodDefinition method = reader.GetMethodDefinition(handle);
+        if (!TryReadInstructions(peReader, method, out IlInstr[] instructions))
         {
             desyncCount++;
             return;
         }
 
         hasResolver |= ContainsResolverRegistration(reader, instructions);
-        AddReflectionReferences(consumerPath, references, reader, instructions);
+        bool staticCtor = reader.GetString(method.Name) == ".cctor";
+        AddReflectionReferences(consumerPath, references, reader, instructions, staticCtor);
     }
 
     private static bool ShouldReportReferences(
@@ -133,7 +135,8 @@ internal static partial class ReflScanner
         string consumerPath,
         List<ReflRef> references,
         MetadataReader reader,
-        IlInstr[] instructions)
+        IlInstr[] instructions,
+        bool staticCtor)
     {
         for (int index = 0; index + 1 < instructions.Length; index++)
         {
@@ -143,7 +146,11 @@ internal static partial class ReflScanner
             if (!TryReadUserString(reader, instructions[index].Operand, out string literal))
                 continue;
 
-            if (!TryCreateReference(reader, instructions[index + 1].Operand, consumerPath, literal, out ReflRef reference))
+            if (!TryCreateReference(
+                new RefReq(reader, instructions[index + 1].Operand, consumerPath),
+                literal,
+                staticCtor,
+                out ReflRef reference))
                 continue;
 
             references.Add(reference);
@@ -161,25 +168,25 @@ internal static partial class ReflScanner
     }
 
     private static bool TryCreateReference(
-        MetadataReader reader,
-        int methodToken,
-        string consumerPath,
+        RefReq req,
         string literal,
+        bool staticCtor,
         out ReflRef reference)
     {
         reference = default;
-        if (!TryReadMethodTarget(reader, methodToken, out MethodTarget target))
+        if (!TryReadMethodTarget(req.Reader, req.MethodToken, out MethodTarget target))
             return false;
 
         if (!TryParseSinkReference(target, literal, out string referenceName, out bool advisoryOnly))
             return false;
 
         reference = new ReflRef(
-            consumerPath,
+            req.ConsumerPath,
             referenceName,
             target.TypeName,
             target.MethodName,
-            advisoryOnly);
+            advisoryOnly,
+            staticCtor);
         return true;
     }
 
@@ -251,10 +258,16 @@ internal static partial class ReflScanner
             reference.ReferenceName,
             reference.SinkType,
             reference.SinkMethod,
-            reference.AdvisoryOnly);
+            reference.AdvisoryOnly,
+            reference.StaticCtor);
     }
 
     private readonly record struct MethodTarget(string TypeName, string MethodName);
+
+    private readonly record struct RefReq(
+        MetadataReader Reader,
+        int MethodToken,
+        string ConsumerPath);
 }
 
 internal readonly record struct ReflScan(
@@ -267,4 +280,5 @@ internal readonly record struct ReflRef(
     string ReferenceName,
     string SinkType,
     string SinkMethod,
-    bool AdvisoryOnly);
+    bool AdvisoryOnly,
+    bool StaticCtor);

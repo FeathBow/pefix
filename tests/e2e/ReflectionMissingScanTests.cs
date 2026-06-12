@@ -51,6 +51,34 @@ public sealed class ReflectionMissingScanTests : IDisposable
         AssertAdvisoryGate(root);
     }
 
+    [Fact]
+    public void CctorJson()
+    {
+        _temp.CopyAll("F46_reflection_cctor.dll");
+
+        CliResult result = CliRunner.Run("scan", _temp.DirPath, "--profile", "publish-dir", "--json", "--fail-on-issue");
+
+        Assert.Equal(0, result.ExitCode);
+        JsonElement root = JsonAssert.ParseObject(result.Stdout);
+        JsonElement issue = ReflectionIssue(root);
+        Assert.Equal("CctorMiss", issue.GetProperty("subject").GetString());
+        Assert.True(issue.GetProperty("in_static_ctor").GetBoolean());
+        AssertAdvisoryGate(root);
+    }
+
+    [Fact]
+    public void CctorText()
+    {
+        _temp.CopyAll("F46_reflection_cctor.dll");
+
+        CliResult result = CliRunner.Run("scan", _temp.DirPath, "--profile", "publish-dir");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains(
+            "note: static constructor: TypeInitializationException, type becomes unusable",
+            result.Stdout);
+    }
+
     public void Dispose() => _temp.Dispose();
 
     private static JsonElement ReflectionIssue(JsonElement root)

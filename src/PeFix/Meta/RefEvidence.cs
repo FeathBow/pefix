@@ -155,7 +155,8 @@ public static class RefEvidence
             ExpectedVersion: null,
             ActualVersion: null,
             ProviderPath: null,
-            ProviderPaths: null));
+            ProviderPaths: null,
+            StaticCtor: reference.StaticCtor));
     }
 
     private static Confidence ReflectionConfidence(
@@ -163,7 +164,10 @@ public static class RefEvidence
         bool hasCustomResolver,
         bool publishDirProfile)
     {
-        return publishDirProfile && !hasCustomResolver && !reference.AdvisoryOnly
+        return publishDirProfile
+            && !hasCustomResolver
+            && !reference.AdvisoryOnly
+            && !reference.StaticCtor
             ? Confidence.Gate
             : Confidence.Advisory;
     }

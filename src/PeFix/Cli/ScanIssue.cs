@@ -12,4 +12,7 @@ internal sealed record ScanIssue(
     [property: JsonPropertyName("repair_hint")] string RepairHint,
     [property: JsonPropertyName("verify_command")] string VerifyCommand,
     [property: JsonPropertyName("unverified_risks")] string[] UnverifiedRisks,
-    [property: JsonPropertyName("evidence")] IssueEvidence? Evidence);
+    [property: JsonPropertyName("evidence")] IssueEvidence? Evidence,
+    [property: JsonPropertyName("in_static_ctor")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    bool StaticCtor = false);

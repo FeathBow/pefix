@@ -10,4 +10,5 @@ internal sealed record DirectoryIssue(
     string RepairHint,
     string VerifyCommand,
     string[] UnverifiedRisks,
-    IssueEvidence? Evidence = null);
+    IssueEvidence? Evidence = null,
+    bool StaticCtor = false);

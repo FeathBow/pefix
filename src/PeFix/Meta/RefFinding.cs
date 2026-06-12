@@ -36,4 +36,5 @@ public readonly record struct RefFinding(
     string? ExpectedVersion,
     string? ActualVersion,
     string? ProviderPath,
-    string[]? ProviderPaths);
+    string[]? ProviderPaths,
+    bool StaticCtor = false);

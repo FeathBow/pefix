@@ -192,7 +192,8 @@ internal static class JsonWriter
             issue.RepairHint,
             issue.VerifyCommand,
             issue.UnverifiedRisks,
-            issue.Evidence);
+            issue.Evidence,
+            issue.StaticCtor);
     }
 
     private static ProfileJson? MapProfile(ScanProfile? profile)

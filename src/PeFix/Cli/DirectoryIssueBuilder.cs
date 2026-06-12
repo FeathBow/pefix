@@ -74,11 +74,12 @@ internal static class DirectoryIssueBuilder
     {
         string consumer = rel.RelativePath(missing.ConsumerPath);
         string sink = $"{Required(missing.TypeName, nameof(missing.TypeName))}.{Required(missing.MemberName, nameof(missing.MemberName))}";
-        return RepairGuide.ForIssue(
+        DirectoryIssue issue = RepairGuide.ForIssue(
             IssueCode.ReflectionMissing,
             missing.ReferenceName,
             $"{consumer} has a literal {sink} load for {missing.ReferenceName}, but no provider was found.",
             [consumer]);
+        return missing.StaticCtor ? issue with { StaticCtor = true } : issue;
     }
 
     private static void AddMissingMembers(

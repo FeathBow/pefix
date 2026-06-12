@@ -158,6 +158,10 @@
       <Staged>F40_reflection_resolver.dll</Staged>
       <Assembly>ReflectionResolver</Assembly>
     </PeFixSource>
+    <PeFixSource Include="$(MSBuildThisFileDirectory)..\fixtures\sources\ReflCctor\ReflCctor.csproj">
+      <Staged>F46_reflection_cctor.dll</Staged>
+      <Assembly>ReflCctor</Assembly>
+    </PeFixSource>
   </ItemGroup>
 
   <ItemGroup>
