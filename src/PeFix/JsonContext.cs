@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using PeFix.Cli;
+using PeFix.Meta;
 using PeFix.Plan;
 
 namespace PeFix;
@@ -30,8 +31,8 @@ namespace PeFix;
 [JsonSerializable(typeof(BepInExDependencyJson[]))]
 [JsonSerializable(typeof(CorFlagsJson))]
 [JsonSerializable(typeof(SignalsJson))]
-[JsonSerializable(typeof(AssemblyReferenceJson))]
-[JsonSerializable(typeof(AssemblyReferenceJson[]))]
+[JsonSerializable(typeof(AssemblyIdentity))]
+[JsonSerializable(typeof(AssemblyIdentity[]))]
 [JsonSerializable(typeof(DirectoryIssue))]
 [JsonSerializable(typeof(DirectoryIssue[]))]
 [JsonSerializable(typeof(IssueEvidence))]

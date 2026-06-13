@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using PeFix.Meta;
 
 namespace PeFix.Cli;
 
@@ -25,8 +26,8 @@ internal sealed record InspectJson(
     [property: JsonPropertyName("target_framework")] string? Tfm,
     [property: JsonPropertyName("meta_version")] string? MetaVersion,
     [property: JsonPropertyName("os_platforms")] string[]? OsPlatforms,
-    [property: JsonPropertyName("assembly_refs")] AssemblyReferenceJson[]? AssemblyReferences,
-    [property: JsonPropertyName("assembly_def")] AssemblyReferenceJson? AssemblyDefinition,
+    [property: JsonPropertyName("assembly_refs")] AssemblyIdentity[]? AssemblyReferences,
+    [property: JsonPropertyName("assembly_def")] AssemblyIdentity? AssemblyDefinition,
     [property: JsonPropertyName("bepinex")] BepInExJson? BepInEx = null,
     [property: JsonPropertyName("has_r2r")] bool? HasR2R = null,
     [property: JsonPropertyName("is_trimmable")] bool? IsTrimmable = null,

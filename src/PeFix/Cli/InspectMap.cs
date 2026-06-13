@@ -47,8 +47,8 @@ internal static class InspectMap
             result.Tfm,
             result.MetaVersion,
             result.OsPlatforms,
-            result.AssemblyReferences?.Select(r => new AssemblyReferenceJson(r.Name, r.Version)).ToArray(),
-            result.AssemblyDefinition is { } def ? new AssemblyReferenceJson(def.Name, def.Version) : null,
+            result.AssemblyReferences,
+            result.AssemblyDefinition,
             MapBepInfo(result.BepInEx, input),
             result.HasReadyToRun,
             result.IsTrimmable);
