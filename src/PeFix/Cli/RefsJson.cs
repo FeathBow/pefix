@@ -20,7 +20,7 @@ internal sealed record RefsJson(
     [property: JsonConverter(typeof(RefListConv))]
     RefFinding[] MissingTypes,
     [property: JsonPropertyName("references")] RefJson[] References,
-    [property: JsonPropertyName("issues")] ScanIssue[] Issues,
+    [property: JsonPropertyName("issues")] DirectoryIssue[] Issues,
     [property: JsonPropertyName("profiles")] ProfileJson? Profile,
     [property: JsonPropertyName("gate")] ScanGate Gate,
     [property: JsonPropertyName("baseline")]

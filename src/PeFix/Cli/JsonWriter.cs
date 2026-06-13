@@ -19,7 +19,7 @@ internal static class JsonWriter
             RefRows.Of(view.Finds, RefOutcome.Missing),
             RefRows.Of(view.Finds, RefOutcome.DuplicateProvider),
             RefRows.Of(view.Finds, RefOutcome.TypeGap),
-            [.. view.Issues.Select(MapIssue)],
+            view.Issues,
             MapProfile(json.Profile),
             json.Gate,
             baseline);
@@ -117,7 +117,7 @@ internal static class JsonWriter
             RefRows.Of(view.Finds, RefOutcome.DuplicateProvider),
             RefRows.Of(view.Finds, RefOutcome.TypeGap),
             MapReferences(view.Directory, references),
-            [.. view.Issues.Select(MapIssue)],
+            view.Issues,
             MapProfile(json.Profile),
             json.Gate,
             baseline);
@@ -181,22 +181,6 @@ internal static class JsonWriter
             RefStatText.Token(entry.Status),
             entry.ProviderPath is null ? null : rel.RelativePath(entry.ProviderPath),
             entry.ProviderVersion);
-    }
-
-    private static ScanIssue MapIssue(DirectoryIssue issue)
-    {
-        return new ScanIssue(
-            issue.Code,
-            issue.Subject,
-            issue.Summary,
-            issue.Files,
-            issue.NextSteps,
-            issue.RepairClass,
-            issue.RepairHint,
-            issue.VerifyCommand,
-            issue.UnverifiedRisks,
-            issue.Evidence,
-            issue.StaticCtor);
     }
 
     private static ProfileJson? MapProfile(ScanProfile? profile)
