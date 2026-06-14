@@ -7,27 +7,30 @@ public static class ClosureGraph
     public static ClosureReport Build(
         IReadOnlyList<Inspection> inspections,
         string directory,
-        HostProfile? hostProfile = null)
+        HostProfile? hostProfile = null,
+        IReadOnlySet<string>? declaredAssets = null)
     {
-        return BuildCore(inspections, directory, new GraphOpts(hostProfile, false));
+        return BuildCore(inspections, directory, new GraphOpts(hostProfile, false), declaredAssets);
     }
 
     public static ClosureReport BuildTree(
         IReadOnlyList<Inspection> inspections,
         string directory,
-        HostProfile? hostProfile = null)
+        HostProfile? hostProfile = null,
+        IReadOnlySet<string>? declaredAssets = null)
     {
-        return BuildCore(inspections, directory, new GraphOpts(hostProfile, true));
+        return BuildCore(inspections, directory, new GraphOpts(hostProfile, true), declaredAssets);
     }
 
     private static ClosureReport BuildCore(
         IReadOnlyList<Inspection> inspections,
         string directory,
-        GraphOpts opts)
+        GraphOpts opts,
+        IReadOnlySet<string>? declaredAssets)
     {
         ArgumentNullException.ThrowIfNull(inspections);
 
-        WalkCtx ctx = new(DependencyIndex.Build(inspections, opts.HostProfile));
+        WalkCtx ctx = new(DependencyIndex.Build(inspections, opts.HostProfile, declaredAssets));
         List<string> entries = [];
         List<ClosureTree> tree = [];
 

@@ -4,12 +4,13 @@ public static class RefInventory
 {
     public static RefEntry[] Collect(
         IReadOnlyList<Inspection> inspections,
-        HostProfile hostProfile)
+        HostProfile hostProfile,
+        IReadOnlySet<string>? declaredAssets = null)
     {
         ArgumentNullException.ThrowIfNull(inspections);
         ArgumentNullException.ThrowIfNull(hostProfile);
 
-        var dependencies = DependencyIndex.Build(inspections, hostProfile);
+        var dependencies = DependencyIndex.Build(inspections, hostProfile, declaredAssets);
         List<RefEntry> entries = [];
         foreach (Inspection inspection in inspections)
             AddEntries(entries, inspection, dependencies);
@@ -49,6 +50,9 @@ public static class RefInventory
         AssemblyIdentity reference,
         AssemblyIdentity provider)
     {
+        if (DependencyIndex.IsVersionNeutral(reference.Version))
+            return RefStatus.Present;
+
         return string.Equals(reference.Version, provider.Version, StringComparison.Ordinal)
             ? RefStatus.Present
             : RefStatus.VersionConflict;

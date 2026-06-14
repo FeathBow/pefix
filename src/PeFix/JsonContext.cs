@@ -33,6 +33,7 @@ namespace PeFix;
 [JsonSerializable(typeof(SignalsJson))]
 [JsonSerializable(typeof(AssemblyIdentity))]
 [JsonSerializable(typeof(AssemblyIdentity[]))]
+[JsonSerializable(typeof(DepsJson))]
 [JsonSerializable(typeof(DirectoryIssue))]
 [JsonSerializable(typeof(DirectoryIssue[]))]
 [JsonSerializable(typeof(IssueEvidence))]

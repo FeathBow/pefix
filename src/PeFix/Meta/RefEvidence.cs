@@ -24,7 +24,7 @@ public static class RefEvidence
         ArgumentNullException.ThrowIfNull(hostProfile);
 
         RefFinding[] staticFindings = Collect(report.Gaps, publishDirProfile);
-        ReflScan reflection = ReflScanner.Scan(report.Results, hostProfile);
+        ReflScan reflection = ReflScanner.Scan(report.Results, hostProfile, report.DeclaredAssets);
         return [.. staticFindings, .. MapReflection(reflection, publishDirProfile)];
     }
 

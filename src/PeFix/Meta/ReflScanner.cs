@@ -15,12 +15,13 @@ internal static partial class ReflScanner
 
     public static ReflScan Scan(
         IReadOnlyList<Inspection> inspections,
-        HostProfile hostProfile)
+        HostProfile hostProfile,
+        IReadOnlySet<string>? declaredAssets = null)
     {
         ArgumentNullException.ThrowIfNull(inspections);
         ArgumentNullException.ThrowIfNull(hostProfile);
 
-        var dependencies = DependencyIndex.Build(inspections, hostProfile);
+        var dependencies = DependencyIndex.Build(inspections, hostProfile, declaredAssets);
         var references = new List<ReflRef>();
         bool hasResolver = false;
         int desyncCount = 0;

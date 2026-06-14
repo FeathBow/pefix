@@ -27,6 +27,19 @@ public sealed class RefInventoryTests
         AssertEntry(entries, "System.Runtime", RefStatus.HostProvided, null, null);
     }
 
+    [Fact]
+    public void Collect_TreatsZeroVersionFacadeRefAsPresent()
+    {
+        // A v0.0.0.0 reference is version-neutral; the inventory must report it Present,
+        // consistent with the conflict gate, not VersionConflict.
+        Inspection app = Assembly(Spec("App", "1.0.0.0", [Ref("Facade", "0.0.0.0")]));
+        Inspection facade = Assembly(Spec("Facade", "10.0.0.0", []));
+
+        RefEntry[] entries = RefInventory.Collect([app, facade], HostProfile.Default);
+
+        AssertEntry(entries, "Facade", RefStatus.Present, "/Facade.dll", "10.0.0.0");
+    }
+
     private static void AssertEntry(
         RefEntry[] entries,
         string name,

@@ -127,6 +127,20 @@ public sealed class ClosureTests
         Assert.Equal("Missing", chain.Segments[^1].AssemblyName);
     }
 
+    [Fact]
+    public void DeclaredAssets_SuppressSharedFrameworkLeafAsProvided()
+    {
+        // deps.json declares only the app's own asset {App}; a reference outside that set
+        // is shared-framework provided, so it is a Provided leaf, not Unresolved.
+        Inspection app = Make("App", "1.0", [Identity("Microsoft.AspNetCore.Routing", "10.0.0.0")]);
+        HashSet<string> declared = new(StringComparer.OrdinalIgnoreCase) { "App" };
+
+        ClosureReport report = ClosureGraph.Build([app], "/test", null, declared);
+
+        Assert.Empty(report.Unresolved);
+        Assert.Equal(1, report.ProvidedLeaves.Total);
+    }
+
     private static Inspection Make(string name, string ver, AssemblyIdentity[] references)
     {
         return new Inspection(

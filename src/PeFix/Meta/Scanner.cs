@@ -5,8 +5,9 @@ public static class Scanner
     public static ScanReport Scan(string path, HostProfile? hostProfile = null)
     {
         DirectoryInspection dir = InspectDir(path);
-        var dependencies = DependencyIndex.Build(dir.Results, hostProfile);
-        return new ScanReport(dir.Directory, dir.Results, FindGaps(dir.Results, dependencies, dir.Directory));
+        IReadOnlySet<string>? declaredAssets = DepsReader.ReadDeclaredAssets(dir.Directory);
+        var dependencies = DependencyIndex.Build(dir.Results, hostProfile, declaredAssets);
+        return new ScanReport(dir.Directory, dir.Results, FindGaps(dir.Results, dependencies, dir.Directory), declaredAssets);
     }
 
     internal static GapSet FindGaps(

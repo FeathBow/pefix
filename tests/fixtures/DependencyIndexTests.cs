@@ -86,6 +86,41 @@ public sealed class DependencyIndexTests
         Assert.Equal(["/A/Lib.dll", "/B/Lib.dll"], duplicateProvider.Files);
     }
 
+    [Fact]
+    public void Missing_SuppressesSharedFrameworkRefsViaDeclaredAssets()
+    {
+        // deps.json declares the application's own runtime assets {App, Lib, Restored}.
+        // A reference outside that set is shared-framework provided (not missing); a
+        // declared asset absent from the folder is the genuine missing case.
+        Inspection app = Make("App", "1.0.0.0", [
+            Identity("Lib", "1.0.0.0"),
+            Identity("Microsoft.AspNetCore.Routing", "10.0.0.0"),
+            Identity("Restored", "2.0.0.0"),
+        ], "/App.dll");
+        Inspection lib = Make("Lib", "1.0.0.0", [], "/Lib.dll");
+        HashSet<string> declared = new(StringComparer.OrdinalIgnoreCase) { "App", "Lib", "Restored" };
+
+        MissingReference[] missing = DependencyIndex
+            .Build([app, lib], hostProfile: null, declaredAssets: declared)
+            .FindMissingReferences([app, lib]);
+
+        MissingReference item = Assert.Single(missing);
+        Assert.Equal("Restored", item.ReferenceName);
+    }
+
+    [Fact]
+    public void Conflicts_IgnoreZeroVersionFacadeReferences()
+    {
+        // A v0.0.0.0 reference (assembly facade / type-forward shim) is version-neutral
+        // and must not conflict with the concrete in-folder provider it binds to.
+        Inspection facade = Make("Facade", "10.0.0.0", [Identity("Real", "0.0.0.0")], "/Facade.dll");
+        Inspection real = Make("Real", "10.0.0.0", [], "/Real.dll");
+
+        VersionConflict[] conflicts = DependencyIndex.Build([facade, real]).FindConflicts([facade, real]);
+
+        Assert.Empty(conflicts);
+    }
+
     private static Inspection Make(string name, string version, AssemblyIdentity[] references, string? path = null)
     {
         return new Inspection(

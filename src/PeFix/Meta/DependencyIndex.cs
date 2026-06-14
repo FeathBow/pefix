@@ -4,14 +4,22 @@ internal sealed class DependencyIndex
 {
     private readonly Dictionary<string, Inspection> _providers;
     private readonly HostProfile _hostProfile;
+    private readonly IReadOnlySet<string>? _declaredAssets;
 
-    private DependencyIndex(Dictionary<string, Inspection> providers, HostProfile hostProfile)
+    private DependencyIndex(
+        Dictionary<string, Inspection> providers,
+        HostProfile hostProfile,
+        IReadOnlySet<string>? declaredAssets)
     {
         _providers = providers;
         _hostProfile = hostProfile;
+        _declaredAssets = declaredAssets;
     }
 
-    public static DependencyIndex Build(IReadOnlyList<Inspection> inspections, HostProfile? hostProfile = null)
+    public static DependencyIndex Build(
+        IReadOnlyList<Inspection> inspections,
+        HostProfile? hostProfile = null,
+        IReadOnlySet<string>? declaredAssets = null)
     {
         ArgumentNullException.ThrowIfNull(inspections);
         hostProfile ??= HostProfile.Default;
@@ -23,7 +31,7 @@ internal sealed class DependencyIndex
                 providers.TryAdd(inspection.AssemblyDefinition.Value.Name, inspection);
         }
 
-        return new DependencyIndex(providers, hostProfile);
+        return new DependencyIndex(providers, hostProfile, declaredAssets);
     }
 
     public bool TryGetProvider(string name, out Inspection inspection)
@@ -49,7 +57,29 @@ internal sealed class DependencyIndex
         return true;
     }
 
-    public ProvidedKind ClassifyProvided(string name) => RefFilter.Classify(name, _hostProfile);
+    public ProvidedKind ClassifyProvided(string name)
+    {
+        ProvidedKind byName = RefFilter.Classify(name, _hostProfile);
+        if (byName != ProvidedKind.None)
+            return byName;
+
+        // A reference absent from the deps.json runtime-asset set is resolved from a
+        // shared framework, i.e. externally provided.
+        if (_declaredAssets is not null && !_declaredAssets.Contains(name))
+            return ProvidedKind.Framework;
+
+        return ProvidedKind.None;
+    }
+
+    // A v0.0.0.0 reference is version-neutral: facades and type-forward shims emit it and
+    // bind to whatever version ships, so it is never a real conflict.
+    public static bool IsVersionNeutral(string version) =>
+        string.Equals(version, "0.0.0.0", StringComparison.Ordinal);
+
+    // runtimes/<rid>/ holds RID-specific NuGet assets; the host loads only the matching
+    // RID, so root-vs-runtimes and cross-RID copies are not duplicate providers.
+    private static bool IsRidSpecific(string path) =>
+        path.Replace('\\', '/').Contains("/runtimes/", StringComparison.OrdinalIgnoreCase);
 
     public VersionConflict[] FindConflicts(IReadOnlyList<Inspection> inspections)
     {
@@ -65,6 +95,9 @@ internal sealed class DependencyIndex
                 // a binding outcome. This mirrors FindMissingReferences, which also
                 // skips provided leaves, and avoids false conflicts on real games.
                 if (ClassifyProvided(referenceIdentity.Name) != ProvidedKind.None)
+                    continue;
+
+                if (IsVersionNeutral(referenceIdentity.Version))
                     continue;
 
                 if (!TryGetProvider(referenceIdentity.Name, out Inspection provider))
@@ -113,7 +146,7 @@ internal sealed class DependencyIndex
         ArgumentNullException.ThrowIfNull(inspections);
 
         Dictionary<string, List<string>> found = new(StringComparer.OrdinalIgnoreCase);
-        foreach (Inspection item in inspections.Where(item => item.AssemblyDefinition.HasValue))
+        foreach (Inspection item in inspections.Where(item => item.AssemblyDefinition.HasValue && !IsRidSpecific(item.Path)))
         {
             string assemblyName = item.AssemblyDefinition!.Value.Name;
             if (!found.TryGetValue(assemblyName, out List<string>? files))
