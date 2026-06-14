@@ -13,7 +13,7 @@ internal static class RootCmd
     public static RootCommand Create()
     {
         var command = new RootCommand(
-            "pefix is a single-binary CLI that diagnoses and (selectively) repairs .NET assembly portability and load-failure issues.\n\n"
+            "pefix is a single-binary CLI that runs a zero-false-positive static loadability preflight over folders of .NET assemblies (publish, plugin, Unity/BepInEx) and selectively repairs PE-header portability in place.\n\n"
             + "Run `pefix <verb> --help` for verb-specific options.\n\n"
             + "Exit codes:\n"
             + "  0  Success or no gate triggered\n"

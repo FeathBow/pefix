@@ -7,7 +7,7 @@ internal static class ScanCmd
     internal static Command Create()
     {
         var opts = new OptSet();
-        var cmd = new Command("scan", "Scans a directory of managed assemblies for portability and integrity issues.");
+        var cmd = new Command("scan", "Scans a folder of managed assemblies for loadability and dependency issues.");
         opts.AddTo(cmd);
         cmd.SetAction(r => (int)Scan.Run(new Scan.ScanArgs
         {
