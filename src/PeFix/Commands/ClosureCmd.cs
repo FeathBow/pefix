@@ -15,9 +15,10 @@ internal static class ClosureCmd
             bool json = r.GetValue(RootCmd.JsonOpt);
             bool fail = r.GetValue(opts.MissingOpt);
             bool orphans = r.GetValue(opts.OrphansOpt);
+            bool dgml = r.GetValue(opts.DgmlOpt);
             return (int)(r.GetValue(opts.TreeOpt)
-                ? Closure.RunTree(path, json, fail, orphans)
-                : Closure.Run(path, json, fail, orphans));
+                ? Closure.RunTree(path, json, fail, orphans, dgml)
+                : Closure.Run(path, json, fail, orphans, dgml));
         });
         return cmd;
     }
@@ -44,12 +45,18 @@ internal static class ClosureCmd
             Description = "List managed assemblies that no other scanned assembly references. Advisory output for trimming deployment folders; entry points, BepInEx plugins, satellite assemblies, and reflection-named assemblies are not listed."
         };
 
+        public Option<bool> DgmlOpt { get; } = new("--dgml")
+        {
+            Description = "Emit the dependency graph as DGML (Directed Graph Markup Language) to stdout, viewable in Visual Studio. Implies the full tree."
+        };
+
         public void AddTo(Command cmd)
         {
             cmd.Arguments.Add(PathArg);
             cmd.Options.Add(MissingOpt);
             cmd.Options.Add(TreeOpt);
             cmd.Options.Add(OrphansOpt);
+            cmd.Options.Add(DgmlOpt);
         }
     }
 }

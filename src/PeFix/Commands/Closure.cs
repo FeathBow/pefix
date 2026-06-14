@@ -5,14 +5,14 @@ namespace PeFix.Commands;
 
 internal static class Closure
 {
-    internal static CliExit Run(string path, bool json, bool failOnMissing, bool orphans = false)
+    internal static CliExit Run(string path, bool json, bool failOnMissing, bool orphans = false, bool dgml = false)
     {
-        return RunCore(path, json, new RunOpts(failOnMissing, false, orphans));
+        return RunCore(path, json, new RunOpts(failOnMissing, false, orphans, dgml));
     }
 
-    internal static CliExit RunTree(string path, bool json, bool failOnMissing, bool orphans = false)
+    internal static CliExit RunTree(string path, bool json, bool failOnMissing, bool orphans = false, bool dgml = false)
     {
-        return RunCore(path, json, new RunOpts(failOnMissing, true, orphans));
+        return RunCore(path, json, new RunOpts(failOnMissing, true, orphans, dgml));
     }
 
     private static CliExit RunCore(string path, bool json, RunOpts opts)
@@ -36,14 +36,19 @@ internal static class Closure
             return CliErr.Io(ex);
         }
 
-        ClosureReport closure = opts.Tree
-            ? ClosureGraph.BuildTree(dir.Results, dir.Directory)
-            : ClosureGraph.Build(dir.Results, dir.Directory);
+        IReadOnlySet<string>? declaredAssets = DepsReader.ReadDeclaredAssets(dir.Directory);
+        ClosureReport closure = opts.Tree || opts.Dgml
+            ? ClosureGraph.BuildTree(dir.Results, dir.Directory, null, declaredAssets)
+            : ClosureGraph.Build(dir.Results, dir.Directory, null, declaredAssets);
 
         if (opts.Orphans)
             closure = closure with { Orphans = OrphanScan.FindOrphans(dir.Results) };
 
-        if (json)
+        if (opts.Dgml)
+        {
+            Console.WriteLine(DgmlWriter.Render(closure));
+        }
+        else if (json)
         {
             JsonOut.Write(JsonWriter.Render(closure));
         }
@@ -58,5 +63,5 @@ internal static class Closure
         return CliExit.Success;
     }
 
-    private readonly record struct RunOpts(bool Fail, bool Tree, bool Orphans);
+    private readonly record struct RunOpts(bool Fail, bool Tree, bool Orphans, bool Dgml);
 }
