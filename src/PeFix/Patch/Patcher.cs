@@ -45,7 +45,9 @@ public static class Patcher
             return;
         }
 
-        if (before.Status == Status.Cautioned)
+        // Only NonPortable is forceable (CanForcePatch), so only it gets the strong-name
+        // --force prompt; other cautioned reasons fall through to the accurate message.
+        if (before.Status == Status.Cautioned && string.Equals(before.ReasonCode, ReasonCode.NonPortable, StringComparison.Ordinal))
         {
             throw new UnsafeException("This assembly requires --force because patching may invalidate the strong name signature or leave native dependencies unresolved.");
         }

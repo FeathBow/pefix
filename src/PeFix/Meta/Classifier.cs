@@ -17,9 +17,11 @@ internal static class Classifier
         if (snapshot.IsSatellite) return CreateSat(snapshot);
         if (snapshot.HasNest) return CreateNest(snapshot);
         if (snapshot.HasRefs) return CreateMulti(snapshot);
+        // ReadyToRun also clears the IL-only flag, so it must be checked before
+        // mixed-mode; ReadR2R magic-validates the header, genuine C++/CLI has none.
+        if (snapshot.ReadyToRun.HasValue) return CreateR2R(snapshot);
         if (snapshot.Signals.IsMixedMode) return CreateMixed(snapshot);
         if (IsLegacyTfm(snapshot.Tfm)) return CreateTfmBad(snapshot);
-        if (snapshot.ReadyToRun.HasValue) return CreateR2R(snapshot);
         if (snapshot.IsTrimmable) return CreateTrim(snapshot);
         if (snapshot.IsBundle) return CreateBundle(snapshot);
         if (snapshot.OsPlatforms is { Length: > 0 }) return CreateOsApi(snapshot);
@@ -108,12 +110,14 @@ internal static class Classifier
 
     private static Inspection CreateNative(PeSnapshot snapshot)
     {
+        // A native binary is an expected deployment dependency (P/Invoke target, NuGet
+        // native asset), not a managed-loadability failure, so it is cautioned, not blocking.
         return From(snapshot, new Verdict(
             Category.NativeBinary,
-            Status.Unsafe,
+            Status.Cautioned,
             ReasonCode.NativeBinary,
-            "This PE file does not contain a CLI header.",
-            ["This is not a .NET assembly. It is a native executable or DLL. PE header rewriting does not apply."])
+            "This is a native binary, not a .NET assembly, so header rewriting does not apply.",
+            ["No action needed."])
         {
             HasCliHeader = false
         });
@@ -236,7 +240,7 @@ internal static class Classifier
             Status.Compatible,
             ReasonCode.Portable,
             "This assembly already uses a portable IL-only AnyCPU header.",
-            ["No action needed. This assembly is already portable."])
+            ["No action needed."])
         {
             WithLoadReqs = true,
             WithPInvoke = true

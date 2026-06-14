@@ -125,13 +125,8 @@ internal static class ImplAnalyzer
 
     private static bool HasChainMember(ImplUse use, MemberShape shape)
     {
-        foreach (TypeSurface surface in use.Chain)
-        {
-            if (surface.ContainsMember(shape))
-                return true;
-        }
-
-        return use.NestedShapes is { } nested && nested.Contains(shape);
+        return use.Chain.Any(surface => surface.ContainsMember(shape))
+            || (use.NestedShapes is { } nested && nested.Contains(shape));
     }
 
     private static HashSet<string> CollectDimKeys(ImplUse use, DependencyIndex dependencies)
@@ -163,7 +158,7 @@ internal static class ImplAnalyzer
     {
         TypeAttributes attrs = typeDef.Attributes;
         return (attrs & TypeAttributes.ClassSemanticsMask) != TypeAttributes.Interface
-            && (attrs & TypeAttributes.Abstract) == 0;
+            && !attrs.HasFlag(TypeAttributes.Abstract);
     }
 
     private static IfaceRef[] ReadInterfaces(MetadataReader reader, TypeDefinition typeDef)

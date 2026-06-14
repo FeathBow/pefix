@@ -160,7 +160,7 @@ internal static partial class MemberSurfaceAnalyzer
         {
             MethodDefinition method = reader.GetMethodDefinition(methodHandle);
             MethodAttributes attrs = method.Attributes;
-            if ((attrs & MethodAttributes.Abstract) == 0 || (attrs & MethodAttributes.Static) != 0)
+            if (!attrs.HasFlag(MethodAttributes.Abstract) || attrs.HasFlag(MethodAttributes.Static))
                 continue;
 
             if (TryDecodeParamCount(method, out int paramCount))
@@ -207,20 +207,6 @@ internal static partial class MemberSurfaceAnalyzer
         }
 
         return members;
-    }
-
-    private static HashSet<string> ReadFields(
-        MetadataReader reader,
-        TypeDefinition typeDef)
-    {
-        HashSet<string> fields = new(StringComparer.Ordinal);
-        foreach (FieldDefinitionHandle fieldHandle in typeDef.GetFields())
-        {
-            FieldDefinition field = reader.GetFieldDefinition(fieldHandle);
-            fields.Add(reader.GetString(field.Name));
-        }
-
-        return fields;
     }
 
     private static bool TryReadMethodRef(

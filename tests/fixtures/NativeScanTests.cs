@@ -22,6 +22,11 @@ public sealed class NativeScanTests : IDisposable
         Assert.True(NativeScan.IsSystemModule("USER32.dll"));
         Assert.True(NativeScan.IsSystemModule("libc"));
         Assert.True(NativeScan.IsSystemModule("api-ms-win-core-file-l1-1-0.dll"));
+        // Runtime-internal (QCall), Windows OS (httpapi), and IIS hosting
+        // (aspnetcorev2_inprocess) targets are environment-provided, not folder deps.
+        Assert.True(NativeScan.IsSystemModule("qcall"));
+        Assert.True(NativeScan.IsSystemModule("httpapi.dll"));
+        Assert.True(NativeScan.IsSystemModule("aspnetcorev2_inprocess.dll"));
         Assert.False(NativeScan.IsSystemModule("gameplaynative"));
     }
 
@@ -36,6 +41,27 @@ public sealed class NativeScanTests : IDisposable
         NativeGap gap = Assert.Single(gaps);
         Assert.Equal("absent", gap.ModuleName);
         Assert.Null(gap.PresentPath);
+    }
+
+    [Fact]
+    public void IsAbsolutePath_DetectsOsLocatedTargets()
+    {
+        Assert.True(NativeScan.IsAbsolutePath("/System/Library/Frameworks/Network.framework/Network"));
+        Assert.True(NativeScan.IsAbsolutePath("/usr/lib/libproc.dylib"));
+        Assert.True(NativeScan.IsAbsolutePath(@"C:\Windows\System32\httpapi.dll"));
+        Assert.False(NativeScan.IsAbsolutePath("gameplaynative"));
+        Assert.False(NativeScan.IsAbsolutePath("libfoo.dylib"));
+    }
+
+    [Fact]
+    public void FindNativeGaps_IgnoresAbsoluteOsPaths()
+    {
+        Inspection consumer = Consumer("/d/app.dll", ["/usr/lib/libproc.dylib", "absent"]);
+
+        NativeGap[] gaps = NativeScan.FindNativeGaps([consumer], _temp.DirPath);
+
+        NativeGap gap = Assert.Single(gaps);
+        Assert.Equal("absent", gap.ModuleName);
     }
 
     [Fact]

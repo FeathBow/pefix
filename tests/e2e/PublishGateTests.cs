@@ -31,6 +31,18 @@ public sealed class PublishGateTests : IDisposable
     }
 
     [Fact]
+    public void Scan_FailOnIssue_DoesNotBlockOnNativeBinaryDependency()
+    {
+        // A native binary (P/Invoke target / NuGet runtimes native asset) alongside a
+        // managed assembly is an expected dependency, not a gate failure.
+        _temp.CopyAll("F01_compatible_anycpu.dll", "F07_native_pe.dll");
+
+        CliResult result = CliRunner.Run("scan", _temp.DirPath, "--profile", "publish-dir", "--fail-on-issue");
+
+        Assert.Equal(0, result.ExitCode);
+    }
+
+    [Fact]
     public void Scan_FailOnIssue_ExitsNonZeroForReferenceAssembly()
     {
         _temp.CopyAll("F05_reference_assembly.dll");

@@ -12,7 +12,7 @@ public sealed class ClassTests
     [InlineData("F04_x64_pinvoke.dll", Category.Portability, Status.Cautioned)]
     [InlineData("F05_reference_assembly.dll", Category.RefAssembly, Status.Unsafe)]
     [InlineData("F06_mixed_mode.dll", Category.MixedMode, Status.Unsafe)]
-    [InlineData("F07_native_pe.dll", Category.NativeBinary, Status.Unsafe)]
+    [InlineData("F07_native_pe.dll", Category.NativeBinary, Status.Cautioned)]
     public void Inspect_Map(string fixture, Category category, Status status)
     {
         var result = PeAnalyzer.Inspect(Paths.Get(fixture));

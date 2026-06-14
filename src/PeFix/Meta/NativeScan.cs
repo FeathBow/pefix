@@ -6,12 +6,12 @@ internal static class NativeScan
 
     private static readonly HashSet<string> SystemModules = new(StringComparer.OrdinalIgnoreCase)
     {
-        "advapi32", "bcrypt", "c", "cfgmgr32", "comctl32", "comdlg32", "coreclr",
+        "advapi32", "aspnetcorev2_inprocess", "bcrypt", "c", "cfgmgr32", "comctl32", "comdlg32", "coreclr",
         "CoreFoundation", "credui", "crypt32", "d3d11", "dbghelp", "dinput8", "dl",
-        "dsound", "dwmapi", "dxgi", "gdi32", "glu32", "hid", "hostfxr", "hostpolicy",
+        "dsound", "dwmapi", "dxgi", "gdi32", "glu32", "hid", "hostfxr", "hostpolicy", "httpapi",
         "imm32", "iphlpapi", "kernel32", "kernelbase", "m", "mscoree", "msvcrt",
         "ncrypt", "netapi32", "ntdll", "objc", "ole32", "oleaut32", "opengl32",
-        "pdh", "powrprof", "propsys", "psapi", "pthread", "rpcrt4", "rt", "secur32",
+        "pdh", "powrprof", "propsys", "psapi", "pthread", "qcall", "rpcrt4", "rt", "secur32",
         "Security", "setupapi", "shcore", "shell32", "shlwapi", "System", "ucrtbase",
         "user32", "userenv", "uxtheme", "version", "winhttp", "wininet", "winmm",
         "winspool", "wintrust", "winusb", "wlanapi", "ws2_32", "wtsapi32", "__Internal"
@@ -45,14 +45,9 @@ internal static class NativeScan
     internal static string ModuleKey(string name)
     {
         string baseName = Path.GetFileName(name);
-        foreach (string extension in LibExtensions)
-        {
-            if (baseName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
-            {
-                baseName = baseName[..^extension.Length];
-                break;
-            }
-        }
+        string? extension = LibExtensions.FirstOrDefault(ext => baseName.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
+        if (extension is not null)
+            baseName = baseName[..^extension.Length];
 
         if (baseName.StartsWith("lib", StringComparison.OrdinalIgnoreCase) && baseName.Length > 3)
             baseName = baseName[3..];
@@ -70,6 +65,15 @@ internal static class NativeScan
         return SystemModules.Contains(ModuleKey(module));
     }
 
+    // An absolute-path P/Invoke target names a fixed OS/system location, not a folder dep.
+    internal static bool IsAbsolutePath(string module)
+    {
+        ArgumentNullException.ThrowIfNull(module);
+        return module.StartsWith('/')
+            || module.StartsWith('\\')
+            || (module.Length >= 2 && char.IsAsciiLetter(module[0]) && module[1] == ':');
+    }
+
     private static void AddModuleGap(
         List<NativeGap> gaps,
         string module,
@@ -77,7 +81,7 @@ internal static class NativeScan
         Dictionary<string, string> filesByKey,
         Dictionary<string, Inspection> nativeByPath)
     {
-        if (IsSystemModule(module))
+        if (IsSystemModule(module) || IsAbsolutePath(module))
             return;
 
         if (!filesByKey.TryGetValue(ModuleKey(module), out string? presentPath))
