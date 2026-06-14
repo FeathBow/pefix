@@ -13,7 +13,7 @@
     <PackageId>pefix</PackageId>
     <Version>1.0.0</Version>
     <Authors>FeathBow</Authors>
-    <Description>Diagnose and fix PE header portability for .NET assemblies.</Description>
+    <Description>Zero-false-positive static loadability preflight for .NET publish, plugin, and Unity/BepInEx folders. Catches missing references, version conflicts, missing members/types/interfaces, broken native and reflection loads, and BepInEx plugin issues before a host loads the assemblies. Single Native-AOT binary, no .NET runtime.</Description>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>pefix</ToolCommandName>
     <ToolPackageRuntimeIdentifiers>linux-x64;osx-arm64;win-x64</ToolPackageRuntimeIdentifiers>
@@ -22,7 +22,7 @@
     <RepositoryUrl>https://github.com/FeathBow/pefix</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/FeathBow/pefix</PackageProjectUrl>
-    <PackageTags>dotnet;pe;assembly;portability;cross-platform;cli</PackageTags>
+    <PackageTags>dotnet;dotnet-tool;cli;static-analysis;dependency-analysis;assembly;loadability;missing-reference;version-conflict;bepinex;unity;native-aot;ci;pe;portability</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
