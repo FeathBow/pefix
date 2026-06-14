@@ -33,7 +33,7 @@ internal static class BatchOut
             $"dry-run {result.Results.Count(item => item.DryRun)}",
             $"refused {result.Refusals.Length}"
         };
-        return $"Processed {totalCount} candidate files. {string.Join(", ", parts)}.";
+        return $"Processed {Plural.Count(totalCount, "candidate file")}. {string.Join(", ", parts)}.";
     }
 
     private static string Action(BatchResult result)

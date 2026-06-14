@@ -40,7 +40,7 @@ internal static class MetricBuild
             if (file.CanPatch)
                 hasFixable = true;
 
-            if (file.Status is Status.Unsafe or Status.Corrupt)
+            if (file.IsBlocking)
             {
                 blockingFileCount++;
                 blockingReasons.Add(file.ReasonCode);

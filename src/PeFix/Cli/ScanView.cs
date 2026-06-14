@@ -15,5 +15,5 @@ internal sealed record ScanView(
 
     public bool HasGateIssues => GateIssues.Length > 0;
 
-    public bool HasBlockingFiles => Files.Any(file => file.Status is PeFix.Meta.Status.Unsafe or PeFix.Meta.Status.Corrupt);
+    public bool HasBlockingFiles => Files.Any(file => file.IsBlocking);
 }

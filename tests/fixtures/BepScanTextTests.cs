@@ -18,11 +18,10 @@ public sealed class BepScanTextTests : IDisposable
         Assert.Contains("Issues (1):", result.Stdout);
         Assert.Contains("[bep_missing] need.hard", result.Stdout);
         Assert.Contains("repair: assisted_fix", result.Stdout);
-        Assert.Contains("verify: pefix scan <path> --json", result.Stdout);
+        Assert.Contains("Verify: pefix scan <path> --json", result.Stdout);
         Assert.True(
             result.Stdout.IndexOf("Issues", StringComparison.Ordinal) <
             result.Stdout.IndexOf("Group:", StringComparison.Ordinal));
-        Assert.Contains("BepInEx deps (1):", result.Stdout);
         Assert.Contains("test.miss requires BepInEx plugin need.hard", result.Stdout);
         Assert.Contains("Install the missing BepInEx plugin dependency", result.Stdout);
     }
@@ -39,7 +38,7 @@ public sealed class BepScanTextTests : IDisposable
         Assert.Contains("[bep_version_mismatch] need.hard", result.Stdout);
         Assert.Contains("requires BepInEx plugin need.hard >=2.0.0", result.Stdout);
         Assert.Contains("repair: assisted_fix", result.Stdout);
-        Assert.Contains("verify: pefix scan <path> --json", result.Stdout);
+        Assert.Contains("Verify: pefix scan <path> --json", result.Stdout);
     }
 
     [Fact]
@@ -54,7 +53,7 @@ public sealed class BepScanTextTests : IDisposable
         Assert.Contains("[bep_dup_guid] test.meta", result.Stdout);
         Assert.Contains("Multiple BepInEx plugins declare GUID test.meta", result.Stdout);
         Assert.Contains("repair: assisted_fix", result.Stdout);
-        Assert.Contains("verify: pefix scan <path> --json", result.Stdout);
+        Assert.Contains("Verify: pefix scan <path> --json", result.Stdout);
     }
 
     private void Copy(string name)

@@ -12,7 +12,7 @@ public sealed class InspectTests : IDisposable
     {
         var result = CliRunner.Run("inspect", Paths.Get("F01_compatible_anycpu.dll"));
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Status:         compatible", result.Stdout);
+        Assert.Contains("Status:  COMPATIBLE", result.Stdout);
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class InspectTests : IDisposable
     {
         var result = CliRunner.Run("inspect", Paths.Get("F06_mixed_mode.dll"), "--fail-on", "cautioned");
         Assert.Equal(1, result.ExitCode);
-        Assert.Contains("Status:         unsafe", result.Stdout);
+        Assert.Contains("Status:  UNSAFE", result.Stdout);
     }
 
     [Fact]

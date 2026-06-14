@@ -19,7 +19,6 @@ internal static class InspectOut
                 ("Strong Name:", FormatBool(result.Signals.StrongName)),
                 ("P/Invoke:", FormatBool(result.Signals.HasPInvoke)),
                 ("Category:", Labels.CatText(result.Category)),
-                ("Status:", Labels.StatusText(result.Status)),
             }
         ).Render();
     }

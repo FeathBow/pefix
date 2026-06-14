@@ -11,12 +11,7 @@ internal static class ScanOut
         WriteCounts(writer, view);
         WriteIssues(writer, view);
         WriteGroups(writer, view);
-        WriteConflicts(writer, view);
-        WriteMissing(writer, view);
-        WriteMissingTypes(writer, view);
-        WriteDuplicateProviders(writer, view);
         WriteReferences(writer, view, includeReferences);
-        WriteBep(writer, view);
         WriteHint(writer, view);
         return writer.ToString().TrimEnd();
     }
@@ -27,8 +22,7 @@ internal static class ScanOut
         writer.WriteLine();
         int fileNeed = view.Files.Length - view.Stats.Counts.Compatible;
         int issueCount = view.Issues.Length;
-        string issueWord = issueCount == 1 ? "directory issue" : "directory issues";
-        writer.WriteLine($"  Summary: Scanned {view.Files.Length} candidate files. {fileNeed} need attention, {issueCount} {issueWord}.");
+        writer.WriteLine($"  Summary: Scanned {Plural.Count(view.Files.Length, "candidate file")}. {fileNeed} need attention, {Plural.Count(issueCount, "directory issue")}.");
         writer.WriteLine($"  Action:  {ActionText(view)}");
     }
 
@@ -42,35 +36,39 @@ internal static class ScanOut
         writer.WriteLine();
         if (!view.HasIssues)
         {
-            string detail = view.HasBlockingFiles
-                ? "blocking file diagnostics are listed below."
-                : "none found under supported static checks.";
-            writer.WriteLine($"  Issues: {detail}");
-            writer.WriteLine("  Static Boundary: Runtime load success is not certified.");
+            string boundary = view.HasBlockingFiles
+                ? "  Static Boundary: blocking file diagnostics are listed below; runtime load success is not certified."
+                : "  Static Boundary: no supported static issue found; runtime load success is not certified.";
+            writer.WriteLine(boundary);
             return;
         }
 
         writer.WriteLine($"  Issues ({view.Issues.Length}):");
-        foreach (DirectoryIssue issue in view.Issues)
-            WriteIssue(writer, issue);
+        foreach (IGrouping<string, DirectoryIssue> group in view.Issues.GroupBy(issue => issue.Code, StringComparer.Ordinal))
+            WriteIssueGroup(writer, group);
 
+        writer.WriteLine("  Verify: pefix scan <path> --json");
         writer.WriteLine("  Static Boundary: Findings are static evidence only; runtime load success is not certified.");
         writer.WriteLine("  Exit:   scan exits 0 by default; add --fail-on-issue to fail CI on these.");
     }
 
-    private static void WriteIssue(StringWriter writer, DirectoryIssue issue)
+    private static void WriteIssueGroup(StringWriter writer, IGrouping<string, DirectoryIssue> group)
     {
-        writer.WriteLine($"    - [{issue.Code}] {issue.Subject}: {issue.Summary}");
-        writer.WriteLine($"      files: {string.Join(", ", issue.Files)}");
-        if (issue.StaticCtor)
-            writer.WriteLine("      note: static constructor: TypeInitializationException, type becomes unusable");
+        // One code shares one repair class, next steps, and risks, so they print once per
+        // group rather than once per instance; Distinct guards the rare per-issue variant.
+        foreach (DirectoryIssue issue in group)
+        {
+            writer.WriteLine($"    - [{issue.Code}] {issue.Subject}: {issue.Summary}");
+            writer.WriteLine($"      files: {string.Join(", ", issue.Files)}");
+            if (issue.StaticCtor)
+                writer.WriteLine("      note: static constructor: TypeInitializationException, type becomes unusable");
+        }
 
-        writer.WriteLine($"      repair: {issue.RepairClass}");
-        foreach (string step in issue.NextSteps)
+        writer.WriteLine($"      repair: {group.First().RepairClass}");
+        foreach (string step in group.SelectMany(issue => issue.NextSteps).Distinct(StringComparer.Ordinal))
             writer.WriteLine($"      next: {step}");
 
-        writer.WriteLine($"      verify: {issue.VerifyCommand}");
-        foreach (string risk in issue.UnverifiedRisks)
+        foreach (string risk in group.SelectMany(issue => issue.UnverifiedRisks).Distinct(StringComparer.Ordinal))
             writer.WriteLine($"      risk: {risk}");
     }
 
@@ -96,54 +94,6 @@ internal static class ScanOut
                     writer.WriteLine($"      why: {file.ReasonText}");
             }
         }
-    }
-
-    private static void WriteConflicts(StringWriter writer, ScanView view)
-    {
-        RefFinding[] rows = RefRows.Of(view.Finds, RefOutcome.VersionConflict);
-        if (rows.Length == 0)
-            return;
-
-        writer.WriteLine();
-        writer.WriteLine($"  Version Conflicts ({rows.Length}):");
-        foreach (RefFinding row in rows)
-            writer.WriteLine($"    - {row.ReferenceName}: {row.ConsumerPath} expects v{row.ExpectedVersion}, but v{row.ActualVersion} is provided by {row.ProviderPath}");
-    }
-
-    private static void WriteMissing(StringWriter writer, ScanView view)
-    {
-        RefFinding[] rows = RefRows.Of(view.Finds, RefOutcome.Missing);
-        if (rows.Length == 0)
-            return;
-
-        writer.WriteLine();
-        writer.WriteLine($"  Missing references ({rows.Length}):");
-        foreach (RefFinding row in rows)
-            writer.WriteLine($"    - {row.ReferenceName}: {row.ConsumerPath} expects v{row.ExpectedVersion}, but no provider was found");
-    }
-
-    private static void WriteDuplicateProviders(StringWriter writer, ScanView view)
-    {
-        RefFinding[] rows = RefRows.Of(view.Finds, RefOutcome.DuplicateProvider);
-        if (rows.Length == 0)
-            return;
-
-        writer.WriteLine();
-        writer.WriteLine($"  Duplicate providers ({rows.Length}):");
-        foreach (RefFinding row in rows)
-            writer.WriteLine($"    - {row.ReferenceName}: {string.Join(", ", row.ProviderPaths!)}");
-    }
-
-    private static void WriteMissingTypes(StringWriter writer, ScanView view)
-    {
-        RefFinding[] rows = RefRows.Of(view.Finds, RefOutcome.TypeGap);
-        if (rows.Length == 0)
-            return;
-
-        writer.WriteLine();
-        writer.WriteLine($"  Missing Types ({rows.Length}):");
-        foreach (RefFinding row in rows)
-            writer.WriteLine($"    - {row.ReferenceName}: type {row.TypeName} referenced by {row.ConsumerPath}, but not found in {row.ProviderPath}");
     }
 
     private static void WriteReferences(
@@ -190,19 +140,6 @@ internal static class ScanOut
             : $" provider={provider} v{entry.ProviderVersion}";
     }
 
-    private static void WriteBep(StringWriter writer, ScanView view)
-    {
-        DirectoryIssue[] issues = [.. view.Issues.Where(issue =>
-            issue.Code is IssueCode.BepMissing or IssueCode.BepCasing)];
-        if (issues.Length == 0)
-            return;
-
-        writer.WriteLine();
-        writer.WriteLine($"  BepInEx deps ({issues.Length}):");
-        foreach (DirectoryIssue issue in issues)
-            writer.WriteLine($"    - {issue.Summary}");
-    }
-
     private static void WriteHint(StringWriter writer, ScanView view)
     {
         if (view.Files.Length == 0)
@@ -231,6 +168,6 @@ internal static class ScanOut
 
         return view.Stats.HasFixable
             ? "Run pefix fix <path> --apply for entries marked fixable."
-            : "No fixable assemblies were found.";
+            : "None needed.";
     }
 }

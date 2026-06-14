@@ -58,7 +58,7 @@ public sealed class ScanViewTest
         Assert.Contains("Issues (3):", text);
         Assert.Contains("[asm_conflict] Dependency", text);
         Assert.Contains("repair: assisted_fix", text);
-        Assert.Contains("verify: pefix scan <path> --json", text);
+        Assert.Contains("Verify: pefix scan <path> --json", text);
         Assert.Contains("Static Boundary: Findings are static evidence only", text);
         Assert.True(
             text.IndexOf("Issues", StringComparison.Ordinal) <
@@ -75,8 +75,8 @@ public sealed class ScanViewTest
 
         string text = ScanOut.Render(view);
 
-        Assert.Contains("Issues: none found under supported static checks.", text);
-        Assert.Contains("Runtime load success is not certified.", text);
+        Assert.Contains("Static Boundary: no supported static issue found", text);
+        Assert.Contains("runtime load success is not certified.", text);
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public sealed class ScanViewTest
         string text = ScanOut.Render(scan.View);
 
         Assert.Contains("Action:  Resolve blocking file diagnostics below", text);
-        Assert.Contains("Issues: blocking file diagnostics are listed below.", text);
+        Assert.Contains("Static Boundary: blocking file diagnostics are listed below", text);
     }
 
     [Fact]

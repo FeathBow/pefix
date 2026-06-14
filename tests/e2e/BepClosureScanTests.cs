@@ -51,7 +51,7 @@ public sealed class BepClosureScanTests : IDisposable
         Assert.Contains("ClosureEntry.dll loads ClosureMid.dll", result.Stdout);
         Assert.Contains("ClosureDeep.dll needs ClosureMissing.dll", result.Stdout);
         Assert.Contains("repair: assisted_fix", result.Stdout);
-        Assert.Contains("verify: pefix scan <path> --json", result.Stdout);
+        Assert.Contains("Verify: pefix scan <path> --json", result.Stdout);
     }
 
     private static string BepState(JsonElement root, string fileName)

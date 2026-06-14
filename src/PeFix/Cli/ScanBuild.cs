@@ -64,7 +64,7 @@ internal static class ScanBuild
         bool includeReferences)
     {
         return includeReferences
-            ? RefInventory.Collect(report.Results, profile?.Host ?? HostProfile.Default)
+            ? RefInventory.Collect(report.Results, profile?.Host ?? HostProfile.Default, report.DeclaredAssets)
             : [];
     }
 
@@ -88,7 +88,7 @@ internal static class ScanBuild
         if (!ShouldExplainBepInEx(ctx.Profile))
             return BepInExExplainResult.Empty;
 
-        ClosureReport closure = ClosureGraph.Build(ctx.Report.Results, ctx.Report.Directory, ctx.Profile?.Host);
+        ClosureReport closure = ClosureGraph.Build(ctx.Report.Results, ctx.Report.Directory, ctx.Profile?.Host, ctx.Report.DeclaredAssets);
         return BepInExExplain.Explain(
             ctx.Report.Results,
             ctx.Rel,

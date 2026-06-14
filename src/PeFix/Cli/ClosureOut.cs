@@ -24,16 +24,14 @@ internal static class ClosureOut
         bool hasMissing = report.Unresolved.Length > 0;
         string dirName = Path.GetFileName(report.Directory);
         string status = hasMissing ? "UNRESOLVED" : "RESOLVED";
-        string summary = string.Format(
-            CultureInfo.InvariantCulture,
-            "{0} entry assemblies, {1} transitive references, {2} unresolved leaves, {3} cycles.",
-            report.Entries.Length,
-            report.RefsWalked,
-            report.Unresolved.Length,
-            report.CycleChains.Length);
+        string summary = string.Join(", ",
+            Plural.Count(report.Entries.Length, "entry assembly", "entry assemblies"),
+            Plural.Count(report.RefsWalked, "transitive reference"),
+            Plural.Count(report.Unresolved.Length, "unresolved leaf", "unresolved leaves"),
+            Plural.Count(report.CycleChains.Length, "cycle")) + ".";
         string action = hasMissing
             ? "Add the missing dependencies to the scanned directory or restore their packages."
-            : "All transitive references are accounted for; no missing dependencies detected.";
+            : "None needed.";
 
         var details = new (string, string)[]
         {

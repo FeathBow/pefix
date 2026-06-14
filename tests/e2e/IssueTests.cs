@@ -14,7 +14,7 @@ public sealed class IssueTests : IDisposable
         _temp.CopyAll("F18_missing_refs.dll");
         var result = CliRunner.Run("scan", _temp.DirPath);
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Missing references (2):", result.Stdout);
+        Assert.Contains("Issues (2):", result.Stdout);
         Assert.Contains("Dependency: F18_missing_refs.dll expects v1.0.0.0, but no provider was found", result.Stdout);
         Assert.Contains("Microsoft.Extensions.DependencyInjection: F18_missing_refs.dll expects v1.0.0.0, but no provider was found", result.Stdout);
         Assert.Contains("Install the missing managed dependency into the scanned directory", result.Stdout);
@@ -61,8 +61,8 @@ public sealed class IssueTests : IDisposable
         CopyDup();
         var result = CliRunner.Run("scan", _temp.DirPath);
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Duplicate providers (1):", result.Stdout);
-        Assert.Contains("CompatibleAnyCpu: PluginA.dll, PluginB.dll", result.Stdout);
+        Assert.Contains("Issues (1):", result.Stdout);
+        Assert.Contains("CompatibleAnyCpu: Multiple providers were found: PluginA.dll, PluginB.dll", result.Stdout);
         Assert.Contains("Remove or relocate duplicate provider copies", result.Stdout);
         Assert.DoesNotContain("All assemblies use compatible headers", result.Stdout);
     }
@@ -311,8 +311,8 @@ public sealed class IssueTests : IDisposable
         CliResult result = CliRunner.Run("scan", _temp.DirPath, "--profile", "publish-dir");
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Missing Types (1):", result.Stdout);
-        Assert.Contains("MemberProvider: type MemberProvider.Api referenced by F36_member_consumer.dll", result.Stdout);
+        Assert.Contains("Issues (1):", result.Stdout);
+        Assert.Contains("MemberProvider: Type 'MemberProvider.Api' not found in MemberProvider.dll; consumed by F36_member_consumer.dll", result.Stdout);
         Assert.Contains("[missing_type] MemberProvider", result.Stdout);
         Assert.Contains("Type 'MemberProvider.Api' not found in MemberProvider.dll", result.Stdout);
     }

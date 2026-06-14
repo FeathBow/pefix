@@ -58,7 +58,7 @@ public sealed class FixTests : IDisposable
         var result = CliRunner.Run("fix", _temp.DirPath, "--apply");
 
         Assert.Equal(1, result.ExitCode);
-        Assert.Contains("Processed 1 candidate files. Patched 0, unchanged 0, dry-run 0, refused 1.", result.Stdout);
+        Assert.Contains("Processed 1 candidate file. Patched 0, unchanged 0, dry-run 0, refused 1.", result.Stdout);
     }
 
     [Fact]

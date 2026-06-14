@@ -42,28 +42,40 @@ internal static class Scan
         ScanResult scan = ScanBuild.Build(report, args.Json, profile, args.References);
         ScanView view = scan.View;
 
-        BaselineDiff? diff = null;
-        string? baselineNote = null;
-        if (args.Baseline is { } baselinePath)
+        if (ResolveBaseline(view, args, out BaselineDiff? diff, out string? baselineNote) is { } baselineError)
+            return baselineError;
+
+        WriteOutput(scan, view, args, diff, baselineNote);
+        return Gate(args, view, diff, threshold);
+    }
+
+    private static CliExit? ResolveBaseline(ScanView view, ScanArgs args, out BaselineDiff? diff, out string? note)
+    {
+        diff = null;
+        note = null;
+        if (args.Baseline is not { } baselinePath)
+            return null;
+
+        string[] current = Baseline.Lines(view.GateIssues);
+        if (args.WriteBaseline)
         {
-            string[] current = Baseline.Lines(view.GateIssues);
-            if (args.WriteBaseline)
-            {
-                if (WriteBaselineFile(baselinePath, current) is { } error)
-                    return error;
+            if (WriteBaselineFile(baselinePath, current) is { } error)
+                return error;
 
-                baselineNote = BaselineOut.RenderWritten(baselinePath, current.Length);
-            }
-            else
-            {
-                if (!TryReadBaseline(baselinePath, out string[] known, out CliExit readError))
-                    return readError;
-
-                diff = Baseline.Diff(current, Baseline.Parse(known));
-                baselineNote = BaselineOut.Render(baselinePath, diff);
-            }
+            note = BaselineOut.RenderWritten(baselinePath, current.Length);
+            return null;
         }
 
+        if (!TryReadBaseline(baselinePath, out string[] known, out CliExit readError))
+            return readError;
+
+        diff = Baseline.Diff(current, Baseline.Parse(known));
+        note = BaselineOut.Render(baselinePath, diff);
+        return null;
+    }
+
+    private static void WriteOutput(ScanResult scan, ScanView view, ScanArgs args, BaselineDiff? diff, string? baselineNote)
+    {
         if (args.Json)
         {
             ScanParts json = scan.Json
@@ -72,16 +84,18 @@ internal static class Scan
                 ? new BaselineJson(path, d.Matched, d.Fresh, d.Stale)
                 : null;
             JsonOut.Write(JsonWriter.Render(view, json, baselineJson));
-        }
-        else
-        {
-            string text = ScanOut.Render(view, args.References);
-            if (baselineNote is not null)
-                text = $"{text}{Environment.NewLine}{Environment.NewLine}{baselineNote}";
-
-            Console.WriteLine(text);
+            return;
         }
 
+        string text = ScanOut.Render(view, args.References);
+        if (baselineNote is not null)
+            text = $"{text}{Environment.NewLine}{Environment.NewLine}{baselineNote}";
+
+        Console.WriteLine(text);
+    }
+
+    private static CliExit Gate(ScanArgs args, ScanView view, BaselineDiff? diff, Status? threshold)
+    {
         if (args.FailOnConflict && view.Stats.HasConflict)
             return CliExit.Issue;
 
