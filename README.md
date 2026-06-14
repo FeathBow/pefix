@@ -1,126 +1,141 @@
-# pefix
+<div align="center">
+  <h1>pefix</h1>
+  <p><em>Static loadability preflight for .NET publish, plugin, and Unity/BepInEx folders.</em></p>
+</div>
 
-Dependency Doctor for .NET publish outputs, plugin folders, and Unity/BepInEx mod folders, with one safe automatic header fix.
+<p align="center">
+  <a href="https://github.com/FeathBow/pefix/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/FeathBow/pefix/ci.yml?style=flat-square&label=CI" alt="CI"></a>
+  <a href="https://www.nuget.org/packages/pefix"><img src="https://img.shields.io/nuget/v/pefix?style=flat-square" alt="NuGet"></a>
+  <img src="https://img.shields.io/badge/built%20on-.NET%2010-512BD4?style=flat-square" alt="Built on .NET 10">
+  <img src="https://img.shields.io/badge/AOT-single%20native%20binary-512BD4?style=flat-square" alt="AOT single native binary">
+  <img src="https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-blue?style=flat-square" alt="Platforms Linux macOS Windows">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License: MIT"></a>
+</p>
 
-[![CI](https://github.com/FeathBow/pefix/actions/workflows/ci.yml/badge.svg)](https://github.com/FeathBow/pefix/actions/workflows/ci.yml)
-[![NuGet](https://img.shields.io/nuget/vpre/pefix.svg)](https://www.nuget.org/packages/pefix)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="#quick-start">Quick start</a> &middot;
+  <a href="#what-it-catches">What it catches</a> &middot;
+  <a href="#why-pefix">Why pefix</a> &middot;
+  <a href="#ci-gate">CI gate</a> &middot;
+  <a href="#use-with-ai-coding-agents">AI agents</a> &middot;
+  <a href="#unity--bepinex">Unity / BepInEx</a> &middot;
+  <a href="#install-from-source">Build from source</a>
+</p>
 
-`pefix` is a single-binary CLI that runs static loadability preflights over folders of .NET assemblies before a host tries to load them. It inspects PE header layout, target framework, ReadyToRun, trimming, single-file bundles, platform restrictions, mixed-mode native code, reference assemblies, managed dependency closure, duplicate providers, version conflicts, missing dependencies, missing member references, missing fields, missing types, BepInEx plugin metadata, and hard BepInEx plugin dependency rules.
+`pefix` is a single-binary CLI that runs static loadability preflights over folders of .NET assemblies before a host tries to load them. It resolves every assembly, type, member, field, and interface reference against the providers actually present in the folder, without `Assembly.Load`.
 
-The member, field, and type checks read assembly metadata statically, without calling `Assembly.Load` or `MetadataLoadContext`, so a reference to a method, field, or type that a present provider no longer ships is reported as a gate-grade `missing_member` (MissingMethodException), `missing_field` (MissingFieldException), or `missing_type` (TypeLoadException) preflight rather than a runtime crash. These checks carry zero false positives across the .NET shared framework.
+Each failure that would otherwise surface at runtime, such as a `MissingMethodException` after a package upgrade or a plugin silently skipped by its loader, is reported as a named issue with the files involved and the next step. The member, field, type, and implementation checks carry zero false positives across the .NET shared framework, so `--fail-on-issue` is safe in front of a deploy. When a publish output carries a `*.deps.json` manifest, pefix reads it so shared-framework assemblies (for example ASP.NET Core) are recognized as provided rather than reported missing, and so framework-dependent and self-contained publishes both gate cleanly.
 
-Use `publish-dir` with `--fail-on-issue` to gate a `dotnet publish` output or deployed `bin/` before a missing or wrong-kind assembly reaches runtime:
-
-    pefix scan ./publish --profile publish-dir --fail-on-issue
-
-Use `unity-bepinex` for Unity/BepInEx plugin folders:
-
-    pefix scan ./BepInEx/plugins --profile unity-bepinex
-
-The automatic rewrite contract is still only the byte-level PE header fix for pure-IL `PE32+` assemblies; dependency, loader-target, version, duplicate provider, and unresolved chain findings are assisted fixes with evidence and verification commands.
-
-Static loadability boundary: a passing report means no supported static issue was found under the selected profiles. It does not certify runtime load success, simulate BepInEx, download packages, install DLLs, or mutate mod-manager profiles.
-
-The stable integration surface is the CLI, JSON output, reason codes, issue codes, repair classes, and exit codes.
-
-## Install
-
-As a .NET global tool:
-
-    dotnet tool install -g pefix
-
-Run once with .NET 10 SDK, using the same arguments as `pefix`:
-
-    dotnet tool exec pefix -- inspect MyMod.dll
-
-Or build from source:
-
-    git clone https://github.com/FeathBow/pefix
-    cd pefix
-    dotnet publish src/PeFix/PeFix.csproj -c Release -r osx-arm64 \
-      --self-contained -p:PublishAot=true -o ./out
-
-The resulting `./out/pefix` is a self-contained native binary with no .NET runtime dependency. Replace `osx-arm64` with `linux-x64` or `win-x64` as needed.
+`pefix` runs as a `dotnet` global tool or as a self-contained native binary for macOS ARM64, Linux x64, and Windows x64 with no .NET runtime dependency. It targets modern .NET: it analyzes folders of .NET Core, .NET 5 and later, and netstandard assemblies, and Unity/BepInEx mod folders on both the Mono and IL2CPP runtimes. Because it reads metadata statically it can inspect an assembly built for any target framework, but its loadability gate models the modern .NET folder-deployment world, not the .NET Framework GAC; an assembly targeting .NET Framework (net48 and earlier) is reported as incompatible with modern .NET rather than analyzed as a Framework app.
 
 ## Quick start
 
-Inspect a single assembly:
+    dotnet tool install -g pefix
+
+Gate a publish output or deployed `bin/`:
+
+    pefix scan ./publish --profile publish-dir --fail-on-issue
+
+Check a Unity/BepInEx plugin folder:
+
+    pefix scan ./BepInEx/plugins --profile unity-bepinex
+
+A scan with issues prints:
+
+    Issues (1):
+      - [missing_member] SharedLib: Method 'Shared.Api.Foo' (2 args) not found in SharedLib.dll; consumed by PluginA.dll.
+        files: PluginA.dll, SharedLib.dll
+        repair: assisted_fix
+        next: Install provider and consumer assemblies built against the same API surface.
+        risk: Full signature compatibility, reflection usage, and runtime load success are not proven.
+      Verify: pefix scan <path> --json
+
+The `repair:` line carries one of four repair classes:
+
+| Repair class | Meaning |
+| ------------ | ------- |
+| `auto_fix` | the `pefix fix` header rewrite |
+| `guided_fix` | mutation only with explicit user intent |
+| `assisted_fix` | evidence for an external repair |
+| `diagnostic_only` | never mutates |
+
+## What it catches
+
+Gate issues fail `--fail-on-issue`; advisory issues are reported but never gate.
+
+| Issue code | Prevented runtime failure | Grade |
+| ---------- | ------------------------- | ----- |
+| `missing_ref` | FileNotFoundException at load | gate |
+| `asm_conflict` | FileLoadException from version mismatch | gate |
+| `dup_provider` | nondeterministic provider selection | gate |
+| `missing_type` | TypeLoadException | gate |
+| `missing_member` | MissingMethodException | gate |
+| `missing_field` | MissingFieldException | gate |
+| `missing_impl` | TypeLoadException from an unimplemented interface member | gate |
+| `inaccessible_member` | MemberAccessException on internal/private access | gate in `publish-dir`, advisory elsewhere |
+| `reflection_missing` | FileNotFoundException from a literal reflection load | gate in `publish-dir`, advisory elsewhere |
+| `missing_native` | DllNotFoundException or native architecture mismatch | advisory |
+| `bep_missing` | plugin skipped: hard dependency GUID absent | gate |
+| `bep_casing` | plugin skipped: dependency GUID casing mismatch | gate |
+| `bep_version_mismatch` | plugin skipped: dependency below declared version | gate |
+| `bep_dup_guid` | chainloader GUID conflict | gate |
+| `bep_loader_mismatch` | plugins built for the wrong BepInEx generation or runtime flavor | gate |
+| `bep_il2cpp_api` | PlatformNotSupportedException from System.Reflection.Emit on IL2CPP | gate |
+| `plugin_unresolved_chain` | plugin load failure deep in its dependency chain | gate |
+
+`inaccessible_member` honors `InternalsVisibleTo` and `IgnoresAccessChecksTo`. `missing_native` recognizes platform naming variants (`foo.dll`, `libfoo.so`, `libfoo.dylib`) and well-known OS libraries.
+
+## Why pefix
+
+pefix is a deploy-time gate, not a build-time check. It resolves down to the member, field, type, and interface level, not just assembly versions, so it catches a `MissingMethodException` or `TypeLoadException` that a version-only check misses. Those checks carry **zero false positives** across the .NET shared framework, so `--fail-on-issue` is safe as a hard gate in front of a deploy. And it ships as a single native binary that needs no .NET runtime, so the same gate runs in CI, in an AI agent loop, and on a locked-down or air-gapped runner.
+
+## CI gate
+
+    - name: Gate publish output
+      run: |
+        dotnet tool install -g pefix
+        pefix scan ./publish --profile publish-dir --fail-on-issue
+
+To adopt pefix on a folder with known, accepted issues, gate on new issues only:
+
+    pefix scan ./publish --profile publish-dir --baseline pefix-baseline.txt --write-baseline
+    pefix scan ./publish --profile publish-dir --baseline pefix-baseline.txt
+
+The baseline is a sorted text file of accepted issue lines (`code|subject|file`). Later scans exit `1` only when a blocking issue is not in the baseline; baselined issues are still reported, and stale entries are listed without failing the gate.
+
+Other gates: `--fail-on <status>` fails when any file reaches the given status from the status legend (`pefix scan ./mods --fail-on cautioned`), `--fail-on-conflict` fails on `asm_conflict` version conflicts, and `closure --fail-on-unresolved` fails on unresolved dependency chains. By default `scan --json` exits `0` even when integrity fails; gates are always explicit.
+
+## Use with AI coding agents
+
+`pefix` fits an agent loop. Its output is deterministic, and every issue ships machine-readable fields an agent can act on without a human: `code`, `files`, `next_steps`, `verify_command`, and `repair_class`. When an agent assembles or deploys .NET binaries it did not just compile from source (a published output, a plugin folder, a vendored `bin/`), it can verify loadability before running anything:
+
+    pefix scan ./publish --profile publish-dir --json --fail-on-issue
+
+The agent reads `gate.integrity` and `issues[]`; on a failure it follows each issue's `next_steps`, then re-runs the issue's `verify_command`. This catches what the agent's compile loop does not: a dependency missing from the deployed output, a version conflict among assembled binaries, or a member, type, or interface a present provider no longer ships (a `MissingMethodException` or `TypeLoadException` at load). For source the agent compiles itself, `dotnet build` already reports a missing member; pefix is the gate for the binary artifact the agent ships. The integration surface is the CLI plus the stable JSON contract; there is no server to run.
+
+## Unity / BepInEx
+
+Profiles tell the scan what the host provides and which loader is installed. Supported profiles: `unity-bepinex` (generation and flavor detected from the scanned tree), `unity-bepinex5`, `unity-bepinex6-mono`, `unity-bepinex6-il2cpp`, plus `dotnet-plugin` and `publish-dir` for general .NET folders.
+
+    pefix scan ./BepInEx/plugins --profile unity-bepinex6-il2cpp
+
+When `scan` sees `[BepInPlugin]` and `[BepInDependency]` metadata, it reports plugin GUIDs, helper libraries, hard dependencies, duplicate GUIDs, version mismatches, unresolved plugin `AssemblyRef` chains, and loader-target mismatches. Loader-target checks distinguish BepInEx 5 vs 6 and Mono vs IL2CPP by examining assembly references, without a BepInEx install, so the common case of valid plugins installed on the wrong loader is caught. Under an IL2CPP loader, plugins that reference `System.Reflection.Emit` are flagged before the runtime throws. Unity, BepInEx, and Harmony assemblies are treated as host-provided, so `UnityEngine.CoreModule` never appears as a missing reference.
+
+## Going deeper
+
+Inspect one assembly and fix its header:
 
     pefix inspect MyMod.dll
-
-Output:
-
-    pefix MyMod.dll
-
-      Status:  FIXABLE
-      Summary: This assembly uses a platform-specific header, but the managed code is portable and can be fixed.
-      Action:  Run: pefix fix MyMod.dll --apply
-
-      Details:
-        PE Format:      PE32+ (AMD64)
-        IL Only:        Yes
-        ...
-        Status:         fixable
-
-Preview a fix (dry-run by default):
-
-    pefix fix MyMod.dll
-
-Apply the fix:
-
-    pefix fix MyMod.dll --apply
-
-Output:
-
-    pefix MyMod.dll fix
+    pefix fix MyMod.dll          # dry-run by default
+    pefix fix MyMod.dll --apply  # writes MyMod.dll.bak first
 
       Status:  PATCHED
       Summary: PE header patched to AnyCPU.
       Action:  Backup written to MyMod.dll.bak.
 
-      Details:
-        PE Format:        PE32+ (AMD64)
-        Status Before:    not compatible
-        Status After:     compatible
-        Backup:           MyMod.dll.bak
-        Verify:           re-inspection passed
-
-Scan a directory:
-
-    pefix scan ./mods
-
-Output:
-
-    pefix mods
-
-      Summary: Scanned 3 candidate files. 2 require attention.
-      Action:  Resolve blocking file diagnostics below before attempting runtime validation.
-      Counts:  compatible: 1  fixable: 1  cautioned: 0  unsafe: 1  corrupt: 0  issues: 0
-
-      Blocking Issues: blocking file diagnostics are listed below.
-      Static Boundary: Runtime load success is not certified.
-
-      Group: portability
-        - Compatible.dll [compatible] reason=portable action=none
-        - X64OnlyManaged.dll [fixable] reason=non_portable action=fix
-          why: This assembly uses a platform-specific header, but the managed code is portable and can be fixed.
-
-      Group: ref_assembly
-        - Reference.dll [unsafe] reason=ref_assembly action=blocked
-          why: Reference assembly, not a runtime assembly.
-
-Trace transitive dependency closure:
+Trace the transitive dependency closure of a folder:
 
     pefix closure ./mods
-
-Output:
-
-    pefix mods closure
-
-      Status:  UNRESOLVED
-      Summary: 3 entry assemblies, 12 transitive references, 1 unresolved leaf, 0 cycles.
-      Action:  Add the missing dependencies to the scanned directory or restore their packages.
 
       Unresolved chains:
         PluginA.dll
@@ -128,62 +143,26 @@ Output:
             → CoreUtils.dll v1.0.0.0   [resolved]
               → GameplayNet.dll v1.0.0.0  [MISSING]
 
-Unity, BepInEx, Harmony, and other host- or loader-provided assemblies are filtered as provided leaves, so references such as `UnityEngine.CoreModule` do not appear as unresolved chains.
-
-Add `--tree` to print the full transitive dependency tree instead of only the unresolved chains; each node is tagged `[resolved]`, `[MISSING]`, `[cycle]`, or `[provided]`, and provided leaves are not expanded further. With `--json`, `--tree` adds a top-level `tree` array without changing the default closure shape:
+Add `--tree` for the full transitive tree, where every node is tagged `[resolved]`, `[MISSING]`, `[cycle]`, or `[provided]` and host- or loader-provided leaves are not expanded:
 
     pefix closure ./mods --tree
 
-Check a BepInEx plugin directory:
+      Dependency tree:
+        PluginA.dll v1.2.0.0                      [resolved]
+          → UnityEngine.CoreModule.dll v0.0.0.0   [provided]
+          → ModLib.dll v1.0.0.0                    [resolved]
+            → CoreUtils.dll v1.0.0.0               [resolved]
+              → GameplayNet.dll v1.0.0.0           [MISSING]
 
-    pefix scan ./BepInEx/plugins --profile unity-bepinex
+Add `--orphans` to list assemblies no other scanned assembly references, as a starting point for trimming over-stuffed deployment folders; entry points, BepInEx plugins, satellite assemblies, and reflection-loaded assemblies are excluded, and the listing never gates.
 
-When `scan` sees `[BepInPlugin]` and `[BepInDependency]` metadata, it reports plugin GUIDs, helper libraries, hard dependencies, duplicate plugin GUIDs, version mismatches, plugin `AssemblyRef` chains with unresolved leaves, and loader-target mismatches. Loader-target checks read BepInEx references to distinguish BepInEx 5 vs 6 and Mono vs IL2CPP; a folder that mixes incompatible plugins, or plugins that do not match a BepInEx loader present in the scanned tree, is reported as `bep_loader_mismatch` without requiring a BepInEx install. Blocking issues are printed before the audit groups so the report can be pasted into a support thread:
+Add `--dgml` to emit the dependency graph as DGML (Directed Graph Markup Language), the format Visual Studio opens as a dependency graph:
 
-    Blocking Issues (1):
-      - [bep_missing] need.hard: test.miss requires BepInEx plugin need.hard, but no matching plugin GUID was found.
-        files: F27_bep_miss.dll
-        repair: assisted_fix
-        next: Install the missing BepInEx plugin dependency into the scanned plugins directory.
-        verify: pefix scan <path> --json
-        risk: Plugin ABI compatibility and runtime chainloader success are not proven.
+    pefix closure ./mods --dgml > deps.dgml
 
-    Other supported issue codes include `bep_casing`, `bep_version_mismatch`, `bep_dup_guid`, `bep_loader_mismatch`, and `plugin_unresolved_chain`.
+Add `--references` to `scan` for a full reference inventory, and `--json` to any command for machine-readable output with stable `schema_version`, reason codes, and issue codes. Three further mutation commands are guided fixes that print exact mutation targets and never run implicitly: `snstrip` strips strong-name signing, `redir` rewrites an `AssemblyRef` version in place, and `publicize` lifts member visibility for compile-time access.
 
-To check plugins against a specific installed loader, declare it on the scan profile. This catches the common case where every plugin is valid but built for the wrong loader (for example BepInEx 5 plugins on a BepInEx 6 IL2CPP install):
-
-    pefix scan ./BepInEx/plugins --profile unity-bepinex6-il2cpp
-
-Supported Unity/BepInEx scan profiles are `unity-bepinex` (generation/flavor agnostic), `unity-bepinex5`, `unity-bepinex6-mono`, and `unity-bepinex6-il2cpp`. When the BepInEx loader assemblies are already inside the scanned tree, the generic `unity-bepinex` profile detects the generation and flavor automatically.
-
-For general .NET plugin folders and publish directories (no Unity/BepInEx), use the `dotnet-plugin` and `publish-dir` profiles. These assume only the framework is host-provided, so a reference to a non-framework assembly that is not present in the scanned tree is reported as `missing_ref`:
-
-    pefix scan ./publish --profile publish-dir --json --fail-on-issue
-
-BepInEx support is static. `pefix` does not run the game, simulate the chainloader, download packages, or install DLLs.
-
-Add `--json` to any command for machine-readable output. JSON responses include `schema_version`; file results carry stable `reason_code` values, and directory issues carry stable issue codes. By default, `scan --json` exits `0` after writing a report even when directory integrity fails; use explicit fail gates for CI.
-
-Add `--references` to `scan` to include a reference inventory. In text mode it prints grouped references; with `--json`, it adds a top-level `references` array without changing the default JSON shape.
-
-<details>
-<summary>Machine output details</summary>
-
-Embedded file results that can also be produced on their own keep their own `schema_version`, such as `scan.results[]`, `snstrip.results[]`, `fix.before`, `fix.after`, and refusal `before`. Directory scan issue codes include `missing_ref`, `missing_member`, `missing_field`, `missing_type`, `dup_provider`, `asm_conflict`, `bep_missing`, `bep_casing`, `bep_version_mismatch`, `bep_dup_guid`, `bep_loader_mismatch`, and `plugin_unresolved_chain`.
-
-- `inspect` exits `0` only for `compatible` by default; non-compatible inspection results exit `1` after printing the report. Other report commands use `0` for command execution success unless an explicit gate or refusal applies.
-- JSON `gate` reports directory integrity through `gate.integrity`, `gate.issue_count`, `gate.issue_codes`, `gate.blocking_file_count`, and `gate.blocking_file_reasons`. Directory issues and unsafe/corrupt file diagnostics both fail integrity; issue codes and file reason codes stay separate.
-- `closure --json` reports `entry_assemblies`, `unresolved_chains`, `cycle_chains`, `total_refs_walked`, `provided_leaves`, and the compatible `framework_leaves`; `provided_leaves` counts all selected Host Profile provided leaves, while `framework_leaves` keeps the previous framework-only contract. `closure --fail-on-unresolved` is the explicit process gate for unresolved leaves. `closure --tree` adds a top-level `tree` array of entry roots with recursive `children`; each node carries `assembly`, `version`, and `kind` (`resolved`, `missing`, `cycle`, or `provided`).
-- `inspect` results expose `repair_class` and `repair_hint`; scan issues add `next_steps`, `verify_command`, and `unverified_risks`. A `reflection_missing` issue raised from a static constructor carries `in_static_ctor: true`, marking it as a `TypeInitializationException` that makes the type unusable rather than a catchable per-call failure.
-- `scan --profile unity-bepinex --json` includes `profiles.host=unity-bepinex` and `profiles.artifact=plugin-folder`; per-file BepInEx states include `plugin`, `helper_library`, `blocked_missing_bep_dependency`, `blocked_guid_case_mismatch`, `blocked_bep_version_mismatch`, and `risk_unresolved_assembly_chain`.
-- `repair_class` separates automatic mutation from diagnostics: `auto_fix` is the `pefix fix` status contract, `guided_fix` requires explicit user-supplied mutation intent, `assisted_fix` emits evidence for external repair, and `diagnostic_only` never mutates artifacts.
-- ReadyToRun, trimmable, and single-file bundle findings are `diagnostic_only`; `--apply --force` does not turn them into fixes.
-- Guided-fix JSON exposes `repair_class`, `unverified_risks`, and exact mutation `targets`.
-- `snstrip.outcome` reports the command result. Single-file values include `dry_run`, `patched`, `unsigned`, and `dep_refused`; directory values include `dry_run`, `patched`, `refused`, and `unchanged`.
-- Directory `snstrip --json` reports dependency files with rewrite targets at top level through `deps_patched` and `deps`; use top-level `dry_run` / `outcome` to distinguish planned rewrites from applied rewrites.
-- For CI gates, use `--fail-on-issue` for blocking scan findings, `--fail-on <status>` for file status thresholds, `--fail-on-conflict` for version conflicts, and `closure --fail-on-unresolved` for unresolved chains.
-
-</details>
+`pefix pinvoke <path>` lists an assembly or folder's P/Invoke declarations grouped by native module (`DeclaringType.Method -> entry point`), a read-only inventory of the native imports that `missing_native` checks for presence. Add `--json` for the machine-readable form.
 
 ## Status legend
 
@@ -193,7 +172,7 @@ Every inspection produces one of five statuses:
 | ---------- | ------------------------------------------------------------- |
 | compatible | Already portable, no action needed.                           |
 | fixable    | Header can be rewritten by `pefix fix`.                       |
-| cautioned  | Requires reading `repair_class`: `non_portable` may be a guided header rewrite with `--apply --force`; ReadyToRun, trimming, and bundle findings are diagnostic-only. |
+| cautioned  | Requires reading `repair_class`: `non_portable` may be a guided header rewrite with `--apply --force`; ReadyToRun, trimming, bundle, and native-binary findings are diagnostic-only. |
 | unsafe     | Refused. Rewriting would not produce a working assembly.      |
 | corrupt    | Not a valid PE file or malformed beyond inspection.           |
 
@@ -205,7 +184,7 @@ Each result also carries a stable `reason_code` printed in text and JSON output.
 
 The rewrite is byte-level. It does not touch metadata, embedded resources, or strong-name tokens, and it does not perform `ildasm`/`ilasm` round-tripping. After the rewrite, `pefix` re-inspects the file and validates the assembly manifest before reporting success.
 
-Other mutation commands, such as `snstrip`, `redir`, and `publicize` (`publicise` alias), are Guided-fix paths only when they report mutation targets. No-op outcomes such as `snstrip.outcome=unsigned` are diagnostic-only. With fully specified CLI flags, mutating guided commands are Explicit Guided-fix paths, not part of the `fixable` status contract.
+Other mutation commands, such as `snstrip`, `redir`, and `publicize` (`publicise` alias), are guided-fix paths only when they report mutation targets. No-op outcomes such as `snstrip.outcome=unsigned` are diagnostic-only. With fully specified CLI flags, mutating guided commands are explicit guided-fix paths, not part of the `fixable` status contract.
 
 ## What it refuses
 
@@ -226,3 +205,35 @@ Direction is one-way: `pefix` rewrites `PE32+` managed headers to `PE32 I386`. A
 ## Safety
 
 Before an in-place rewrite with backups enabled, `pefix` copies the original to `MyMod.dll.bak`. Single-file writes are staged and verified before commit. Guided mutation batch writes use best-effort rollback and are not a true atomic transaction; `pefix fix <dir>` still processes files one at a time. If a `.bak` already exists, apply commands refuse rather than overwrite.
+
+## What a pass does not mean
+
+A passing report means no supported static issue was found under the selected profiles. It does not certify runtime load success, simulate the BepInEx chainloader, observe host library search paths or runtime resolvers, model the .NET Framework GAC or app.config binding redirects, download packages, install DLLs, or mutate mod-manager profiles. The automatic rewrite contract is only the byte-level PE header fix; every other finding is assisted evidence for an external repair. The stable integration surface is the CLI, JSON output, reason codes, issue codes, repair classes, and exit codes.
+
+## Install from source
+
+    git clone https://github.com/FeathBow/pefix
+    cd pefix
+    dotnet publish src/PeFix/PeFix.csproj -c Release -r osx-arm64 \
+      --self-contained -p:PublishAot=true -o ./out
+
+The resulting `./out/pefix` is a self-contained native binary with no .NET runtime dependency. Replace `osx-arm64` with `linux-x64` or `win-x64` as needed. To run once with the .NET 10 SDK instead: `dotnet tool exec pefix -- inspect MyMod.dll`.
+
+<details>
+<summary>Machine output details</summary>
+
+Embedded file results that can also be produced on their own keep their own `schema_version`, such as `scan.results[]`, `snstrip.results[]`, `fix.before`, `fix.after`, and refusal `before`. Directory scan issue codes include `missing_ref`, `missing_member`, `missing_field`, `missing_type`, `missing_impl`, `inaccessible_member`, `missing_native`, `dup_provider`, `asm_conflict`, `bep_missing`, `bep_casing`, `bep_version_mismatch`, `bep_dup_guid`, `bep_loader_mismatch`, `bep_il2cpp_api`, and `plugin_unresolved_chain`.
+
+- `inspect` exits `0` only for `compatible` by default; non-compatible inspection results exit `1` after printing the report. Other report commands use `0` for command execution success unless an explicit gate or refusal applies.
+- JSON `gate` reports directory integrity through `gate.integrity`, `gate.issue_count`, `gate.issue_codes`, `gate.blocking_file_count`, and `gate.blocking_file_reasons`. Directory issues and unsafe/corrupt file diagnostics both fail integrity; issue codes and file reason codes stay separate.
+- `closure --json` reports `entry_assemblies`, `unresolved_chains`, `cycle_chains`, `total_refs_walked`, `provided_leaves`, and the compatible `framework_leaves`; `provided_leaves` counts all selected Host Profile provided leaves, while `framework_leaves` keeps the previous framework-only contract. `closure --fail-on-unresolved` is the explicit process gate for unresolved leaves. `closure --tree` adds a top-level `tree` array of entry roots with recursive `children`; each node carries `assembly`, `version`, and `kind` (`resolved`, `missing`, `cycle`, or `provided`). `closure --orphans` adds a top-level `orphans` array of relative file paths; the listing is advisory and does not affect exit codes. `closure --dgml` writes the dependency graph as DGML to stdout instead of the text or JSON report and never gates.
+- `inspect` results expose `repair_class` and `repair_hint`; scan issues add `next_steps`, `verify_command`, and `unverified_risks`. A `reflection_missing` issue raised from a static constructor carries `in_static_ctor: true`, marking it as a `TypeInitializationException` that makes the type unusable rather than a catchable per-call failure.
+- `scan --profile unity-bepinex --json` includes `profiles.host=unity-bepinex` and `profiles.artifact=plugin-folder`; per-file BepInEx states include `plugin`, `helper_library`, `blocked_missing_bep_dependency`, `blocked_guid_case_mismatch`, `blocked_bep_version_mismatch`, and `risk_unresolved_assembly_chain`.
+- `repair_class` separates automatic mutation from diagnostics: `auto_fix` is the `pefix fix` status contract, `guided_fix` requires explicit user-supplied mutation intent, `assisted_fix` emits evidence for external repair, and `diagnostic_only` never mutates artifacts.
+- ReadyToRun, trimmable, and single-file bundle findings are `diagnostic_only`; `--apply --force` does not turn them into fixes.
+- Guided-fix JSON exposes `repair_class`, `unverified_risks`, and exact mutation `targets`.
+- `snstrip.outcome` reports the command result. Single-file values include `dry_run`, `patched`, `unsigned`, and `dep_refused`; directory values include `dry_run`, `patched`, `refused`, and `unchanged`.
+- Directory `snstrip --json` reports dependency files with rewrite targets at top level through `deps_patched` and `deps`; use top-level `dry_run` / `outcome` to distinguish planned rewrites from applied rewrites.
+- `scan --references` adds a top-level `references` array; `scan --baseline <file> --json` adds a top-level `baseline` object with `path`, `matched`, `new`, and `stale`; the gate exits `1` only when `new` is non-empty. `--write-baseline` rewrites the baseline file and does not gate. None of these change the default JSON shape.
+
+</details>
