@@ -148,3 +148,5 @@ dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1307.severity = none
 # CA1711: 'BepInEx' in test method names is the BepInEx product name, not a reserved suffix
 dotnet_diagnostic.CA1711.severity = none
+# CA1515: xunit fixtures and shared test data records are referenced across test classes, so they stay public
+dotnet_diagnostic.CA1515.severity = none
