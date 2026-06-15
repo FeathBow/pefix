@@ -96,6 +96,14 @@ pefix is a deploy-time gate, not a build-time check. It resolves down to the mem
         dotnet tool install -g pefix
         pefix scan ./publish --profile publish-dir --fail-on-issue
 
+Or use the Marketplace action, which downloads the native binary and needs no .NET SDK step:
+
+    - uses: FeathBow/pefix@v1
+      with:
+        path: ./publish
+        profile: publish-dir
+        fail-on-issue: true
+
 To adopt pefix on a folder with known, accepted issues, gate on new issues only:
 
     pefix scan ./publish --profile publish-dir --baseline pefix-baseline.txt --write-baseline
