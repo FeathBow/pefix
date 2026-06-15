@@ -1,0 +1,70 @@
+name: pefix loadability gate
+description: Static zero-false-positive loadability and dependency preflight for .NET assembly folders.
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  path:
+    description: Folder of .NET assemblies to scan (publish output, plugin folder, Unity/BepInEx plugins).
+    required: true
+  profile:
+    description: "Scan profile: publish-dir, dotnet-plugin, unity-bepinex, unity-bepinex5, unity-bepinex6-mono, unity-bepinex6-il2cpp."
+    required: false
+    default: publish-dir
+  fail-on-issue:
+    description: Exit non-zero (fail the job) on any blocking issue.
+    required: false
+    default: "true"
+  args:
+    description: Extra arguments passed verbatim to `pefix scan`.
+    required: false
+    default: ""
+  version:
+    description: pefix release to download (e.g. 1.0.1), or "latest".
+    required: false
+    default: latest
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PEFIX_PATH: ${{ inputs.path }}
+        PEFIX_PROFILE: ${{ inputs.profile }}
+        PEFIX_FAIL: ${{ inputs.fail-on-issue }}
+        PEFIX_ARGS: ${{ inputs.args }}
+        PEFIX_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        case "${RUNNER_OS}" in
+          Linux)   rid=linux-x64; ext=tar.gz; bin=pefix ;;
+          macOS)   rid=osx-arm64; ext=tar.gz; bin=pefix ;;
+          Windows) rid=win-x64;   ext=zip;    bin=pefix.exe ;;
+          *) echo "pefix-action: unsupported runner OS '${RUNNER_OS}'." >&2; exit 1 ;;
+        esac
+
+        if [ "${PEFIX_VERSION}" = "latest" ]; then
+          url="https://github.com/FeathBow/pefix/releases/latest/download/pefix-${rid}.${ext}"
+        else
+          url="https://github.com/FeathBow/pefix/releases/download/v${PEFIX_VERSION}/pefix-${rid}.${ext}"
+        fi
+
+        dir="$(mktemp -d)"
+        echo "pefix-action: downloading ${url}"
+        curl -fsSL "${url}" -o "${dir}/pefix.${ext}"
+        if [ "${ext}" = "zip" ]; then
+          unzip -q "${dir}/pefix.${ext}" -d "${dir}"
+        else
+          tar -xzf "${dir}/pefix.${ext}" -C "${dir}"
+        fi
+        chmod +x "${dir}/${bin}" 2>/dev/null || true
+
+        cmd=("${dir}/${bin}" scan "${PEFIX_PATH}")
+        [ -n "${PEFIX_PROFILE}" ] && cmd+=(--profile "${PEFIX_PROFILE}")
+        [ "${PEFIX_FAIL}" = "true" ] && cmd+=(--fail-on-issue)
+        # shellcheck disable=SC2206
+        [ -n "${PEFIX_ARGS}" ] && cmd+=(${PEFIX_ARGS})
+        echo "pefix-action: ${cmd[*]}"
+        "${cmd[@]}"
